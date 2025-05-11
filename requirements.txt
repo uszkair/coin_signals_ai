@@ -4,3 +4,5 @@ httpx
 pandas
 numpy
 ta
+apscheduler
+pytz

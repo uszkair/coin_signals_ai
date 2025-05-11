@@ -4,7 +4,6 @@ from services.indicators import (
     calculate_macd, calculate_bollinger_bands,
     calculate_stoch_rsi
 )
-from utils.telegram import send_signal_message
 
 async def get_coin_signal_multi_timeframe(symbol: str):
     # Lekérjük az 1h és a 4h adatsorokat
@@ -52,14 +51,9 @@ async def get_coin_signal_multi_timeframe(symbol: str):
     ):
         signal = "SELL"
 
+    # Signal detected (no Telegram notification)
     if signal in ("BUY", "SELL"):
-        await send_signal_message(
-            symbol=symbol,
-            price=latest_1h["close"],
-            signal=signal,
-            rsi=latest_1h["rsi"],
-            ema=latest_1h["ema20"]
-        )
+        print(f"Signal detected: {symbol} - {signal} at {latest_1h['close']}")
 
     return {
         "symbol": symbol,
