@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+
+  h1 {
+    @apply text-2xl font-bold md:text-3xl;
+  }
+
+  h2 {
+    @apply text-xl font-semibold md:text-2xl;
+  }
+
+  h3 {
+    @apply text-lg font-medium md:text-xl;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  }
+
+  .btn-buy {
+    @apply bg-buy text-white hover:bg-green-700;
+  }
+
+  .btn-sell {
+    @apply bg-sell text-white hover:bg-red-700;
+  }
+
+  .signal-buy {
+    @apply bg-buy/10 border-l-4 border-buy text-green-800;
+  }
+
+  .signal-sell {
+    @apply bg-sell/10 border-l-4 border-sell text-red-800;
+  }
+
+  .signal-hold {
+    @apply bg-hold/10 border-l-4 border-hold text-amber-800;
+  }
+}
