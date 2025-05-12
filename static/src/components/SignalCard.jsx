@@ -81,11 +81,21 @@ const SignalCard = ({ signal, onViewChart }) => {
     }
   }
   
+  // Check if symbol is a comma-separated list
+  const isMultiSymbol = symbol && symbol.includes(',');
+  
+  // Format symbol for display
+  const displaySymbol = isMultiSymbol
+    ? symbol.split(',').map(s => s.replace('USDT', '')).join(', ') + 'USDT'
+    : symbol;
+  
   return (
     <div className={`card ${getCardClass()} mb-4`}>
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center">
-          <h3 className="text-lg font-bold m-0">{symbol}</h3>
+          <h3 className="text-lg font-bold m-0 truncate max-w-[200px]" title={symbol}>
+            {displaySymbol}
+          </h3>
           <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
             {interval}
           </span>
@@ -96,10 +106,14 @@ const SignalCard = ({ signal, onViewChart }) => {
             {signalType}
           </span>
           
-          <button 
-            onClick={() => onViewChart(symbol, interval)}
+          <button
+            onClick={() => {
+              // If multiple symbols, use the first one for the chart
+              const chartSymbol = isMultiSymbol ? symbol.split(',')[0] : symbol;
+              onViewChart(chartSymbol, interval);
+            }}
             className="p-1 text-primary hover:text-primary-dark"
-            title="View Chart"
+            title={isMultiSymbol ? `View Chart (${symbol.split(',')[0]})` : "View Chart"}
           >
             <FaChartLine />
           </button>

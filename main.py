@@ -61,12 +61,14 @@ async def signal_mtf(
 
 @app.get("/api/signals")
 async def signals(
-    symbols: Optional[List[str]] = Query(None, description="List of symbols to check"),
+    symbols: Optional[str] = Query(None, description="Comma-separated list of symbols to check"),
     interval: str = Query("1h", description="Timeframe (1m, 5m, 15m, 1h, 4h, 1d)"),
     mode: str = Query("swing", description="Trading mode (scalp, swing)")
 ):
     """Get trading signals for multiple symbols"""
-    return await get_all_signals(symbols, interval, mode)
+    # Convert comma-separated string to list if provided
+    symbol_list = symbols.split(',') if symbols else None
+    return await get_all_signals(symbol_list, interval, mode)
 
 @app.get("/api/marketdata/{symbol}")
 async def marketdata(

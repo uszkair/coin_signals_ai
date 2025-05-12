@@ -184,9 +184,23 @@ async def get_all_signals(symbols=None, interval="1h", mode="swing"):
     if symbols is None:
         symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "ADAUSDT"]
     
+    # If symbols is a string (comma-separated), convert to list
+    if isinstance(symbols, str):
+        symbols = symbols.split(',')
+    
     results = []
     for symbol in symbols:
-        signal = await get_coin_signal(symbol, interval, mode)
-        results.append(signal)
+        try:
+            signal = await get_coin_signal(symbol, interval, mode)
+            results.append(signal)
+        except Exception as e:
+            print(f"Error getting signal for {symbol}: {e}")
+            # Add a placeholder signal with error information
+            results.append({
+                "symbol": symbol,
+                "interval": interval,
+                "error": str(e),
+                "signal": "HOLD"
+            })
     
     return results

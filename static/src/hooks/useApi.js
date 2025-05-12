@@ -73,11 +73,18 @@ export const useSignalMTF = (symbol, mode = 'swing') => {
  */
 export const useSignals = (symbols = null, interval = '1h', mode = 'swing') => {
   const params = { interval, mode }
-  if (symbols) {
-    params.symbols = symbols.join(',')
+  
+  // Handle multiple symbols
+  if (symbols && symbols.length > 0) {
+    // If only one symbol, use the single symbol endpoint for better data
+    if (symbols.length === 1) {
+      return useApi(`/signal/${symbols[0]}`, { interval, mode });
+    }
+    // Otherwise use the multi-symbol endpoint
+    params.symbols = symbols.join(',');
   }
   
-  return useApi('/signals', params)
+  return useApi('/signals', params);
 }
 
 /**

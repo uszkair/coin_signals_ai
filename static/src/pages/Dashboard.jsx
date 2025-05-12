@@ -214,13 +214,27 @@ const Dashboard = ({ tradingMode }) => {
                 <p className="mt-2">Loading signals...</p>
               </div>
             ) : signalsData && signalsData.length > 0 ? (
-              signalsData.map((signal, index) => (
-                <SignalCard 
-                  key={`${signal.symbol}-${index}`} 
-                  signal={signal} 
+              // If we have multiple active symbols but only one signal object,
+              // it means the backend returned a combined signal
+              activeSymbols.length > 1 && signalsData.length === 1 ? (
+                <SignalCard
+                  key="combined-signal"
+                  signal={{
+                    ...signalsData[0],
+                    symbol: activeSymbols.join(',')
+                  }}
                   onViewChart={handleViewChart}
                 />
-              ))
+              ) : (
+                // Otherwise, render each signal separately
+                signalsData.map((signal, index) => (
+                  <SignalCard
+                    key={`${signal.symbol}-${index}`}
+                    signal={signal}
+                    onViewChart={handleViewChart}
+                  />
+                ))
+              )
             ) : (
               <div className="card p-6 text-center">
                 <p>No signals available</p>
