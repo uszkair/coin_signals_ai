@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { FaSave, FaRedo, FaCog, FaBell, FaChartLine } from 'react-icons/fa'
 
-const Settings = () => {
+const Settings = ({ darkMode, setDarkMode }) => {
   const [settings, setSettings] = useState({
     // General settings
     refreshInterval: 60, // seconds
-    darkMode: false,
+    darkMode: darkMode,
     
     // Notification settings
     enableNotifications: true,
@@ -37,22 +37,30 @@ const Settings = () => {
         console.error('Error parsing saved settings:', e)
       }
     }
-    
-    // Check if dark mode is enabled in localStorage
-    const darkMode = localStorage.getItem('darkMode') === 'true'
-    setSettings(prev => ({ ...prev, darkMode }))
   }, [])
+  
+  // Update settings when darkMode prop changes
+  useEffect(() => {
+    setSettings(prev => ({ ...prev, darkMode }))
+  }, [darkMode])
   
   // Handle input change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     
+    const newValue = type === 'checkbox' ? checked :
+                     type === 'number' ? Number(value) :
+                     value
+    
     setSettings(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : 
-              type === 'number' ? Number(value) : 
-              value
+      [name]: newValue
     }))
+    
+    // Sync darkMode with App component
+    if (name === 'darkMode') {
+      setDarkMode(newValue)
+    }
     
     // Reset saved status
     setSaved(false)
@@ -249,19 +257,44 @@ const Settings = () => {
               
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="defaultTradingMode" className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-3">
                     Default Trading Mode
                   </label>
-                  <select
-                    id="defaultTradingMode"
-                    name="defaultTradingMode"
-                    value={settings.defaultTradingMode}
-                    onChange={handleChange}
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
-                  >
-                    <option value="swing">Swing Trading</option>
-                    <option value="scalp">Scalping</option>
-                  </select>
+                  <div className="flex space-x-4">
+                    <div
+                      className={`flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        settings.defaultTradingMode === 'swing'
+                          ? 'border-primary bg-primary bg-opacity-10'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      onClick={() => handleChange({ target: { name: 'defaultTradingMode', value: 'swing', type: 'text' } })}
+                    >
+                      <div className="flex items-center mb-2">
+                        <div className={`w-4 h-4 rounded-full mr-2 ${settings.defaultTradingMode === 'swing' ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                        <h3 className="font-bold text-lg">Swing Trading</h3>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Medium-term trading strategy using 1h and 4h timeframes. Suitable for less frequent trading with higher profit targets.
+                      </p>
+                    </div>
+                    
+                    <div
+                      className={`flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        settings.defaultTradingMode === 'scalp'
+                          ? 'border-danger bg-danger bg-opacity-10'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      onClick={() => handleChange({ target: { name: 'defaultTradingMode', value: 'scalp', type: 'text' } })}
+                    >
+                      <div className="flex items-center mb-2">
+                        <div className={`w-4 h-4 rounded-full mr-2 ${settings.defaultTradingMode === 'scalp' ? 'bg-danger' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                        <h3 className="font-bold text-lg">Scalping</h3>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Short-term trading strategy using 1m and 5m timeframes. Suitable for frequent trading with smaller profit targets.
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 
                 <div>

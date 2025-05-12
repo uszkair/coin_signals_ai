@@ -1,32 +1,7 @@
 import { FaBars, FaMoon, FaSun, FaExchangeAlt } from 'react-icons/fa'
 import { useState, useEffect } from 'react'
 
-const Header = ({ toggleSidebar, tradingMode, toggleTradingMode }) => {
-  const [darkMode, setDarkMode] = useState(false)
-
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode
-    setDarkMode(newDarkMode)
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('darkMode', 'true')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('darkMode', 'false')
-    }
-  }
-
-  // Initialize dark mode from localStorage
-  useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true'
-    setDarkMode(savedDarkMode)
-    
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
+const Header = ({ toggleSidebar, tradingMode, toggleTradingMode, darkMode, toggleDarkMode }) => {
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-md py-4 px-6">
@@ -46,19 +21,36 @@ const Header = ({ toggleSidebar, tradingMode, toggleTradingMode }) => {
         <div className="flex items-center space-x-4">
           {/* Trading Mode Toggle */}
           <div className="flex items-center">
-            <button
-              onClick={toggleTradingMode}
-              className={`flex items-center px-3 py-1 rounded-md ${
-                tradingMode === 'swing' 
-                  ? 'bg-primary text-white' 
-                  : 'bg-danger text-white'
-              }`}
-            >
-              <FaExchangeAlt className="mr-2" />
-              <span className="font-medium">
-                {tradingMode === 'swing' ? 'Swing Mode' : 'Scalp Mode'}
-              </span>
-            </button>
+            <div className="relative inline-block w-[160px] h-8 rounded-full bg-gray-200 dark:bg-gray-700 cursor-pointer">
+              {/* Toggle Switch */}
+              <div
+                className={`absolute top-0 bottom-0 w-1/2 rounded-full transition-all duration-300 ease-in-out ${
+                  tradingMode === 'swing'
+                    ? 'left-0 bg-primary'
+                    : 'left-1/2 bg-danger'
+                }`}
+              ></div>
+              
+              {/* Labels */}
+              <div className="absolute inset-0 flex">
+                <div
+                  className={`flex-1 flex items-center justify-center text-sm font-medium ${
+                    tradingMode === 'swing' ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                  }`}
+                  onClick={() => tradingMode !== 'swing' && toggleTradingMode()}
+                >
+                  Swing
+                </div>
+                <div
+                  className={`flex-1 flex items-center justify-center text-sm font-medium ${
+                    tradingMode === 'scalp' ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                  }`}
+                  onClick={() => tradingMode !== 'scalp' && toggleTradingMode()}
+                >
+                  Scalp
+                </div>
+              </div>
+            </div>
           </div>
           
           {/* Dark Mode Toggle */}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -9,6 +9,33 @@ import Settings from './pages/Settings'
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [tradingMode, setTradingMode] = useState('swing') // 'swing' or 'scalp'
+  const [darkMode, setDarkMode] = useState(false)
+  
+  // Initialize dark mode from localStorage or system preference
+  useEffect(() => {
+    // Check localStorage first
+    const savedDarkMode = localStorage.getItem('darkMode')
+    
+    if (savedDarkMode === 'true') {
+      setDarkMode(true)
+    } else if (savedDarkMode === 'false') {
+      setDarkMode(false)
+    } else {
+      // If no preference in localStorage, check system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      setDarkMode(prefersDark)
+      localStorage.setItem('darkMode', prefersDark ? 'true' : 'false')
+    }
+  }, [])
+  
+  // Update dark mode class on document when darkMode state changes
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [darkMode])
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
@@ -23,17 +50,31 @@ function App() {
       <Sidebar open={sidebarOpen} toggleSidebar={toggleSidebar} />
       
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header 
-          toggleSidebar={toggleSidebar} 
-          tradingMode={tradingMode} 
-          toggleTradingMode={toggleTradingMode} 
+        <Header
+          toggleSidebar={toggleSidebar}
+          tradingMode={tradingMode}
+          toggleTradingMode={toggleTradingMode}
+          darkMode={darkMode}
+          toggleDarkMode={() => {
+            const newDarkMode = !darkMode
+            setDarkMode(newDarkMode)
+            localStorage.setItem('darkMode', newDarkMode ? 'true' : 'false')
+          }}
         />
         
         <main className="flex-1 overflow-y-auto p-4">
           <Routes>
             <Route path="/" element={<Dashboard tradingMode={tradingMode} />} />
             <Route path="/history" element={<SignalHistory />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={
+              <Settings
+                darkMode={darkMode}
+                setDarkMode={(value) => {
+                  setDarkMode(value)
+                  localStorage.setItem('darkMode', value ? 'true' : 'false')
+                }}
+              />
+            } />
           </Routes>
         </main>
       </div>

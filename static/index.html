@@ -7,6 +7,17 @@
     <title>Crypto Trading Assistant</title>
     <!-- TradingView Widget Script -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- Dark mode initialization script to prevent flash -->
+    <script>
+      // Check localStorage or system preference for dark mode
+      const darkMode = localStorage.getItem('darkMode');
+      if (darkMode === 'true' || (darkMode === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
   </head>
   <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>

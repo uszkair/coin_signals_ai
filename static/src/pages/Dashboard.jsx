@@ -139,10 +139,9 @@ const Dashboard = ({ tradingMode }) => {
             {/* TradingView Chart */}
             {showChart && (
               <div className="h-[500px] w-full">
-                <TradingViewWidget 
-                  symbol={selectedSymbol} 
+                <TradingViewWidget
+                  symbol={selectedSymbol}
                   interval={selectedInterval}
-                  theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
                 />
               </div>
             )}
@@ -163,12 +162,20 @@ const Dashboard = ({ tradingMode }) => {
         {/* Right column - Signals */}
         <div className="lg:w-1/3">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold m-0">
-              Signals
-              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                {tradingMode === 'scalp' ? 'Scalping Mode' : 'Swing Mode'}
-              </span>
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold m-0">Signals</h2>
+              <div className="mt-1 flex items-center">
+                <div className={`w-3 h-3 rounded-full mr-2 ${tradingMode === 'scalp' ? 'bg-danger' : 'bg-primary'}`}></div>
+                <span className={`text-sm font-medium ${tradingMode === 'scalp' ? 'text-danger' : 'text-primary'}`}>
+                  {tradingMode === 'scalp' ? 'Scalping Mode' : 'Swing Mode'}
+                </span>
+                <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  {tradingMode === 'scalp'
+                    ? '(Short-term, 1-5m timeframes)'
+                    : '(Medium-term, 1-4h timeframes)'}
+                </div>
+              </div>
+            </div>
             
             <div className="relative group">
               <button className="btn btn-secondary py-1 px-2 flex items-center">

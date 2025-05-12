@@ -1,6 +1,33 @@
-import { useEffect, useRef, memo } from 'react'
+import { useEffect, useRef, memo, useState } from 'react'
 
-const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme = 'light' }) => {
+const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme }) => {
+  // If theme is not provided, detect from document
+  const [currentTheme, setCurrentTheme] = useState(theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light'))
+  
+  // Update theme when document class changes
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDark = document.documentElement.classList.contains('dark')
+          setCurrentTheme(isDark ? 'dark' : 'light')
+        }
+      })
+    })
+    
+    observer.observe(document.documentElement, { attributes: true })
+    
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+  
+  // Update when theme prop changes
+  useEffect(() => {
+    if (theme) {
+      setCurrentTheme(theme)
+    }
+  }, [theme])
   const containerRef = useRef(null)
   const widgetRef = useRef(null)
   
@@ -43,10 +70,10 @@ const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme = '
       symbol: formattedSymbol,
       interval: tradingViewInterval,
       timezone: 'Etc/UTC',
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: currentTheme === 'dark' ? 'dark' : 'light',
       style: '1',
       locale: 'en',
-      toolbar_bg: theme === 'dark' ? '#2A3042' : '#f1f3f6',
+      toolbar_bg: currentTheme === 'dark' ? '#2A3042' : '#f1f3f6',
       enable_publishing: false,
       hide_top_toolbar: false,
       hide_legend: false,
@@ -70,7 +97,7 @@ const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme = '
         widgetRef.current = null;
       }
     };
-  }, [symbol, interval, theme]);
+  }, [symbol, interval, currentTheme]);
   
   return (
     <div 
