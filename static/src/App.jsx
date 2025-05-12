@@ -4,6 +4,7 @@ import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import SignalHistory from './pages/SignalHistory'
+import SignalHistoryPage from './pages/SignalHistoryPage'
 import Settings from './pages/Settings'
 
 function App() {
@@ -66,6 +67,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard tradingMode={tradingMode} />} />
             <Route path="/history" element={<SignalHistory />} />
+            <Route path="/signal-history" element={<SignalHistoryPage />} />
             <Route path="/settings" element={
               <Settings
                 darkMode={darkMode}

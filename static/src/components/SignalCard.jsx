@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FaArrowUp, FaArrowDown, FaInfoCircle, FaChartLine } from 'react-icons/fa'
+import CandlestickPatternVisualizer from './CandlestickPatternVisualizer'
 
 const SignalCard = ({ signal, onViewChart }) => {
   const [showDetails, setShowDetails] = useState(false)
@@ -12,11 +13,14 @@ const SignalCard = ({ signal, onViewChart }) => {
     price, 
     rsi, 
     ema20, 
-    signal: signalType, 
-    entry, 
-    stop_loss, 
+    signal: signalType,
+    entry,
+    stop_loss,
     take_profit,
-    timestamp
+    timestamp,
+    trend,
+    pattern,
+    score
   } = signal
   
   // Format price with appropriate decimal places based on price magnitude
@@ -171,6 +175,85 @@ const SignalCard = ({ signal, onViewChart }) => {
       
       {showDetails && (
         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          {/* Pattern visualization if available */}
+          {pattern && pattern.name && pattern.name !== 'No Pattern' && (
+            <div className="mb-4">
+              <CandlestickPatternVisualizer pattern={pattern} />
+            </div>
+          )}
+          
+          {/* Pattern information if available */}
+          {pattern && (
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600 dark:text-gray-400 text-sm font-medium">Pattern:</span>
+                <span className={`text-sm px-2 py-0.5 rounded ${
+                  pattern.direction === 'bullish' ? 'bg-success bg-opacity-10 text-success' :
+                  pattern.direction === 'bearish' ? 'bg-danger bg-opacity-10 text-danger' :
+                  'bg-gray-200 dark:bg-gray-700'
+                }`}>
+                  {pattern.name}
+                </span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400 text-sm">Direction:</span>
+                <span className="text-sm font-medium capitalize">{pattern.direction}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400 text-sm">Confidence:</span>
+                <div className="flex items-center">
+                  {[...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full mx-0.5 ${
+                        i < (pattern.confidence || 0)
+                          ? 'bg-primary'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Trend information if available */}
+          {trend && (
+            <div className="mb-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400 text-sm">Trend:</span>
+                <span className={`text-sm font-medium ${
+                  trend === 'BUY' ? 'text-success' :
+                  trend === 'SELL' ? 'text-danger' :
+                  'text-warning'
+                }`}>
+                  {trend}
+                </span>
+              </div>
+              
+              {score !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Score:</span>
+                  <div className="flex items-center">
+                    {[...Array(4)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2 h-2 rounded-full mx-0.5 ${
+                          i < (score || 0)
+                            ? 'bg-primary'
+                            : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Technical indicators */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="text-gray-600 dark:text-gray-400 text-sm">RSI:</span>

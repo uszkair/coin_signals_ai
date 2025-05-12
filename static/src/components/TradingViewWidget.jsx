@@ -1,6 +1,6 @@
-import { useEffect, useRef, memo, useState } from 'react'
+import { useEffect, useRef, memo, useState, forwardRef, useImperativeHandle } from 'react'
 
-const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme }) => {
+const TradingViewWidget = forwardRef(({ symbol = 'BTCUSDT', interval = '1h', theme }, ref) => {
   // If theme is not provided, detect from document
   const [currentTheme, setCurrentTheme] = useState(theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light'))
   
@@ -30,6 +30,12 @@ const TradingViewWidget = memo(({ symbol = 'BTCUSDT', interval = '1h', theme }) 
   }, [theme])
   const containerRef = useRef(null)
   const widgetRef = useRef(null)
+  
+  // Expose the widget instance to the parent component
+  useImperativeHandle(ref, () => ({
+    chart: () => widgetRef.current?.iframe?.contentWindow?.tvWidget?.chart(),
+    widget: () => widgetRef.current
+  }), [widgetRef.current])
   
   // Convert interval to TradingView format
   const getIntervalForTradingView = (interval) => {
