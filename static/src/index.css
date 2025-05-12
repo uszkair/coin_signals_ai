@@ -3,61 +3,61 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-  
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply text-gray-800 dark:text-gray-200;
   }
 
   h1 {
-    @apply text-2xl font-bold md:text-3xl;
+    @apply text-2xl font-bold mb-4;
   }
 
   h2 {
-    @apply text-xl font-semibold md:text-2xl;
+    @apply text-xl font-bold mb-3;
   }
 
   h3 {
-    @apply text-lg font-medium md:text-xl;
+    @apply text-lg font-bold mb-2;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
   }
 
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors;
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700;
+    @apply bg-primary text-white hover:bg-primary-dark;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+    @apply bg-secondary text-white hover:bg-secondary-dark;
   }
 
-  .btn-buy {
-    @apply bg-buy text-white hover:bg-green-700;
+  .btn-success {
+    @apply bg-success text-white hover:bg-success-dark;
   }
 
-  .btn-sell {
-    @apply bg-sell text-white hover:bg-red-700;
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-danger-dark;
+  }
+
+  .btn-warning {
+    @apply bg-warning text-white hover:bg-warning-dark;
   }
 
   .signal-buy {
-    @apply bg-buy/10 border-l-4 border-buy text-green-800;
+    @apply bg-success text-white;
   }
 
   .signal-sell {
-    @apply bg-sell/10 border-l-4 border-sell text-red-800;
+    @apply bg-danger text-white;
   }
 
   .signal-hold {
-    @apply bg-hold/10 border-l-4 border-hold text-amber-800;
+    @apply bg-warning text-white;
   }
 }

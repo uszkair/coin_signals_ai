@@ -109,3 +109,6 @@ AI előrejelző modell: külön lépésben integráljuk
 🔜 Entry/stop/profit értékek visszaküldése és megjelenítése
 
 🔜 Jelzésnaplózás és CSV export
+
+inditó parancsok:
+AI: uvicorn main:app --reload

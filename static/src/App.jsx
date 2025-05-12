@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
@@ -19,42 +19,21 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar 
-        sidebarOpen={sidebarOpen} 
-        setSidebarOpen={setSidebarOpen}
-        tradingMode={tradingMode}
-        toggleTradingMode={toggleTradingMode}
-      />
-
-      {/* Main Content */}
-      <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      <Sidebar open={sidebarOpen} toggleSidebar={toggleSidebar} />
+      
+      <div className="flex flex-col flex-1 overflow-hidden">
         <Header 
-          sidebarOpen={sidebarOpen} 
-          setSidebarOpen={setSidebarOpen} 
-          tradingMode={tradingMode}
-          toggleTradingMode={toggleTradingMode}
+          toggleSidebar={toggleSidebar} 
+          tradingMode={tradingMode} 
+          toggleTradingMode={toggleTradingMode} 
         />
         
-        <main className="flex-grow p-4 sm:p-6 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-4">
           <Routes>
-            <Route 
-              path="/" 
-              element={<Dashboard tradingMode={tradingMode} />} 
-            />
-            <Route 
-              path="/history" 
-              element={<SignalHistory />} 
-            />
-            <Route 
-              path="/settings" 
-              element={<Settings />} 
-            />
-            <Route 
-              path="*" 
-              element={<Navigate to="/" replace />} 
-            />
+            <Route path="/" element={<Dashboard tradingMode={tradingMode} />} />
+            <Route path="/history" element={<SignalHistory />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>

@@ -4,13 +4,15 @@ from fastapi.staticfiles import StaticFiles
 from typing import List, Optional
 import os
 import uvicorn
+import pandas as pd
+import json
 from scheduler import start_scheduler, WATCHED_SYMBOLS
 
 # Create logs directory if it doesn't exist
 os.makedirs("logs", exist_ok=True)
 
-# Create static directory for frontend if it doesn't exist
-os.makedirs("static", exist_ok=True)
+# Create directory for React frontend if it doesn't exist
+os.makedirs("static/dist", exist_ok=True)
 
 app = FastAPI(
     title="Crypto Trading Assistant API",
@@ -21,7 +23,7 @@ app = FastAPI(
 # CORS engedélyezés React frontendhez
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Development mode - restrict in production
+    allow_origins=["http://localhost:5173", "http://localhost:8000"],  # Development mode
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,8 +102,23 @@ async def get_symbols():
     """Get list of watched symbols"""
     return {"symbols": WATCHED_SYMBOLS}
 
-# Mount static files for frontend
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+@app.get("/api/history/{date}")
+async def signal_history(date: str):
+    """Get signal history for a specific date (format: YYYYMMDD)"""
+    try:
+        json_file = f"logs/signals_{date}.json"
+        if os.path.exists(json_file):
+            with open(json_file, 'r') as f:
+                signals = json.load(f)
+            return signals
+        else:
+            return []
+    except Exception as e:
+        return {"error": str(e)}
+
+# Mount static files for React frontend
+# In production, this would serve the built React app
+app.mount("/", StaticFiles(directory="static/dist", html=True), name="static")
 
 # Start the scheduler when the app starts
 @app.on_event("startup")

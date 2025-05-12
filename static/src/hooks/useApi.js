@@ -1,108 +1,100 @@
+import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useQuery, useMutation } from 'react-query'
 
-// Base API configuration
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
+// Base API URL
+const API_BASE_URL = '/api'
 
-// Custom hook for fetching a single coin signal
-export const useSignal = (symbol, interval = '1h', mode = 'swing', options = {}) => {
-  return useQuery(
-    ['signal', symbol, interval, mode],
-    async () => {
-      const response = await api.get(`/signal/${symbol}`, {
-        params: { interval, mode }
-      })
+/**
+ * Custom hook for fetching data from the API
+ * @param {string} endpoint - API endpoint to fetch data from
+ * @param {Object} params - Query parameters
+ * @param {boolean} autoFetch - Whether to fetch data automatically on mount
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useApi = (endpoint, params = {}, autoFetch = true) => {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(autoFetch)
+  const [error, setError] = useState(null)
+
+  const fetchData = async (customParams = {}) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const mergedParams = { ...params, ...customParams }
+      const response = await axios.get(`${API_BASE_URL}${endpoint}`, { params: mergedParams })
+      
+      setData(response.data)
       return response.data
-    },
-    {
-      enabled: !!symbol,
-      refetchInterval: 60000, // Refetch every minute
-      ...options,
+    } catch (err) {
+      setError(err.message || 'An error occurred')
+      return null
+    } finally {
+      setLoading(false)
     }
-  )
+  }
+
+  useEffect(() => {
+    if (autoFetch) {
+      fetchData()
+    }
+  }, [endpoint, JSON.stringify(params)])
+
+  return { data, loading, error, refetch: fetchData }
 }
 
-// Custom hook for fetching multi-timeframe signal
-export const useSignalMTF = (symbol, mode = 'swing', options = {}) => {
-  return useQuery(
-    ['signal-mtf', symbol, mode],
-    async () => {
-      const response = await api.get(`/signal-mtf/${symbol}`, {
-        params: { mode }
-      })
-      return response.data
-    },
-    {
-      enabled: !!symbol,
-      refetchInterval: 60000, // Refetch every minute
-      ...options,
-    }
-  )
+/**
+ * Get trading signal for a specific symbol and timeframe
+ * @param {string} symbol - Cryptocurrency symbol (e.g., BTCUSDT)
+ * @param {string} interval - Timeframe (1m, 5m, 15m, 1h, 4h, 1d)
+ * @param {string} mode - Trading mode (scalp, swing)
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useSignal = (symbol, interval = '1h', mode = 'swing') => {
+  return useApi(`/signal/${symbol}`, { interval, mode })
 }
 
-// Custom hook for fetching signals for multiple coins
-export const useSignals = (symbols = null, interval = '1h', mode = 'swing', options = {}) => {
-  return useQuery(
-    ['signals', interval, mode, symbols?.join(',')],
-    async () => {
-      const response = await api.get('/signals', {
-        params: { 
-          symbols: symbols?.join(','),
-          interval, 
-          mode 
-        }
-      })
-      return response.data
-    },
-    {
-      refetchInterval: 60000, // Refetch every minute
-      ...options,
-    }
-  )
+/**
+ * Get multi-timeframe trading signal for a specific symbol
+ * @param {string} symbol - Cryptocurrency symbol (e.g., BTCUSDT)
+ * @param {string} mode - Trading mode (scalp, swing)
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useSignalMTF = (symbol, mode = 'swing') => {
+  return useApi(`/signal-mtf/${symbol}`, { mode })
 }
 
-// Custom hook for fetching market data
-export const useMarketData = (symbol, interval = '1h', limit = 100, options = {}) => {
-  return useQuery(
-    ['marketdata', symbol, interval, limit],
-    async () => {
-      const response = await api.get(`/marketdata/${symbol}`, {
-        params: { interval, limit }
-      })
-      return response.data
-    },
-    {
-      enabled: !!symbol,
-      ...options,
-    }
-  )
+/**
+ * Get trading signals for multiple symbols
+ * @param {Array} symbols - List of cryptocurrency symbols
+ * @param {string} interval - Timeframe (1m, 5m, 15m, 1h, 4h, 1d)
+ * @param {string} mode - Trading mode (scalp, swing)
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useSignals = (symbols = null, interval = '1h', mode = 'swing') => {
+  const params = { interval, mode }
+  if (symbols) {
+    params.symbols = symbols.join(',')
+  }
+  
+  return useApi('/signals', params)
 }
 
-// Custom hook for fetching available symbols
-export const useSymbols = (options = {}) => {
-  return useQuery(
-    ['symbols'],
-    async () => {
-      const response = await api.get('/symbols')
-      return response.data.symbols
-    },
-    {
-      staleTime: Infinity, // Symbols don't change often
-      ...options,
-    }
-  )
+/**
+ * Get market data with indicators for a specific symbol and timeframe
+ * @param {string} symbol - Cryptocurrency symbol (e.g., BTCUSDT)
+ * @param {string} interval - Timeframe (1m, 5m, 15m, 1h, 4h, 1d)
+ * @param {number} limit - Number of candles to fetch
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useMarketData = (symbol, interval = '1h', limit = 100) => {
+  return useApi(`/marketdata/${symbol}`, { interval, limit })
 }
 
-export default {
-  useSignal,
-  useSignalMTF,
-  useSignals,
-  useMarketData,
-  useSymbols,
+/**
+ * Get list of watched symbols
+ * @returns {Object} - { data, loading, error, refetch }
+ */
+export const useSymbols = () => {
+  return useApi('/symbols')
 }

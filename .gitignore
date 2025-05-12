@@ -29,12 +29,15 @@ htmlcov/
 venv/
 ENV/
 
-# Node.js / React
+# Node.js / React / Angular
 node_modules/
 static/node_modules/
 static/dist/
 static/build/
 static/.cache/
+angular-frontend/node_modules/
+angular-frontend/dist/
+angular-frontend/.angular/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

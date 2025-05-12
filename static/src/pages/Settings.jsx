@@ -1,314 +1,368 @@
-import { useState } from 'react'
-import { toast } from 'react-toastify'
+import { useState, useEffect } from 'react'
+import { FaSave, FaRedo, FaCog, FaBell, FaChartLine } from 'react-icons/fa'
 
-function Settings() {
+const Settings = () => {
   const [settings, setSettings] = useState({
-    watchedSymbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'ADAUSDT', 'DOGEUSDT', 'XRPUSDT', 'DOTUSDT'],
-    refreshInterval: 60,
-    notificationsEnabled: true,
-    emailNotifications: false,
-    email: '',
-    scalping: {
-      rsiThreshold: 35,
-      profitTarget: 1.5,
-      stopLoss: 1.0
-    },
-    swing: {
-      rsiThreshold: 30,
-      profitTarget: 5.0,
-      stopLoss: 2.0
-    }
+    // General settings
+    refreshInterval: 60, // seconds
+    darkMode: false,
+    
+    // Notification settings
+    enableNotifications: true,
+    notifyOnBuy: true,
+    notifyOnSell: true,
+    
+    // Trading settings
+    defaultTradingMode: 'swing', // 'swing' or 'scalp'
+    defaultTimeframe: '1h',
+    defaultSymbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'],
+    
+    // Chart settings
+    showVolume: true,
+    showEMA: true,
+    showRSI: true,
+    showMACD: true,
+    showBollingerBands: true,
   })
-
-  const [newSymbol, setNewSymbol] = useState('')
-
+  
+  const [saved, setSaved] = useState(false)
+  
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('cryptoSignalsSettings')
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings))
+      } catch (e) {
+        console.error('Error parsing saved settings:', e)
+      }
+    }
+    
+    // Check if dark mode is enabled in localStorage
+    const darkMode = localStorage.getItem('darkMode') === 'true'
+    setSettings(prev => ({ ...prev, darkMode }))
+  }, [])
+  
+  // Handle input change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     
-    if (name.includes('.')) {
-      // Handle nested properties (e.g., scalping.rsiThreshold)
-      const [category, property] = name.split('.')
-      setSettings({
-        ...settings,
-        [category]: {
-          ...settings[category],
-          [property]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) : value
-        }
-      })
+    setSettings(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : 
+              type === 'number' ? Number(value) : 
+              value
+    }))
+    
+    // Reset saved status
+    setSaved(false)
+  }
+  
+  // Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    
+    // Save settings to localStorage
+    localStorage.setItem('cryptoSignalsSettings', JSON.stringify(settings))
+    
+    // Update dark mode in localStorage
+    localStorage.setItem('darkMode', settings.darkMode.toString())
+    
+    // Apply dark mode
+    if (settings.darkMode) {
+      document.documentElement.classList.add('dark')
     } else {
-      // Handle top-level properties
-      setSettings({
-        ...settings,
-        [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) : value
-      })
-    }
-  }
-
-  const handleAddSymbol = () => {
-    if (!newSymbol) return
-    
-    const formattedSymbol = newSymbol.toUpperCase().trim()
-    
-    if (settings.watchedSymbols.includes(formattedSymbol)) {
-      toast.warning(`${formattedSymbol} is already in your watched symbols`)
-      return
+      document.documentElement.classList.remove('dark')
     }
     
-    setSettings({
-      ...settings,
-      watchedSymbols: [...settings.watchedSymbols, formattedSymbol]
-    })
+    // Show saved message
+    setSaved(true)
     
-    setNewSymbol('')
-    toast.success(`${formattedSymbol} added to watched symbols`)
+    // Hide saved message after 3 seconds
+    setTimeout(() => {
+      setSaved(false)
+    }, 3000)
   }
-
-  const handleRemoveSymbol = (symbol) => {
-    setSettings({
-      ...settings,
-      watchedSymbols: settings.watchedSymbols.filter(s => s !== symbol)
-    })
+  
+  // Reset settings to defaults
+  const handleReset = () => {
+    const defaultSettings = {
+      refreshInterval: 60,
+      darkMode: false,
+      enableNotifications: true,
+      notifyOnBuy: true,
+      notifyOnSell: true,
+      defaultTradingMode: 'swing',
+      defaultTimeframe: '1h',
+      defaultSymbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'],
+      showVolume: true,
+      showEMA: true,
+      showRSI: true,
+      showMACD: true,
+      showBollingerBands: true,
+    }
     
-    toast.info(`${symbol} removed from watched symbols`)
+    setSettings(defaultSettings)
+    setSaved(false)
   }
-
-  const handleSaveSettings = () => {
-    // In a real app, this would save to an API or localStorage
-    console.log('Saving settings:', settings)
-    toast.success('Settings saved successfully')
-  }
-
+  
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Settings</h1>
-        <p className="text-gray-600">Configure your trading assistant preferences</p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Watched Symbols</h2>
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          {settings.watchedSymbols.map(symbol => (
-            <div 
-              key={symbol} 
-              className="bg-gray-100 rounded-full px-3 py-1 text-sm flex items-center"
+    <div className="container mx-auto">
+      <div className="card">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold m-0">Settings</h1>
+          
+          <div className="flex space-x-2">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="btn btn-secondary flex items-center"
             >
-              <span>{symbol}</span>
-              <button 
-                onClick={() => handleRemoveSymbol(symbol)}
-                className="ml-2 text-gray-500 hover:text-red-500"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
+              <FaRedo className="mr-2" />
+              Reset
+            </button>
+            
+            <button
+              type="submit"
+              form="settings-form"
+              className="btn btn-primary flex items-center"
+            >
+              <FaSave className="mr-2" />
+              Save
+            </button>
+          </div>
         </div>
         
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newSymbol}
-            onChange={(e) => setNewSymbol(e.target.value)}
-            placeholder="Add symbol (e.g., BTCUSDT)"
-            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-          />
-          <button
-            onClick={handleAddSymbol}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">General Settings</h2>
+        {saved && (
+          <div className="mb-4 p-3 bg-success bg-opacity-10 text-success rounded-md">
+            Settings saved successfully!
+          </div>
+        )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="refreshInterval" className="block text-sm font-medium text-gray-700 mb-1">
-              Refresh Interval (seconds)
-            </label>
-            <input
-              type="number"
-              id="refreshInterval"
-              name="refreshInterval"
-              value={settings.refreshInterval}
-              onChange={handleChange}
-              min="10"
-              max="3600"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-            />
-          </div>
-          
-          <div className="flex items-center h-full pt-6">
-            <input
-              type="checkbox"
-              id="notificationsEnabled"
-              name="notificationsEnabled"
-              checked={settings.notificationsEnabled}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-            />
-            <label htmlFor="notificationsEnabled" className="ml-2 block text-sm text-gray-700">
-              Enable Browser Notifications
-            </label>
-          </div>
-          
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="emailNotifications"
-              name="emailNotifications"
-              checked={settings.emailNotifications}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-            />
-            <label htmlFor="emailNotifications" className="ml-2 block text-sm text-gray-700">
-              Enable Email Notifications
-            </label>
-          </div>
-          
-          {settings.emailNotifications && (
+        <form id="settings-form" onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* General Settings */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={settings.email}
-                onChange={handleChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Scalping Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Scalping Settings</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="scalping.rsiThreshold" className="block text-sm font-medium text-gray-700 mb-1">
-                RSI Threshold
-              </label>
-              <input
-                type="number"
-                id="scalping.rsiThreshold"
-                name="scalping.rsiThreshold"
-                value={settings.scalping.rsiThreshold}
-                onChange={handleChange}
-                min="1"
-                max="99"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="scalping.profitTarget" className="block text-sm font-medium text-gray-700 mb-1">
-                Profit Target (%)
-              </label>
-              <input
-                type="number"
-                id="scalping.profitTarget"
-                name="scalping.profitTarget"
-                value={settings.scalping.profitTarget}
-                onChange={handleChange}
-                min="0.1"
-                step="0.1"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="scalping.stopLoss" className="block text-sm font-medium text-gray-700 mb-1">
-                Stop Loss (%)
-              </label>
-              <input
-                type="number"
-                id="scalping.stopLoss"
-                name="scalping.stopLoss"
-                value={settings.scalping.stopLoss}
-                onChange={handleChange}
-                min="0.1"
-                step="0.1"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Swing Trading Settings */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Swing Trading Settings</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="swing.rsiThreshold" className="block text-sm font-medium text-gray-700 mb-1">
-                RSI Threshold
-              </label>
-              <input
-                type="number"
-                id="swing.rsiThreshold"
-                name="swing.rsiThreshold"
-                value={settings.swing.rsiThreshold}
-                onChange={handleChange}
-                min="1"
-                max="99"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
+              <div className="flex items-center mb-4">
+                <FaCog className="text-primary mr-2" />
+                <h2 className="text-xl font-bold m-0">General Settings</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="refreshInterval" className="block text-sm font-medium mb-1">
+                    Data Refresh Interval (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    id="refreshInterval"
+                    name="refreshInterval"
+                    min="10"
+                    max="300"
+                    value={settings.refreshInterval}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="darkMode"
+                    name="darkMode"
+                    checked={settings.darkMode}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  />
+                  <label htmlFor="darkMode" className="ml-2 block text-sm">
+                    Dark Mode
+                  </label>
+                </div>
+              </div>
+              
+              <div className="mt-8">
+                <div className="flex items-center mb-4">
+                  <FaBell className="text-primary mr-2" />
+                  <h2 className="text-xl font-bold m-0">Notification Settings</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="enableNotifications"
+                      name="enableNotifications"
+                      checked={settings.enableNotifications}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="enableNotifications" className="ml-2 block text-sm">
+                      Enable Notifications
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center ml-6">
+                    <input
+                      type="checkbox"
+                      id="notifyOnBuy"
+                      name="notifyOnBuy"
+                      checked={settings.notifyOnBuy}
+                      onChange={handleChange}
+                      disabled={!settings.enableNotifications}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label 
+                      htmlFor="notifyOnBuy" 
+                      className={`ml-2 block text-sm ${!settings.enableNotifications ? 'text-gray-400 dark:text-gray-600' : ''}`}
+                    >
+                      Notify on BUY Signals
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center ml-6">
+                    <input
+                      type="checkbox"
+                      id="notifyOnSell"
+                      name="notifyOnSell"
+                      checked={settings.notifyOnSell}
+                      onChange={handleChange}
+                      disabled={!settings.enableNotifications}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label 
+                      htmlFor="notifyOnSell" 
+                      className={`ml-2 block text-sm ${!settings.enableNotifications ? 'text-gray-400 dark:text-gray-600' : ''}`}
+                    >
+                      Notify on SELL Signals
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
             
+            {/* Trading Settings */}
             <div>
-              <label htmlFor="swing.profitTarget" className="block text-sm font-medium text-gray-700 mb-1">
-                Profit Target (%)
-              </label>
-              <input
-                type="number"
-                id="swing.profitTarget"
-                name="swing.profitTarget"
-                value={settings.swing.profitTarget}
-                onChange={handleChange}
-                min="0.1"
-                step="0.1"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="swing.stopLoss" className="block text-sm font-medium text-gray-700 mb-1">
-                Stop Loss (%)
-              </label>
-              <input
-                type="number"
-                id="swing.stopLoss"
-                name="swing.stopLoss"
-                value={settings.swing.stopLoss}
-                onChange={handleChange}
-                min="0.1"
-                step="0.1"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              />
+              <div className="flex items-center mb-4">
+                <FaChartLine className="text-primary mr-2" />
+                <h2 className="text-xl font-bold m-0">Trading Settings</h2>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="defaultTradingMode" className="block text-sm font-medium mb-1">
+                    Default Trading Mode
+                  </label>
+                  <select
+                    id="defaultTradingMode"
+                    name="defaultTradingMode"
+                    value={settings.defaultTradingMode}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
+                  >
+                    <option value="swing">Swing Trading</option>
+                    <option value="scalp">Scalping</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label htmlFor="defaultTimeframe" className="block text-sm font-medium mb-1">
+                    Default Timeframe
+                  </label>
+                  <select
+                    id="defaultTimeframe"
+                    name="defaultTimeframe"
+                    value={settings.defaultTimeframe}
+                    onChange={handleChange}
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
+                  >
+                    <option value="1m">1 minute</option>
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="1h">1 hour</option>
+                    <option value="4h">4 hours</option>
+                    <option value="1d">1 day</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="mt-8">
+                <h3 className="text-lg font-medium mb-2">Chart Settings</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showVolume"
+                      name="showVolume"
+                      checked={settings.showVolume}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="showVolume" className="ml-2 block text-sm">
+                      Show Volume
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showEMA"
+                      name="showEMA"
+                      checked={settings.showEMA}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="showEMA" className="ml-2 block text-sm">
+                      Show EMA (20, 50)
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showRSI"
+                      name="showRSI"
+                      checked={settings.showRSI}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="showRSI" className="ml-2 block text-sm">
+                      Show RSI
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showMACD"
+                      name="showMACD"
+                      checked={settings.showMACD}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="showMACD" className="ml-2 block text-sm">
+                      Show MACD
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showBollingerBands"
+                      name="showBollingerBands"
+                      checked={settings.showBollingerBands}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <label htmlFor="showBollingerBands" className="ml-2 block text-sm">
+                      Show Bollinger Bands
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={handleSaveSettings}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          Save Settings
-        </button>
+        </form>
       </div>
     </div>
   )

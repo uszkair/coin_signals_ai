@@ -8,23 +8,29 @@ export default {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+          DEFAULT: '#3b82f6', // blue-500
+          dark: '#1d4ed8',    // blue-700
         },
-        buy: '#10b981', // green
-        sell: '#ef4444', // red
-        hold: '#f59e0b', // amber
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        secondary: {
+          DEFAULT: '#6b7280', // gray-500
+          dark: '#374151',    // gray-700
+        },
+        success: {
+          DEFAULT: '#10b981', // emerald-500
+          dark: '#047857',    // emerald-700
+        },
+        danger: {
+          DEFAULT: '#ef4444', // red-500
+          dark: '#b91c1c',    // red-700
+        },
+        warning: {
+          DEFAULT: '#f59e0b', // amber-500
+          dark: '#b45309',    // amber-700
+        },
+        neutral: {
+          DEFAULT: '#6b7280', // gray-500
+          dark: '#374151',    // gray-700
+        },
       },
     },
   },

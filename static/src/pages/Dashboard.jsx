@@ -1,219 +1,225 @@
-import { useState, useEffect } from 'react'
-import { toast } from 'react-toastify'
-import { useSignals, useSignal, useSymbols } from '../hooks/useApi'
+import { useState, useEffect, useCallback } from 'react'
+import { useSymbols, useSignals, useSignal } from '../hooks/useApi'
 import SignalCard from '../components/SignalCard'
 import TradingViewWidget from '../components/TradingViewWidget'
+import { FaSync, FaChevronDown } from 'react-icons/fa'
 
-function Dashboard({ tradingMode }) {
+const Dashboard = ({ tradingMode }) => {
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
   const [selectedInterval, setSelectedInterval] = useState('1h')
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [showChart, setShowChart] = useState(true)
+  const [activeSymbols, setActiveSymbols] = useState([])
   
   // Fetch available symbols
-  const { data: symbols, isLoading: symbolsLoading } = useSymbols()
+  const { data: symbolsData, loading: symbolsLoading } = useSymbols()
   
-  // Fetch signals for all coins
+  // Fetch signals for all active symbols
   const { 
-    data: allSignals, 
-    isLoading: allSignalsLoading, 
-    error: allSignalsError,
-    refetch: refetchAllSignals
-  } = useSignals(null, selectedInterval, tradingMode, {
-    refetchInterval: autoRefresh ? 60000 : false // Refresh every minute if autoRefresh is enabled
-  })
+    data: signalsData, 
+    loading: signalsLoading, 
+    refetch: refetchSignals 
+  } = useSignals(activeSymbols, selectedInterval, tradingMode)
   
-  // Fetch detailed signal for selected coin
-  const { 
-    data: selectedSignal, 
-    isLoading: selectedSignalLoading,
+  // Fetch detailed signal for selected symbol
+  const {
+    data: selectedSignalData,
+    loading: selectedSignalLoading,
     refetch: refetchSelectedSignal
-  } = useSignal(selectedSymbol, selectedInterval, tradingMode, {
-    refetchInterval: autoRefresh ? 60000 : false // Refresh every minute if autoRefresh is enabled
-  })
-
-  // Handle errors
+  } = useSignal(selectedSymbol, selectedInterval, tradingMode)
+  
+  // Initialize active symbols when symbols data is loaded
   useEffect(() => {
-    if (allSignalsError) {
-      toast.error(`Error fetching signals: ${allSignalsError.message}`)
+    if (symbolsData && symbolsData.symbols && symbolsData.symbols.length > 0) {
+      // Start with first 4 symbols
+      setActiveSymbols(symbolsData.symbols.slice(0, 4))
     }
-  }, [allSignalsError])
-
-  // Handle manual refresh
-  const handleRefresh = () => {
-    refetchAllSignals()
-    refetchSelectedSignal()
-    toast.info('Signals refreshed')
-  }
-
+  }, [symbolsData])
+  
+  // Refresh data when trading mode changes
+  useEffect(() => {
+    if (activeSymbols.length > 0) {
+      refetchSignals()
+    }
+    if (selectedSymbol) {
+      refetchSelectedSignal()
+    }
+  }, [tradingMode, selectedInterval, activeSymbols, selectedSymbol])
+  
   // Handle symbol selection
-  const handleSymbolChange = (e) => {
-    setSelectedSymbol(e.target.value)
+  const handleSymbolChange = (event) => {
+    setSelectedSymbol(event.target.value)
   }
-
+  
   // Handle interval selection
-  const handleIntervalChange = (e) => {
-    setSelectedInterval(e.target.value)
+  const handleIntervalChange = (event) => {
+    setSelectedInterval(event.target.value)
   }
-
-  // Filter signals by type
-  const getBuySignals = () => {
-    if (!allSignals) return []
-    return allSignals.filter(signal => signal.signal === 'BUY')
+  
+  // Handle view chart button click from signal card
+  const handleViewChart = useCallback((symbol, interval) => {
+    setSelectedSymbol(symbol)
+    setSelectedInterval(interval)
+    setShowChart(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+  
+  // Handle refresh button click
+  const handleRefresh = () => {
+    refetchSignals()
+    refetchSelectedSignal()
   }
-
-  const getSellSignals = () => {
-    if (!allSignals) return []
-    return allSignals.filter(signal => signal.signal === 'SELL')
+  
+  // Toggle symbol in active symbols list
+  const toggleSymbol = (symbol) => {
+    if (activeSymbols.includes(symbol)) {
+      setActiveSymbols(activeSymbols.filter(s => s !== symbol))
+    } else {
+      setActiveSymbols([...activeSymbols, symbol])
+    }
   }
-
+  
+  // Get available intervals based on trading mode
+  const getAvailableIntervals = () => {
+    return tradingMode === 'scalp' 
+      ? ['1m', '5m', '15m'] 
+      : ['1h', '4h', '1d']
+  }
+  
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Trading Dashboard</h1>
-        <p className="text-gray-600">
-          Current Mode: <span className="font-semibold">{tradingMode === 'swing' ? 'Swing Trading' : 'Scalping'}</span>
-        </p>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <label htmlFor="symbol-select" className="block text-sm font-medium text-gray-700 mb-1">
-                Symbol
-              </label>
-              <select
-                id="symbol-select"
-                value={selectedSymbol}
-                onChange={handleSymbolChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                disabled={symbolsLoading}
-              >
-                {symbolsLoading ? (
-                  <option>Loading...</option>
-                ) : (
-                  symbols?.map((symbol) => (
-                    <option key={symbol} value={symbol}>
-                      {symbol}
+    <div className="container mx-auto">
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left column - Chart and controls */}
+        <div className="lg:w-2/3">
+          <div className="card mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+              <h2 className="text-xl font-bold m-0">Market Chart</h2>
+              
+              <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+                {/* Symbol selector */}
+                <select
+                  value={selectedSymbol}
+                  onChange={handleSymbolChange}
+                  className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm"
+                >
+                  {symbolsLoading ? (
+                    <option>Loading...</option>
+                  ) : (
+                    symbolsData?.symbols?.map(symbol => (
+                      <option key={symbol} value={symbol}>
+                        {symbol}
+                      </option>
+                    ))
+                  )}
+                </select>
+                
+                {/* Interval selector */}
+                <select
+                  value={selectedInterval}
+                  onChange={handleIntervalChange}
+                  className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm"
+                >
+                  {getAvailableIntervals().map(interval => (
+                    <option key={interval} value={interval}>
+                      {interval}
                     </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="interval-select" className="block text-sm font-medium text-gray-700 mb-1">
-                Timeframe
-              </label>
-              <select
-                id="interval-select"
-                value={selectedInterval}
-                onChange={handleIntervalChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              >
-                <option value="1m">1 Minute</option>
-                <option value="5m">5 Minutes</option>
-                <option value="15m">15 Minutes</option>
-                <option value="1h">1 Hour</option>
-                <option value="4h">4 Hours</option>
-                <option value="1d">1 Day</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center">
-              <input
-                id="auto-refresh"
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={() => setAutoRefresh(!autoRefresh)}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <label htmlFor="auto-refresh" className="ml-2 block text-sm text-gray-700">
-                Auto Refresh
-              </label>
-            </div>
-
-            <button
-              onClick={handleRefresh}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-4 h-full">
-            <h2 className="text-xl font-semibold mb-4">Chart: {selectedSymbol}</h2>
-            <TradingViewWidget symbol={selectedSymbol} interval={selectedInterval} />
-          </div>
-        </div>
-
-        {/* Selected Symbol Signal */}
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Current Signal</h2>
-            {selectedSignalLoading ? (
-              <div className="text-center py-8">
-                <p>Loading signal...</p>
+                  ))}
+                </select>
+                
+                {/* Refresh button */}
+                <button
+                  onClick={handleRefresh}
+                  className="btn btn-primary py-2 px-3"
+                  disabled={signalsLoading}
+                >
+                  <FaSync className={`${signalsLoading ? 'animate-spin' : ''}`} />
+                </button>
               </div>
-            ) : selectedSignal ? (
-              <SignalCard signal={selectedSignal} />
-            ) : (
-              <div className="text-center py-8">
-                <p>No signal available</p>
+            </div>
+            
+            {/* TradingView Chart */}
+            {showChart && (
+              <div className="h-[500px] w-full">
+                <TradingViewWidget 
+                  symbol={selectedSymbol} 
+                  interval={selectedInterval}
+                  theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                />
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Buy and Sell Signals */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {/* Buy Signals */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-xl font-semibold mb-4">Buy Signals</h2>
-          {allSignalsLoading ? (
-            <div className="text-center py-8">
-              <p>Loading signals...</p>
-            </div>
-          ) : getBuySignals().length > 0 ? (
-            getBuySignals().map((signal) => (
-              <SignalCard key={signal.symbol} signal={signal} />
-            ))
-          ) : (
-            <div className="text-center py-8">
-              <p>No buy signals available</p>
+          
+          {/* Selected Symbol Signal */}
+          {selectedSignalData && !selectedSignalLoading && (
+            <div className="mb-6">
+              <h2 className="text-xl font-bold mb-3">Current Signal</h2>
+              <SignalCard 
+                signal={selectedSignalData} 
+                onViewChart={handleViewChart}
+              />
             </div>
           )}
         </div>
-
-        {/* Sell Signals */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-xl font-semibold mb-4">Sell Signals</h2>
-          {allSignalsLoading ? (
-            <div className="text-center py-8">
-              <p>Loading signals...</p>
+        
+        {/* Right column - Signals */}
+        <div className="lg:w-1/3">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold m-0">
+              Signals
+              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                {tradingMode === 'scalp' ? 'Scalping Mode' : 'Swing Mode'}
+              </span>
+            </h2>
+            
+            <div className="relative group">
+              <button className="btn btn-secondary py-1 px-2 flex items-center">
+                <span className="mr-1">Symbols</span>
+                <FaChevronDown className="w-3 h-3" />
+              </button>
+              
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 hidden group-hover:block">
+                <div className="p-2">
+                  {symbolsData?.symbols?.map(symbol => (
+                    <div key={symbol} className="flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                      <input
+                        type="checkbox"
+                        id={`symbol-${symbol}`}
+                        checked={activeSymbols.includes(symbol)}
+                        onChange={() => toggleSymbol(symbol)}
+                        className="mr-2"
+                      />
+                      <label htmlFor={`symbol-${symbol}`} className="cursor-pointer flex-1">
+                        {symbol}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          ) : getSellSignals().length > 0 ? (
-            getSellSignals().map((signal) => (
-              <SignalCard key={signal.symbol} signal={signal} />
-            ))
-          ) : (
-            <div className="text-center py-8">
-              <p>No sell signals available</p>
-            </div>
-          )}
+          </div>
+          
+          {/* Signal cards */}
+          <div className="space-y-4">
+            {signalsLoading ? (
+              <div className="card p-8 text-center">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-primary rounded-full" role="status">
+                  <span className="sr-only">Loading...</span>
+                </div>
+                <p className="mt-2">Loading signals...</p>
+              </div>
+            ) : signalsData && signalsData.length > 0 ? (
+              signalsData.map((signal, index) => (
+                <SignalCard 
+                  key={`${signal.symbol}-${index}`} 
+                  signal={signal} 
+                  onViewChart={handleViewChart}
+                />
+              ))
+            ) : (
+              <div className="card p-6 text-center">
+                <p>No signals available</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
