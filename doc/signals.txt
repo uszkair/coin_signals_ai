@@ -1,0 +1,43 @@
+Részletes Specifikációs Prompt – Kereskedési Napló és Teljesítményelemzés Modul
+🎯 Projekt Célja:
+A cél egy olyan kereskedési asszisztens alkalmazás létrehozása, amely naplózza, elemzi és vizualizálja a múltbeli kereskedési döntéseket, megjelenítve a belépési pontokat, eredményeket és a döntéshozatal alapjait. Az alkalmazás Python (backend) és React (frontend) technológiákra épül, és lehetővé teszi a felhasználók számára, hogy optimalizálják kereskedési stratégiájukat.
+
+🔧 Funkcionális Követelmények:
+1. Kereskedési Naplózás:
+Minden kereskedési szignál (BUY/SELL) automatikus naplózása.
+
+Rögzített adatok: coin-pár, dátum/idő, belépési ár, belépett összeg, SL/TP szintek, profit/veszteség, döntés alapja (indikátorok, gyertyaalakzatok), jelzés erőssége (score).
+
+2. Teljesítményelemzés:
+Kereskedési eredmények visszamenőleges elemzése (pl. 30 nap).
+
+Összesített statisztikák megjelenítése: sikerességi arány, átlagos profit/veszteség, risk/reward arány, stb.
+
+3. Felhasználói Felület:
+Trade History oldal, amely táblázatos formában mutatja a naplózott kereskedéseket.
+
+Filterek a különböző paraméterek alapján (coin-pár, időszak, profit/veszteség).
+
+Részletes trade nézet egyedi kereskedésekhez, amely tartalmazza a belépés indoklását és a teljesítmény vizualizációját.
+
+🔧 Implementációs Lépések:
+Backend fejlesztés:
+
+Készítsd el a szükséges adatbázis sémát a kereskedési adatok tárolásához.
+
+Implementáld az API végpontokat a kereskedési napló és teljesítményadatok lekérdezéséhez.
+
+Frontend fejlesztés:
+
+Hozz létre egy új TradeHistory oldalt, amely a felhasználói felületet biztosítja a naplózott kereskedések megjelenítésére.
+
+Integráld a filtereket és a részletes trade nézetet.
+
+Biztosítsd a grafikus megjelenítést (pl. TradingView integrációval) a belépési és kilépési pontok vizualizálásához.
+
+Tesztelés:
+
+Végezz alapos teszteket (unit és integrációs teszteket) mind a backend, mind a frontend oldalon, hogy biztosítsd a rendszer megbízhatóságát és pontosságát.
+
+📌 Végső cél:
+Az alkalmazás segítségével a felhasználók átláthatóan nyomon követhetik múltbeli kereskedéseiket, tanulhatnak a korábbi döntéseikből, és finomíthatják kereskedési stratégiájukat.

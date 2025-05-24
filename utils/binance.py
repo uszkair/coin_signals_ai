@@ -22,7 +22,16 @@ async def fetch_binance_data(symbol: str, interval: str = "1h", limit: int = 100
         "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
     ])
 
-    df["timestamp"] = pd.to_datetime(df["close_time"], unit="ms")
+    # Convert string columns to float
+    df["open"] = df["open"].astype(float)
+    df["high"] = df["high"].astype(float)
+    df["low"] = df["low"].astype(float)
     df["close"] = df["close"].astype(float)
+    df["volume"] = df["volume"].astype(float)
+    
+    # Set timestamp as index
+    df["timestamp"] = pd.to_datetime(df["close_time"], unit="ms")
     df.set_index("timestamp", inplace=True)
-    return df[["close"]]
+    
+    # Return all required columns for candlestick analysis
+    return df[["open", "high", "low", "close", "volume"]]

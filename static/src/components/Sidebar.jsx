@@ -12,16 +12,6 @@ const Sidebar = ({ open, toggleSidebar }) => {
       icon: <FaChartLine className="w-5 h-5" />
     },
     {
-      path: '/history',
-      name: 'Signal History',
-      icon: <FaHistory className="w-5 h-5" />
-    },
-    {
-      path: '/signal-history',
-      name: 'Signal Analyzer',
-      icon: <FaHistory className="w-5 h-5" />
-    },
-    {
       path: '/settings',
       name: 'Settings',
       icon: <FaCog className="w-5 h-5" />

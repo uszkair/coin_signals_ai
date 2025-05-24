@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useSymbols, useSignals, useSignal } from '../hooks/useApi'
-import SignalCard from '../components/SignalCard'
+import { useState, useEffect } from 'react'
+import { useSymbols } from '../hooks/useApi'
 import TradingViewWidget from '../components/TradingViewWidget'
 import { FaSync, FaChevronDown } from 'react-icons/fa'
 
-const Dashboard = ({ tradingMode }) => {
+const Dashboard = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
   const [selectedInterval, setSelectedInterval] = useState('1h')
   const [showChart, setShowChart] = useState(true)
@@ -13,19 +12,7 @@ const Dashboard = ({ tradingMode }) => {
   // Fetch available symbols
   const { data: symbolsData, loading: symbolsLoading } = useSymbols()
   
-  // Fetch signals for all active symbols
-  const { 
-    data: signalsData, 
-    loading: signalsLoading, 
-    refetch: refetchSignals 
-  } = useSignals(activeSymbols, selectedInterval, tradingMode)
-  
-  // Fetch detailed signal for selected symbol
-  const {
-    data: selectedSignalData,
-    loading: selectedSignalLoading,
-    refetch: refetchSelectedSignal
-  } = useSignal(selectedSymbol, selectedInterval, tradingMode)
+  // No longer fetching signals
   
   // Initialize active symbols when symbols data is loaded
   useEffect(() => {
@@ -35,15 +22,7 @@ const Dashboard = ({ tradingMode }) => {
     }
   }, [symbolsData])
   
-  // Refresh data when trading mode changes
-  useEffect(() => {
-    if (activeSymbols.length > 0) {
-      refetchSignals()
-    }
-    if (selectedSymbol) {
-      refetchSelectedSignal()
-    }
-  }, [tradingMode, selectedInterval, activeSymbols, selectedSymbol])
+  // No longer need to refresh signals
   
   // Handle symbol selection
   const handleSymbolChange = (event) => {
@@ -55,18 +34,10 @@ const Dashboard = ({ tradingMode }) => {
     setSelectedInterval(event.target.value)
   }
   
-  // Handle view chart button click from signal card
-  const handleViewChart = useCallback((symbol, interval) => {
-    setSelectedSymbol(symbol)
-    setSelectedInterval(interval)
-    setShowChart(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
-  
   // Handle refresh button click
   const handleRefresh = () => {
-    refetchSignals()
-    refetchSelectedSignal()
+    // Just refresh the page for now
+    window.location.reload()
   }
   
   // Toggle symbol in active symbols list
@@ -78,11 +49,9 @@ const Dashboard = ({ tradingMode }) => {
     }
   }
   
-  // Get available intervals based on trading mode
+  // Available intervals
   const getAvailableIntervals = () => {
-    return tradingMode === 'scalp' 
-      ? ['1m', '5m', '15m'] 
-      : ['1h', '4h', '1d']
+    return ['1m', '5m', '15m', '1h', '4h', '1d']
   }
   
   return (
@@ -129,9 +98,8 @@ const Dashboard = ({ tradingMode }) => {
                 <button
                   onClick={handleRefresh}
                   className="btn btn-primary py-2 px-3"
-                  disabled={signalsLoading}
                 >
-                  <FaSync className={`${signalsLoading ? 'animate-spin' : ''}`} />
+                  <FaSync />
                 </button>
               </div>
             </div>
@@ -147,99 +115,44 @@ const Dashboard = ({ tradingMode }) => {
             )}
           </div>
           
-          {/* Selected Symbol Signal */}
-          {selectedSignalData && !selectedSignalLoading && (
-            <div className="mb-6">
-              <h2 className="text-xl font-bold mb-3">Current Signal</h2>
-              <SignalCard 
-                signal={selectedSignalData} 
-                onViewChart={handleViewChart}
-              />
-            </div>
-          )}
         </div>
         
-        {/* Right column - Signals */}
+        {/* Right column - Symbol List */}
         <div className="lg:w-1/3">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-xl font-bold m-0">Signals</h2>
-              <div className="mt-1 flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${tradingMode === 'scalp' ? 'bg-danger' : 'bg-primary'}`}></div>
-                <span className={`text-sm font-medium ${tradingMode === 'scalp' ? 'text-danger' : 'text-primary'}`}>
-                  {tradingMode === 'scalp' ? 'Scalping Mode' : 'Swing Mode'}
-                </span>
-                <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  {tradingMode === 'scalp'
-                    ? '(Short-term, 1-5m timeframes)'
-                    : '(Medium-term, 1-4h timeframes)'}
-                </div>
-              </div>
-            </div>
+          <div className="card p-4">
+            <h2 className="text-xl font-bold mb-4">Available Symbols</h2>
             
-            <div className="relative group">
-              <button className="btn btn-secondary py-1 px-2 flex items-center">
-                <span className="mr-1">Symbols</span>
-                <FaChevronDown className="w-3 h-3" />
-              </button>
-              
-              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 hidden group-hover:block">
-                <div className="p-2">
+            <div className="space-y-2">
+              {symbolsLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin inline-block w-6 h-6 border-4 border-current border-t-transparent text-primary rounded-full" role="status">
+                    <span className="sr-only">Loading...</span>
+                  </div>
+                  <p className="mt-2">Loading symbols...</p>
+                </div>
+              ) : (
+                <div className="max-h-[500px] overflow-y-auto">
                   {symbolsData?.symbols?.map(symbol => (
-                    <div key={symbol} className="flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                      <input
-                        type="checkbox"
-                        id={`symbol-${symbol}`}
-                        checked={activeSymbols.includes(symbol)}
-                        onChange={() => toggleSymbol(symbol)}
-                        className="mr-2"
-                      />
-                      <label htmlFor={`symbol-${symbol}`} className="cursor-pointer flex-1">
-                        {symbol}
-                      </label>
+                    <div
+                      key={symbol}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
+                      onClick={() => setSelectedSymbol(symbol)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={selectedSymbol === symbol ? "font-bold text-primary" : ""}>
+                          {symbol}
+                        </span>
+                        {selectedSymbol === symbol && (
+                          <span className="text-xs bg-primary text-white px-2 py-1 rounded">
+                            Selected
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-          
-          {/* Signal cards */}
-          <div className="space-y-4">
-            {signalsLoading ? (
-              <div className="card p-8 text-center">
-                <div className="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-primary rounded-full" role="status">
-                  <span className="sr-only">Loading...</span>
-                </div>
-                <p className="mt-2">Loading signals...</p>
-              </div>
-            ) : signalsData && signalsData.length > 0 ? (
-              // If we have multiple active symbols but only one signal object,
-              // it means the backend returned a combined signal
-              activeSymbols.length > 1 && signalsData.length === 1 ? (
-                <SignalCard
-                  key="combined-signal"
-                  signal={{
-                    ...signalsData[0],
-                    symbol: activeSymbols.join(',')
-                  }}
-                  onViewChart={handleViewChart}
-                />
-              ) : (
-                // Otherwise, render each signal separately
-                signalsData.map((signal, index) => (
-                  <SignalCard
-                    key={`${signal.symbol}-${index}`}
-                    signal={signal}
-                    onViewChart={handleViewChart}
-                  />
-                ))
-              )
-            ) : (
-              <div className="card p-6 text-center">
-                <p>No signals available</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
