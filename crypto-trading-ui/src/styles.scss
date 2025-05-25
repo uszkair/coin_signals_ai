@@ -1,0 +1,155 @@
+/* PrimeNG Theme is imported in angular.json */
+
+/* Font Awesome */
+@import "./assets/fontawesome/css/all.min.css";
+
+/* Layout and Fonts */
+@import "./assets/layout/styles/fonts.scss";
+@import "./assets/layout/styles/typography.scss";
+@import "./assets/layout/styles/theme-dark/colors.scss";
+@import "./assets/layout/styles/theme-dark/shadow-radius-unit-breakpoint.scss";
+@import './assets/layout/styles/theme-dark/global-bpmn-styles.scss';
+@import './assets/layout/styles/theme-dark/global-mermaid-styles.scss';
+
+@import './assets/layout/styles/theme-variables.scss';
+
+/*Angular cdk*/
+@import '@angular/cdk/overlay-prebuilt.css';
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--text-color);
+  background-color: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility Classes */
+.w-full {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+/* Card Styles Override */
+.p-card {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  
+  .p-card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    font-size: 1.125rem;
+  }
+  
+  .p-card-content {
+    padding: 1.5rem;
+  }
+}
+
+/* Table Styles Override */
+.p-datatable {
+  .p-datatable-header {
+    background-color: #f8fafc;
+    border: none;
+    padding: 1rem 1.5rem;
+  }
+  
+  .p-datatable-thead > tr > th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .p-datatable-tbody > tr > td {
+    padding: 0.75rem 1.5rem;
+    border-color: #e2e8f0;
+  }
+  
+  .p-paginator {
+    padding: 0.75rem 1.5rem;
+    background-color: #f8fafc;
+    border: none;
+  }
+}
+
+/* Dropdown Styles Override */
+.p-dropdown {
+  border-radius: 0.375rem;
+  
+  .p-dropdown-label {
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Button Styles Override */
+.p-button {
+  border-radius: 0.375rem;
+  
+  &.p-button-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .p-card .p-card-content {
+    padding: 1rem;
+  }
+  
+  .p-datatable .p-datatable-thead > tr > th,
+  .p-datatable .p-datatable-tbody > tr > td {
+    padding: 0.75rem 1rem;
+  }
+}

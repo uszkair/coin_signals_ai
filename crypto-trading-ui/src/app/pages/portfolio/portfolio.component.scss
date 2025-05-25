@@ -1,0 +1,165 @@
+.portfolio-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.portfolio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  
+  .period-selector {
+    width: 200px;
+    
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #475569;
+    }
+  }
+}
+
+// Summary Cards
+.summary-cards {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  flex: 1;
+  min-width: 250px;
+  
+  .summary-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .summary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    
+    i {
+      font-size: 1.5rem;
+      color: #ffffff;
+    }
+  }
+  
+  .profit-icon {
+    background-color: #3b82f6;
+  }
+  
+  .trades-icon {
+    background-color: #8b5cf6;
+  }
+  
+  .coin-icon {
+    background-color: #f97316;
+  }
+  
+  .summary-data {
+    flex: 1;
+  }
+  
+  .summary-title {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+  }
+  
+  .summary-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+  }
+  
+  .summary-subvalue {
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+}
+
+// Charts Section
+.charts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chart-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.chart-card {
+  flex: 1;
+  min-width: 300px;
+  
+  .chart-container {
+    height: 300px;
+    position: relative;
+  }
+}
+
+// Trade Summary Table
+.trade-summary-card {
+  width: 100%;
+}
+
+// Loading Placeholder
+.loading-placeholder {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+// Profit/Loss Styling
+.profit-positive {
+  color: #16a34a;
+}
+
+.profit-negative {
+  color: #dc2626;
+}
+
+// Responsive Styles
+@media (max-width: 768px) {
+  .portfolio-header {
+    flex-direction: column;
+    align-items: flex-start;
+    
+    .period-selector {
+      width: 100%;
+    }
+  }
+  
+  .summary-cards {
+    flex-direction: column;
+  }
+  
+  .chart-row {
+    flex-direction: column;
+  }
+}

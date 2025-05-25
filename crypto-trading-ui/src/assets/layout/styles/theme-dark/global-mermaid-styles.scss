@@ -1,0 +1,29 @@
+.themed-mermaid {
+    background-image: var(--dots-background) !important;
+    background-color: var(--dots-background) !important;
+    background-size: var(--dots-background-size) !important;
+
+    #mermaid-graph .node rect,
+    #mermaid-graph .node circle,
+    #mermaid-graph .node ellipse,
+    #mermaid-graph .node path,
+    #mermaid-graph .node polygon {
+        fill: var(--color-foreground-neutral-faded) !important;
+        stroke: none !important;
+    }
+
+
+    #mermaid-graph span {
+        fill: var(--color-background-page) !important;
+        color: var(--color-background-page) !important;
+    }
+
+    #mermaid-graph .edgePaths path {
+        stroke: var(--color-foreground-neutral-faded) !important;
+    }
+
+    #mermaid-graph marker path {
+        fill: var(--color-foreground-neutral-faded) !important;
+        stroke: var(--color-foreground-neutral-faded) !important;
+    }
+}

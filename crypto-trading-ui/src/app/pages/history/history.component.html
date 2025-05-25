@@ -1,0 +1,183 @@
+<div class="history-container">
+  <ng-container *ngIf="tradeHistory$ | async as tradeHistory">
+    <div class="history-header">
+      <h1>Trading History</h1>
+      
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-label">Total Profit</div>
+          <div class="summary-value" [ngClass]="getProfitClass(tradeHistory.totalProfit)">
+            ${{ tradeHistory.totalProfit.toFixed(2) }} ({{ tradeHistory.totalProfitPercentage.toFixed(2) }}%)
+          </div>
+        </div>
+        
+        <div class="summary-card">
+          <div class="summary-label">Win Rate</div>
+          <div class="summary-value">{{ (tradeHistory.winRate * 100).toFixed(1) }}%</div>
+        </div>
+        
+        <div class="summary-card">
+          <div class="summary-label">Total Trades</div>
+          <div class="summary-value">{{ tradeHistory.totalCount }}</div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+  
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="filter-row">
+      <div class="filter-item">
+        <label for="symbol">Coin Pair</label>
+        <p-dropdown 
+          id="symbol"
+          [options]="(symbols$ | async) || []" 
+          [(ngModel)]="filter.symbol" 
+          placeholder="All Coins"
+          styleClass="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div class="filter-item">
+        <label for="dateFrom">From Date</label>
+        <p-calendar 
+          id="dateFrom"
+          [(ngModel)]="filter.dateFrom" 
+          [showIcon]="true"
+          dateFormat="yy-mm-dd"
+          styleClass="w-full"
+        ></p-calendar>
+      </div>
+      
+      <div class="filter-item">
+        <label for="dateTo">To Date</label>
+        <p-calendar 
+          id="dateTo"
+          [(ngModel)]="filter.dateTo" 
+          [showIcon]="true"
+          dateFormat="yy-mm-dd"
+          styleClass="w-full"
+        ></p-calendar>
+      </div>
+    </div>
+    
+    <div class="filter-row">
+      <div class="filter-item">
+        <label for="patternType">Pattern Type</label>
+        <p-dropdown 
+          id="patternType"
+          [options]="patternTypes" 
+          [(ngModel)]="filter.patternType" 
+          placeholder="All Patterns"
+          styleClass="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div class="filter-item">
+        <label for="resultType">Result Type</label>
+        <p-dropdown 
+          id="resultType"
+          [options]="resultTypes" 
+          [(ngModel)]="filter.resultType" 
+          optionLabel="label"
+          optionValue="value"
+          placeholder="All Results"
+          styleClass="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div class="filter-actions">
+        <button pButton type="button" label="Apply Filters" icon="pi pi-filter" (click)="applyFilters()"></button>
+        <button pButton type="button" label="Reset" icon="pi pi-refresh" class="p-button-outlined" (click)="resetFilters()"></button>
+        <button pButton type="button" label="Export CSV" icon="pi pi-download" class="p-button-success" (click)="exportToCsv()"></button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Loading Placeholder -->
+  <div class="loading-placeholder" *ngIf="loading$ | async">
+    <p-progressSpinner [style]="{width: '50px', height: '50px'}" styleClass="custom-spinner" strokeWidth="4"></p-progressSpinner>
+    <div>Loading trade history...</div>
+  </div>
+  
+  <!-- Trade History Table -->
+  <ng-container *ngIf="tradeHistory$ | async as tradeHistory">
+    <div class="history-table-container" *ngIf="!(loading$ | async)">
+      <p-table 
+        [value]="tradeHistory.trades" 
+        [paginator]="true" 
+        [rows]="filter.pageSize"
+        [totalRecords]="tradeHistory.totalCount"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        (onPage)="onPageChange($event)"
+        styleClass="p-datatable-striped"
+        responsiveLayout="stack"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="entryTime">Date <p-sortIcon field="entryTime"></p-sortIcon></th>
+            <th pSortableColumn="symbol">Coin <p-sortIcon field="symbol"></p-sortIcon></th>
+            <th pSortableColumn="interval">Interval <p-sortIcon field="interval"></p-sortIcon></th>
+            <th pSortableColumn="entryPrice">Entry Price <p-sortIcon field="entryPrice"></p-sortIcon></th>
+            <th pSortableColumn="exitPrice">Exit Price <p-sortIcon field="exitPrice"></p-sortIcon></th>
+            <th pSortableColumn="profitPercentage">Profit % <p-sortIcon field="profitPercentage"></p-sortIcon></th>
+            <th pSortableColumn="pattern">Pattern <p-sortIcon field="pattern"></p-sortIcon></th>
+            <th pSortableColumn="score">Score <p-sortIcon field="score"></p-sortIcon></th>
+            <th pSortableColumn="status">Status <p-sortIcon field="status"></p-sortIcon></th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-trade>
+          <tr>
+            <td>
+              <span class="p-column-title">Date</span>
+              {{ trade.entryTime | date:'short' }}
+            </td>
+            <td>
+              <span class="p-column-title">Coin</span>
+              {{ trade.symbol }}
+            </td>
+            <td>
+              <span class="p-column-title">Interval</span>
+              {{ trade.interval }}
+            </td>
+            <td>
+              <span class="p-column-title">Entry Price</span>
+              ${{ trade.entryPrice.toFixed(2) }}
+            </td>
+            <td>
+              <span class="p-column-title">Exit Price</span>
+              {{ trade.exitPrice ? '$' + trade.exitPrice.toFixed(2) : '-' }}
+            </td>
+            <td>
+              <span class="p-column-title">Profit %</span>
+              <span [ngClass]="getProfitClass(trade.profitPercentage)">
+                {{ trade.profitPercentage ? trade.profitPercentage.toFixed(2) + '%' : '-' }}
+              </span>
+            </td>
+            <td>
+              <span class="p-column-title">Pattern</span>
+              {{ trade.pattern }}
+            </td>
+            <td>
+              <span class="p-column-title">Score</span>
+              <span class="score-value">{{ trade.score }}/10</span>
+            </td>
+            <td>
+              <span class="p-column-title">Status</span>
+              <p-tag [value]="trade.status" [severity]="getStatusSeverity(trade.status)"></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="9" class="text-center">
+              No trade history found with the current filters.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </ng-container>
+</div>

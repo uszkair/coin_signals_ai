@@ -1,0 +1,100 @@
+// Typography SCSS
+
+// Base styles (for mobile - S screen size)
+@mixin typography-base($font-size, $line-height, $font-weight) {
+  font-size: $font-size + px;
+  line-height: $line-height + px;
+  font-weight: $font-weight;
+  font-family: Roboto Mono;
+}
+
+// Typography classes
+.display-1 { @include typography-base(40, 48, 800); }
+.display-2 { @include typography-base(36, 44, 800); }
+.display-3 { @include typography-base(32, 36, 800); }
+.featured-1 { @include typography-base(24, 32, 400); }
+.featured-2 { @include typography-base(20, 28, 400); }
+.featured-3 { @include typography-base(18, 24, 400); }
+.title-1 { @include typography-base(24, 32, 700); }
+.title-2 text-foreground-neutral { @include typography-base(20, 28, 700); }
+.title-3 { @include typography-base(18, 24, 700); }
+.title-5 {@include typography-base(18, 20, 700); }
+.body-strong-1 { @include typography-base(16, 24, 700); }
+.body-strong-2 { @include typography-base(14, 20, 700); }
+.body-medium-1 { @include typography-base(16, 24, 500); }
+.body-medium-2 { @include typography-base(14, 20, 500); }
+.body-1 { @include typography-base(16, 24, 400); }
+.body-2 { @include typography-base(14, 20, 400); }
+.caption-1 { @include typography-base(12, 16, 500); }
+.caption-2 { @include typography-base(10, 16, 700); }
+
+// Media queries for different screen sizes
+@media (min-width: 661px) {
+  // M screen size
+  .display-1 { @include typography-base(64, 76, 800); }
+  .display-2 { @include typography-base(48, 56, 800); }
+  .display-3 { @include typography-base(36, 48, 800); }
+  .featured-1 { @include typography-base(24, 32, 400); }
+  .featured-2 { @include typography-base(20, 28, 400); }
+  .featured-3 { @include typography-base(18, 24, 400); }
+  .title-1 { @include typography-base(24, 32, 700); }
+  .title-2 text-foreground-neutral { @include typography-base(20, 28, 700); }
+  .title-3 { @include typography-base(18, 24, 700); }
+  .title-5 {@include typography-base(18, 20, 700); }
+  .body-strong-1 { @include typography-base(16, 24, 700); }
+  .body-strong-2 { @include typography-base(14, 20, 700); }
+  .body-medium-1 { @include typography-base(16, 24, 500); }
+  .body-medium-2 { @include typography-base(14, 20, 500); }
+  .body-1 { @include typography-base(16, 24, 400); }
+  .body-2 { @include typography-base(14, 20, 400); }
+  .caption-1 { @include typography-base(12, 16, 500); }
+  .caption-2 { @include typography-base(10, 16, 700); }
+}
+
+@media (min-width: 901px) {
+  // L screen size
+  .display-1 { @include typography-base(84, 96, 700); }
+  .display-2 { @include typography-base(56, 64, 700); }
+  .display-3 { @include typography-base(44, 52, 700); }
+  .featured-1 { @include typography-base(32, 40, 400); }
+  .featured-2 { @include typography-base(24, 32, 400); }
+  .featured-3 { @include typography-base(20, 28, 400); }
+  .title-1 { @include typography-base(32, 40, 700); }
+  .title-2 text-foreground-neutral { @include typography-base(24, 32, 700); }
+  .title-3 { @include typography-base(20, 28, 700); }
+  .title-5 {@include typography-base(18, 24, 700); }
+  .body-strong-1 { @include typography-base(16, 24, 700); }
+  .body-strong-2 { @include typography-base(14, 20, 700); }
+  .body-medium-1 { @include typography-base(16, 24, 500); }
+  .body-medium-2 { @include typography-base(14, 20, 500); }
+  .body-1 { @include typography-base(16, 24, 400); }
+  .body-2 { @include typography-base(14, 20, 400); }
+  .caption-1 { @include typography-base(12, 16, 500); }
+  .caption-2 { @include typography-base(10, 16, 700); }
+}
+
+@media (min-width: 1280px) {
+  // XL screen size
+  .display-1 { @include typography-base(96, 112, 800); }
+  .display-2 { @include typography-base(64, 72, 800); }
+  .display-3 { @include typography-base(48, 56, 800); }
+  .featured-1 { @include typography-base(32, 40, 400); }
+  .featured-2 { @include typography-base(24, 32, 400); }
+  .featured-3 { @include typography-base(20, 28, 400); }
+  .title-1 { @include typography-base(32, 40, 700); }
+  .title-2 text-foreground-neutral { @include typography-base(24, 32, 700); }
+  .title-3 { @include typography-base(20, 28, 700); }
+  .title-5 {@include typography-base(19, 24, 700); }
+  .body-strong-1 { @include typography-base(16, 24, 700); }
+  .body-strong-2 { @include typography-base(14, 28, 700); }
+  .body-medium-1 { @include typography-base(16, 24, 500); }
+  .body-medium-2 { @include typography-base(14, 20, 500); }
+  .body-1 { @include typography-base(16, 24, 400); }
+  .body-2 { @include typography-base(14, 20, 400); }
+  .caption-1 { @include typography-base(12, 20, 500); }
+  .caption-2 { @include typography-base(10, 16, 700); }
+}
+
+p, h1, h2, h3, h4, h5, h6 {
+  // margin: 0;
+}

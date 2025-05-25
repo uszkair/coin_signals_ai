@@ -1,0 +1,195 @@
+<div class="dashboard-container">
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="filter-item">
+      <label for="symbol">Coin Pair</label>
+      <p-dropdown
+        id="symbol"
+        [options]="(symbols$ | async) || []"
+        [(ngModel)]="selectedSymbol"
+        (onChange)="onSymbolChange()"
+        placeholder="Select Coin"
+        styleClass="w-full"
+      ></p-dropdown>
+    </div>
+    
+    <div class="filter-item">
+      <label for="interval">Time Interval</label>
+      <p-dropdown 
+        id="interval"
+        [options]="intervals" 
+        [(ngModel)]="selectedInterval" 
+        (onChange)="onIntervalChange()"
+        placeholder="Select Interval"
+        styleClass="w-full"
+      ></p-dropdown>
+    </div>
+  </div>
+  
+  <!-- Main Content -->
+  <div class="dashboard-content">
+    <!-- Left Column -->
+    <div class="dashboard-column">
+      <!-- Current Signal Card -->
+      <p-card styleClass="signal-card">
+        <ng-template pTemplate="header">
+          <div class="signal-card-header">
+            <h2>Current Signal</h2>
+            <ng-container *ngIf="currentSignal$ | async as currentSignal">
+              <p-chip 
+                [label]="currentSignal.type" 
+                [ngClass]="getSignalTypeClass(currentSignal.type)"
+              ></p-chip>
+            </ng-container>
+          </div>
+        </ng-template>
+        
+        <div *ngIf="loading$.signal" class="loading-placeholder">
+          <p-progressSpinner [style]="{width: '50px', height: '50px'}" styleClass="custom-spinner" strokeWidth="4"></p-progressSpinner>
+          <div>Loading signal data...</div>
+        </div>
+        
+        <ng-container *ngIf="currentSignal$ | async as currentSignal">
+          <div *ngIf="!loading$.signal" class="signal-details">
+            <div class="signal-row">
+              <span class="signal-label">Entry Price:</span>
+              <span class="signal-value">${{ currentSignal.entryPrice.toFixed(2) }}</span>
+            </div>
+            
+            <div class="signal-row">
+              <span class="signal-label">Stop Loss:</span>
+              <span class="signal-value">${{ currentSignal.stopLoss.toFixed(2) }}</span>
+            </div>
+            
+            <div class="signal-row">
+              <span class="signal-label">Take Profit:</span>
+              <span class="signal-value">${{ currentSignal.takeProfit.toFixed(2) }}</span>
+            </div>
+            
+            <div class="signal-row">
+              <span class="signal-label">Trend:</span>
+              <span class="signal-value">{{ currentSignal.trend }}</span>
+            </div>
+            
+            <div class="signal-row">
+              <span class="signal-label">Confidence:</span>
+              <span class="signal-value">{{ currentSignal.confidence.toFixed(1) }}/10</span>
+            </div>
+            
+            <div *ngIf="currentSignal.reason" class="signal-row">
+              <span class="signal-label">Reason:</span>
+              <span class="signal-value">{{ currentSignal.reason }}</span>
+            </div>
+          </div>
+        </ng-container>
+        
+        <div *ngIf="!(currentSignal$ | async) && !loading$.signal" class="no-data">
+          No signal available for the selected parameters.
+        </div>
+      </p-card>
+      
+      <!-- Chart Placeholder -->
+      <p-card styleClass="chart-card">
+        <ng-template pTemplate="header">
+          <h2>Price Chart</h2>
+        </ng-template>
+        
+        <div class="chart-container">
+          <app-trading-view-widget 
+            [symbol]="selectedSymbol" 
+            [interval]="selectedInterval"
+          ></app-trading-view-widget>
+        </div>
+      </p-card>
+    </div>
+    
+    <!-- Right Column -->
+    <div class="dashboard-column">
+      <!-- News Section -->
+      <p-card styleClass="news-card">
+        <ng-template pTemplate="header">
+          <h2>Latest News</h2>
+        </ng-template>
+        
+        <div *ngIf="loading$.news" class="loading-placeholder">
+          <p-progressSpinner [style]="{width: '50px', height: '50px'}" styleClass="custom-spinner" strokeWidth="4"></p-progressSpinner>
+          <div>Loading news...</div>
+        </div>
+        
+        <ng-container *ngIf="news$ | async as news">
+          <div *ngIf="!loading$.news && news.length > 0" class="news-list">
+            <div *ngFor="let item of news; trackBy: trackByNewsId" class="news-item">
+              <div class="news-header">
+                <h3 class="news-title">{{ item.title }}</h3>
+                <p-tag 
+                  [value]="item.sentiment" 
+                  [severity]="item.sentiment === 'positive' ? 'success' : (item.sentiment === 'negative' ? 'danger' : 'info')"
+                ></p-tag>
+              </div>
+              
+              <div class="news-meta">
+                <span class="news-source">{{ item.source }}</span>
+                <span class="news-date">{{ item.publishedAt | date:'short' }}</span>
+              </div>
+              
+              <p class="news-summary">{{ item.summary }}</p>
+              
+              <div class="news-footer">
+                <span class="impact-score">Impact: {{ item.impactScore }}/10</span>
+                <a [href]="item.url" target="_blank" class="news-link">Read More</a>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="!loading$.news && news.length === 0" class="no-data">
+            No news available for {{ selectedSymbol }}.
+          </div>
+        </ng-container>
+      </p-card>
+      
+      <!-- Recent Signals -->
+      <p-card styleClass="recent-signals-card">
+        <ng-template pTemplate="header">
+          <h2>Recent Signals (24h)</h2>
+        </ng-template>
+        
+        <div *ngIf="loading$.history" class="loading-placeholder">
+          <p-progressSpinner [style]="{width: '50px', height: '50px'}" styleClass="custom-spinner" strokeWidth="4"></p-progressSpinner>
+          <div>Loading signal history...</div>
+        </div>
+        
+        <ng-container *ngIf="recentSignals$ | async as recentSignals">
+          <div *ngIf="!loading$.history && recentSignals.length > 0" class="recent-signals-list">
+            <p-table [value]="recentSignals" styleClass="p-datatable-sm">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Time</th>
+                  <th>Interval</th>
+                  <th>Type</th>
+                  <th>Price</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-signal>
+                <tr>
+                  <td>{{ signal.timestamp | date:'short' }}</td>
+                  <td>{{ signal.interval }}</td>
+                  <td>
+                    <p-chip 
+                      [label]="signal.type" 
+                      [ngClass]="getSignalTypeClass(signal.type)"
+                    ></p-chip>
+                  </td>
+                  <td>${{ signal.entryPrice.toFixed(2) }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+          
+          <div *ngIf="!loading$.history && recentSignals.length === 0" class="no-data">
+            No recent signals for {{ selectedSymbol }}.
+          </div>
+        </ng-container>
+      </p-card>
+    </div>
+  </div>
+</div>
