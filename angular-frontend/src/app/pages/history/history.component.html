@@ -1,0 +1,214 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+      Történeti kereskedés
+    </h1>
+    
+    <!-- Filters -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Coinpár
+        </label>
+        <p-dropdown
+          [options]="coinOptions"
+          [(ngModel)]="selectedCoin"
+          placeholder="Összes"
+          [showClear]="true"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Kezdő dátum
+        </label>
+        <p-calendar
+          [(ngModel)]="startDate"
+          [showIcon]="true"
+          placeholder="Válassz dátumot"
+          class="w-full"
+        ></p-calendar>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Záró dátum
+        </label>
+        <p-calendar
+          [(ngModel)]="endDate"
+          [showIcon]="true"
+          placeholder="Válassz dátumot"
+          class="w-full"
+        ></p-calendar>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Típus
+        </label>
+        <p-dropdown
+          [options]="typeOptions"
+          [(ngModel)]="selectedType"
+          placeholder="Összes"
+          [showClear]="true"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+    </div>
+    
+    <div class="flex gap-2 mt-4">
+      <p-button
+        label="Szűrés"
+        icon="pi pi-filter"
+        (onClick)="applyFilters()"
+        [loading]="loading"
+      ></p-button>
+      
+      <p-button
+        label="Törlés"
+        icon="pi pi-times"
+        severity="secondary"
+        (onClick)="clearFilters()"
+      ></p-button>
+      
+      <p-button
+        label="Export CSV"
+        icon="pi pi-download"
+        severity="help"
+        (onClick)="exportData()"
+        [disabled]="!tradeHistory.length"
+      ></p-button>
+    </div>
+  </div>
+
+  <!-- Trade History Table -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+    <p-card>
+      <p-table
+        [value]="tradeHistory"
+        [loading]="loading"
+        [paginator]="true"
+        [rows]="20"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries"
+        [rowsPerPageOptions]="[10, 20, 50]"
+        [globalFilterFields]="['symbol', 'pattern', 'reason']"
+        #dt
+      >
+        <ng-template pTemplate="caption">
+          <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold">Kereskedési előzmények</h2>
+            <span class="p-input-icon-left">
+              <i class="pi pi-search"></i>
+              <input
+                pInputText
+                type="text"
+                (input)="dt.filterGlobal($any($event.target).value, 'contains')"
+                placeholder="Keresés..."
+                class="w-64"
+              />
+            </span>
+          </div>
+        </ng-template>
+        
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="symbol">
+              Symbol <p-sortIcon field="symbol"></p-sortIcon>
+            </th>
+            <th pSortableColumn="timestamp">
+              Időpont <p-sortIcon field="timestamp"></p-sortIcon>
+            </th>
+            <th pSortableColumn="interval">
+              Intervallum <p-sortIcon field="interval"></p-sortIcon>
+            </th>
+            <th pSortableColumn="entry_price">
+              Entry ár <p-sortIcon field="entry_price"></p-sortIcon>
+            </th>
+            <th pSortableColumn="exit_price">
+              Exit ár <p-sortIcon field="exit_price"></p-sortIcon>
+            </th>
+            <th pSortableColumn="profit_percent">
+              Profit % <p-sortIcon field="profit_percent"></p-sortIcon>
+            </th>
+            <th pSortableColumn="stop_loss">
+              SL <p-sortIcon field="stop_loss"></p-sortIcon>
+            </th>
+            <th pSortableColumn="take_profit">
+              TP <p-sortIcon field="take_profit"></p-sortIcon>
+            </th>
+            <th pSortableColumn="pattern">
+              Pattern <p-sortIcon field="pattern"></p-sortIcon>
+            </th>
+            <th pSortableColumn="score">
+              Score <p-sortIcon field="score"></p-sortIcon>
+            </th>
+            <th>Indoklás</th>
+            <th pSortableColumn="status">
+              Státusz <p-sortIcon field="status"></p-sortIcon>
+            </th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-trade>
+          <tr>
+            <td>
+              <span class="font-medium">{{ trade.symbol }}</span>
+            </td>
+            <td>{{ trade.timestamp | date:'short' }}</td>
+            <td>{{ trade.interval }}</td>
+            <td>${{ trade.entry_price | number:'1.2-6' }}</td>
+            <td>
+              <span *ngIf="trade.exit_price; else noExit">
+                ${{ trade.exit_price | number:'1.2-6' }}
+              </span>
+              <ng-template #noExit>-</ng-template>
+            </td>
+            <td>
+              <span *ngIf="trade.profit_percent !== null && trade.profit_percent !== undefined; else noProfit"
+                    [class]="getProfitClass(trade.profit_percent)">
+                {{ trade.profit_percent | number:'1.2-2' }}%
+              </span>
+              <ng-template #noProfit>-</ng-template>
+            </td>
+            <td>${{ trade.stop_loss | number:'1.2-6' }}</td>
+            <td>${{ trade.take_profit | number:'1.2-6' }}</td>
+            <td>
+              <span class="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                {{ trade.pattern }}
+              </span>
+            </td>
+            <td>
+              <p-tag
+                [value]="trade.score.toString()"
+                [severity]="getScoreSeverity(trade.score)"
+              ></p-tag>
+            </td>
+            <td>
+              <span class="text-sm" [title]="trade.reason">
+                {{ trade.reason | slice:0:50 }}{{ trade.reason.length > 50 ? '...' : '' }}
+              </span>
+            </td>
+            <td>
+              <p-tag
+                [value]="trade.status"
+                [severity]="getStatusSeverity(trade.status)"
+              ></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="12" class="text-center py-8">
+              <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-500 dark:text-gray-400">Nincs kereskedési előzmény</p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-card>
+  </div>
+</div>

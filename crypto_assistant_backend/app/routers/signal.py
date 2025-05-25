@@ -8,9 +8,6 @@ router = APIRouter()
 
 @router.get("/", response_model=SignalResponse)
 async def get_signal(symbol: str = "BTCUSDT", interval: str = "1h"):
-    """
-    Jelenlegi kereskedési jelzés lekérése egy adott szimbólumra.
-    """
     try:
         signal = await get_current_signal(symbol, interval)
         return signal

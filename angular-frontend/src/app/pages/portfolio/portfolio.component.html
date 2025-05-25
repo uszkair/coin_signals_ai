@@ -1,0 +1,173 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+        Portfólió áttekintés
+      </h1>
+      
+      <div class="flex items-center gap-4">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Időszak:
+        </label>
+        <p-dropdown
+          [options]="timeframeOptions"
+          [(ngModel)]="selectedTimeframe"
+          (onChange)="onTimeframeChange()"
+          class="w-32"
+        ></p-dropdown>
+        
+        <p-button
+          label="Frissítés"
+          icon="pi pi-refresh"
+          (onClick)="refreshData()"
+          [loading]="loading"
+        ></p-button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" *ngIf="portfolioStats">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-green-100 dark:bg-green-900">
+          <i class="pi pi-trending-up text-green-600 dark:text-green-400 text-xl"></i>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Összes profit</p>
+          <p class="text-2xl font-bold" [class]="getProfitClass(portfolioStats.total_profit_percent)">
+            {{ portfolioStats.total_profit_percent | number:'1.2-2' }}%
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+          <i class="pi pi-chart-line text-blue-600 dark:text-blue-400 text-xl"></i>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Nyereséges ügyletek</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">
+            {{ portfolioStats.profitable_trades }}/{{ portfolioStats.total_trades }}
+          </p>
+          <p class="text-sm text-gray-500">
+            ({{ portfolioStats.win_rate | number:'1.1-1' }}%)
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900">
+          <i class="pi pi-star text-purple-600 dark:text-purple-400 text-xl"></i>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Legjobb coin</p>
+          <p class="text-xl font-bold text-gray-900 dark:text-white">
+            {{ portfolioStats.best_coin }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900">
+          <i class="pi pi-dollar text-orange-600 dark:text-orange-400 text-xl"></i>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Átlag profit/ügylet</p>
+          <p class="text-xl font-bold" [class]="getProfitClass(portfolioStats.avg_profit_per_trade)">
+            {{ portfolioStats.avg_profit_per_trade | number:'1.2-2' }}%
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Profit Timeline Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <p-card header="Profit idővonalon">
+        <p-chart
+          type="line"
+          [data]="lineChartData"
+          [options]="lineChartOptions"
+          height="300"
+        ></p-chart>
+      </p-card>
+    </div>
+
+    <!-- Coin Profits Pie Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <p-card header="Profit coinonként">
+        <p-chart
+          type="pie"
+          [data]="pieChartData"
+          [options]="pieChartOptions"
+          height="300"
+        ></p-chart>
+      </p-card>
+    </div>
+  </div>
+
+  <!-- Detailed Coin Performance Table -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+    <p-card header="Részletes coin teljesítmény">
+      <p-table [value]="coinProfits" [loading]="loading">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="symbol">
+              Symbol <p-sortIcon field="symbol"></p-sortIcon>
+            </th>
+            <th pSortableColumn="profit_percent">
+              Profit % <p-sortIcon field="profit_percent"></p-sortIcon>
+            </th>
+            <th pSortableColumn="trade_count">
+              Ügyletek száma <p-sortIcon field="trade_count"></p-sortIcon>
+            </th>
+            <th pSortableColumn="win_rate">
+              Nyerési arány <p-sortIcon field="win_rate"></p-sortIcon>
+            </th>
+            <th>Teljesítmény</th>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="body" let-coin>
+          <tr>
+            <td>
+              <span class="font-medium">{{ coin.symbol }}</span>
+            </td>
+            <td>
+              <span [class]="getProfitClass(coin.profit_percent)" class="font-medium">
+                {{ coin.profit_percent | number:'1.2-2' }}%
+              </span>
+            </td>
+            <td>{{ coin.trade_count }}</td>
+            <td>{{ coin.win_rate | number:'1.1-1' }}%</td>
+            <td>
+              <p-tag
+                [value]="getPerformanceLabel(coin.profit_percent)"
+                [severity]="getPerformanceSeverity(coin.profit_percent)"
+              ></p-tag>
+            </td>
+          </tr>
+        </ng-template>
+        
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5" class="text-center py-8">
+              <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-500 dark:text-gray-400">Nincs adat</p>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </p-card>
+  </div>
+</div>

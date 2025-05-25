@@ -1,0 +1,158 @@
+<div class="space-y-6">
+  <!-- Header Controls -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div class="flex flex-wrap gap-4 items-center">
+      <div class="flex-1 min-w-48">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Coinpár
+        </label>
+        <p-dropdown
+          [options]="coinOptions"
+          [(ngModel)]="selectedCoin"
+          (onChange)="onCoinChange()"
+          placeholder="Válassz coinpárt"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div class="flex-1 min-w-48">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Időintervallum
+        </label>
+        <p-dropdown
+          [options]="intervalOptions"
+          [(ngModel)]="selectedInterval"
+          (onChange)="onIntervalChange()"
+          placeholder="Válassz intervallumot"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+      
+      <div class="flex items-end">
+        <p-button
+          label="Frissítés"
+          icon="pi pi-refresh"
+          (onClick)="refreshData()"
+          [loading]="loading"
+          class="mt-6"
+        ></p-button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Signal Card -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+    <p-card header="Jelenlegi szignál" class="h-full">
+      <div *ngIf="currentSignal; else noSignal" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+            {{ currentSignal.symbol }}
+          </h3>
+          <p-tag
+            [value]="currentSignal.signal"
+            [severity]="getSignalSeverity(currentSignal.signal)"
+            class="text-lg px-4 py-2"
+          ></p-tag>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="text-center">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Entry Price</div>
+            <div class="text-lg font-semibold">${{ currentSignal.entry_price | number:'1.2-6' }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Stop Loss</div>
+            <div class="text-lg font-semibold text-red-600">${{ currentSignal.stop_loss | number:'1.2-6' }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Take Profit</div>
+            <div class="text-lg font-semibold text-green-600">${{ currentSignal.take_profit | number:'1.2-6' }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Confidence</div>
+            <div class="text-lg font-semibold">{{ currentSignal.confidence }}%</div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Pattern</div>
+            <div class="font-medium">{{ currentSignal.pattern }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">Trend</div>
+            <div class="font-medium">{{ currentSignal.trend }}</div>
+          </div>
+        </div>
+        
+        <div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Indoklás</div>
+          <div class="text-sm">{{ currentSignal.reason }}</div>
+        </div>
+      </div>
+      
+      <ng-template #noSignal>
+        <div class="text-center py-8">
+          <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+          <p class="text-gray-500 dark:text-gray-400">Nincs elérhető szignál</p>
+        </div>
+      </ng-template>
+    </p-card>
+  </div>
+
+  <!-- Recent Signals and News -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Recent Signals -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <p-card header="Elmúlt 24 óra szignáljai">
+        <p-table [value]="recentSignals" [loading]="loading">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Idő</th>
+              <th>Symbol</th>
+              <th>Szignál</th>
+              <th>Confidence</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-signal>
+            <tr>
+              <td>{{ signal.timestamp | date:'short' }}</td>
+              <td>{{ signal.symbol }}</td>
+              <td>
+                <p-tag
+                  [value]="signal.signal"
+                  [severity]="getSignalSeverity(signal.signal)"
+                ></p-tag>
+              </td>
+              <td>{{ signal.confidence }}%</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+
+    <!-- News -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <p-card header="Hírek">
+        <p-timeline [value]="news" class="w-full">
+          <ng-template pTemplate="content" let-item>
+            <div class="p-4">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-sm">{{ item.title }}</h4>
+                <p-tag
+                  [value]="item.impact"
+                  [severity]="getImpactSeverity(item.impact)"
+                  class="text-xs"
+                ></p-tag>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                {{ item.content }}
+              </p>
+              <small class="text-gray-500">{{ item.timestamp | date:'short' }}</small>
+            </div>
+          </ng-template>
+        </p-timeline>
+      </p-card>
+    </div>
+  </div>
+</div>

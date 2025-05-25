@@ -1,0 +1,98 @@
+Technológiai stack
+Angular 17+
+
+PrimeNG – UI elemekhez (táblázat, kártya, dropdown, chart, overlay, toast)
+
+Tailwind CSS – stylinghez (@apply és komponens szintű osztályhasználattal)
+
+RxJS – minden HTTP kommunikáció és komponens szinkronizálás reaktív módon történjen
+
+SCSS fájlokat ne használj – minden stílus Tailwind utility class-eken keresztül történjen
+
+🧠 Célrendszer (API alapú backend)
+Az Angular frontend egy AI-alapú kereskedési asszisztens UI-ja, amely a következő fő részekből áll:
+
+1. Dashboard oldal (/dashboard)
+Coinpár kiválasztó (PrimeNG Dropdown)
+
+Időintervallum kiválasztó (1m, 5m, 15m, 1h, 4h, 1d)
+
+Jelenlegi szignálkártya:
+
+Szignál: BUY / SELL / HOLD
+
+Entry price, SL/TP, Pattern, Trend, Confidence (mint Score Badge)
+
+Gyertya chart (PrimeNG ChartModule + overlay)
+
+Elmúlt 24 óra szignáljai (PrimeNG Table vagy Accordion)
+
+Hírek listája (PrimeNG Timeline vagy Listbox) — hatáserősséggel
+
+Backend hívások:
+
+http
+Másolás
+Szerkesztés
+GET /api/signal/{symbol}?interval=1h&mode=swing
+GET /api/signals?symbols=BTCUSDT,ETHUSDT&interval=1h
+GET /api/news?symbol=BTCUSDT
+2. Történeti kereskedés oldal (/history)
+Táblázat a következő mezőkkel:
+
+Symbol, Időpont, Időintervallum, Entry/Exit ár, Profit%, SL/TP
+
+Pattern, Score, Indoklás (reason)
+
+Szűrők: coin, dátum, típus (PrimeNG Filters + Toolbar)
+
+Export gomb (CSV)
+
+Backend hívás:
+
+http
+Másolás
+Szerkesztés
+GET /api/trade-history?coinPair=BTCUSDT&startDate=2024-05-01&endDate=2024-05-25
+3. Portfólió oldal (/portfolio)
+Összesítő kártyák: összes profit %, nyereséges ügyletek száma, veszteségek, legjobb coin
+
+Statisztikák:
+
+Profit idővonalon (PrimeNG Line Chart)
+
+Profit coinonként (PrimeNG Pie Chart)
+
+Backend hívás:
+
+http
+Másolás
+Szerkesztés
+GET /api/trade-stats?timeframe=30d
+🔧 UI követelmények
+PrimeNG stílus + Tailwind kombinálása (pl. p-card p-4 rounded-lg shadow-lg bg-white dark:bg-gray-900)
+
+Minden oldalt külön komponensre bontani (pages/dashboard, pages/history, stb.)
+
+Szervizek (RxJS alapú): SignalService, HistoryService, PortfolioService
+
+Ne használj egyedi .scss fájlokat – csak Tailwind osztályokat a template-ben
+
+🧪 API Integráció minták
+ts
+Másolás
+Szerkesztés
+this.signalService.getCurrentSignal('BTCUSDT', '1h')
+  .pipe(take(1))
+  .subscribe(data => this.signal = data);
+🧭 Navigációs menü
+Alkalmazás szerkezete (routing):
+
+/dashboard
+
+/history
+
+/portfolio
+
+Navigációhoz: PrimeNG Menu, Sidebar, vagy Topbar modul használható.
+

@@ -51,6 +51,12 @@ from app.services.indicators import compute_indicators
 from app.services.candlestick_analyzer import detect_patterns
 
 async def get_current_signal(symbol: str, interval: str):
+    """
+    Get current trading signal for a symbol and interval.
+    
+    Note: This function does not use a 'mode' parameter (scalp, swing).
+    Those trading modes are not needed for this implementation.
+    """
     candles = await get_historical_data(symbol, interval, days=2)
     latest = candles[-1]
 

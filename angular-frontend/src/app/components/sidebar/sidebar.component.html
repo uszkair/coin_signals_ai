@@ -1,0 +1,48 @@
+<div class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg">
+  <div class="flex h-16 items-center justify-center border-b border-gray-200 dark:border-gray-700">
+    <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+      <i class="pi pi-chart-line mr-2"></i>
+      Coin Signals AI
+    </h1>
+  </div>
+  
+  <nav class="mt-8">
+    <div class="px-4 space-y-2">
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+        class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <i class="pi pi-home mr-3"></i>
+        Dashboard
+      </a>
+      
+      <a
+        routerLink="/history"
+        routerLinkActive="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+        class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <i class="pi pi-history mr-3"></i>
+        Történeti kereskedés
+      </a>
+      
+      <a
+        routerLink="/portfolio"
+        routerLinkActive="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+        class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <i class="pi pi-wallet mr-3"></i>
+        Portfólió
+      </a>
+    </div>
+  </nav>
+  
+  <div class="absolute bottom-4 left-4 right-4">
+    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+      <div class="flex items-center">
+        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+        <span class="text-xs text-gray-600 dark:text-gray-400">API Connected</span>
+      </div>
+    </div>
+  </div>
+</div>
