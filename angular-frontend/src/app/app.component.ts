@@ -11,5 +11,5 @@ import { SidebarComponent } from './components/sidebar/sidebar.component';
   styleUrls: []
 })
 export class AppComponent {
-  title = 'Coin Signals AI';
+  title = 'Coin Signals AI Frontend';
 }
