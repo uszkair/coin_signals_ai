@@ -29,3 +29,15 @@ async def get_history(
         return history
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/trade-history", response_model=List[SignalHistoryItem])
+async def get_trade_history(
+    symbol: str = "BTCUSDT",
+    days: int = 30,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    Kereskedési előzmények lekérése (alias a get_history-hoz).
+    """
+    return await get_history(symbol, days, start_date, end_date)

@@ -41,7 +41,7 @@ async def get_signal_history(symbol: str, interval: str, days: int) -> List[Sign
                 profit_percent=trade_result.profit_percent,
                 pattern=pattern,
                 score=score,
-                reason=indicators.reason
+                reason=indicators["reason"]
             ))
 
     return results
