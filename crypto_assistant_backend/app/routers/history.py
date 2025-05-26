@@ -32,12 +32,16 @@ async def get_history(
 
 @router.get("/trade-history", response_model=List[SignalHistoryItem])
 async def get_trade_history(
-    symbol: str = "BTCUSDT",
+    symbol: Optional[str] = None,
+    coinPair: Optional[str] = None,
     days: int = 30,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
     """
     Kereskedési előzmények lekérése (alias a get_history-hoz).
+    Elfogadja mind a 'symbol' mind a 'coinPair' paramétert.
     """
-    return await get_history(symbol, days, start_date, end_date)
+    # coinPair paramétert előnyben részesítjük, ha meg van adva
+    trading_symbol = coinPair or symbol or "BTCUSDT"
+    return await get_history(trading_symbol, days, start_date, end_date)
