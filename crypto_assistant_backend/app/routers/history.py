@@ -10,20 +10,25 @@ router = APIRouter()
 @router.get("/", response_model=List[SignalHistoryItem])
 async def get_history(
     symbol: str = "BTCUSDT",
-    days: int = 30,
+    days: int = 7,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
     """
     Kereskedési jelzések előzményeinek lekérése.
+    Alapértelmezetten 7 nap (1 hét), maximum 30 nap.
     """
     try:
+        # Maximum 30 napra korlátozzuk a teljesítmény miatt
+        if days > 30:
+            days = 30
+            
         # Dátumok feldolgozása, ha meg vannak adva
         start = datetime.fromisoformat(start_date) if start_date else datetime.now() - timedelta(days=days)
         end = datetime.fromisoformat(end_date) if end_date else datetime.now()
         
-        # Számítsuk ki a napok számát
-        days_diff = (end - start).days + 1
+        # Számítsuk ki a napok számát és korlátozzuk 30 napra
+        days_diff = min((end - start).days + 1, 30)
         
         history = await get_signal_history(symbol, "1h", days_diff)
         return history
@@ -34,13 +39,14 @@ async def get_history(
 async def get_trade_history(
     symbol: Optional[str] = None,
     coinPair: Optional[str] = None,
-    days: int = 30,
+    days: int = 7,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
     """
     Kereskedési előzmények lekérése (alias a get_history-hoz).
     Elfogadja mind a 'symbol' mind a 'coinPair' paramétert.
+    Alapértelmezetten 7 nap (1 hét), maximum 30 nap.
     """
     # coinPair paramétert előnyben részesítjük, ha meg van adva
     trading_symbol = coinPair or symbol or "BTCUSDT"
