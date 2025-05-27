@@ -110,6 +110,35 @@ export class HistoryComponent implements OnInit {
     });
   }
 
+  getTotalStats() {
+    const stats = {
+      totalTrades: this.tradeHistory.length,
+      profitableTrades: 0,
+      losingTrades: 0,
+      totalProfit: 0,
+      totalLoss: 0,
+      netProfit: 0,
+      winRate: 0
+    };
+
+    this.tradeHistory.forEach(trade => {
+      if (trade.profit_percent !== null && trade.profit_percent !== undefined) {
+        if (trade.profit_percent > 0) {
+          stats.profitableTrades++;
+          stats.totalProfit += trade.profit_percent;
+        } else if (trade.profit_percent < 0) {
+          stats.losingTrades++;
+          stats.totalLoss += Math.abs(trade.profit_percent);
+        }
+        stats.netProfit += trade.profit_percent;
+      }
+    });
+
+    stats.winRate = stats.totalTrades > 0 ? (stats.profitableTrades / stats.totalTrades) * 100 : 0;
+
+    return stats;
+  }
+
   getProfitClass(profit: number): string {
     if (profit > 0) return 'text-green-600 font-medium';
     if (profit < 0) return 'text-red-600 font-medium';

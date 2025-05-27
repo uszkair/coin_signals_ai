@@ -83,6 +83,43 @@
     </div>
   </div>
 
+  <!-- Summary Statistics -->
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6" *ngIf="tradeHistory.length > 0">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Összegzés</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div class="text-center">
+        <div class="text-2xl font-bold text-blue-600">{{ getTotalStats().totalTrades }}</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Összes kereskedés</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-green-600">{{ getTotalStats().profitableTrades }}</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Nyerő kereskedés</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-red-600">{{ getTotalStats().losingTrades }}</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Vesztes kereskedés</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-green-600">+{{ getTotalStats().totalProfit | number:'1.2-2' }}%</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Összes profit</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-red-600">-{{ getTotalStats().totalLoss | number:'1.2-2' }}%</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Összes veszteség</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold" [class]="getTotalStats().netProfit >= 0 ? 'text-green-600' : 'text-red-600'">
+          {{ getTotalStats().netProfit >= 0 ? '+' : '' }}{{ getTotalStats().netProfit | number:'1.2-2' }}%
+        </div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Nettó eredmény</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-blue-600">{{ getTotalStats().winRate | number:'1.1-1' }}%</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Nyerési arány</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Trade History Table -->
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
     <p-card>
