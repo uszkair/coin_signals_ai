@@ -118,6 +118,9 @@
             <th pSortableColumn="symbol">
               Symbol <p-sortIcon field="symbol"></p-sortIcon>
             </th>
+            <th pSortableColumn="signal">
+              Típus <p-sortIcon field="signal"></p-sortIcon>
+            </th>
             <th pSortableColumn="timestamp">
               Időpont <p-sortIcon field="timestamp"></p-sortIcon>
             </th>
@@ -146,8 +149,8 @@
               Score <p-sortIcon field="score"></p-sortIcon>
             </th>
             <th>Indoklás</th>
-            <th pSortableColumn="status">
-              Státusz <p-sortIcon field="status"></p-sortIcon>
+            <th pSortableColumn="result">
+              Eredmény <p-sortIcon field="result"></p-sortIcon>
             </th>
           </tr>
         </ng-template>
@@ -156,6 +159,12 @@
           <tr>
             <td>
               <span class="font-medium">{{ trade.symbol }}</span>
+            </td>
+            <td>
+              <p-tag
+                [value]="trade.signal"
+                [severity]="getSignalTypeSeverity(trade.signal)"
+              ></p-tag>
             </td>
             <td>{{ trade.timestamp | date:'short' }}</td>
             <td>{{ trade.interval }}</td>
@@ -176,25 +185,29 @@
             <td>${{ trade.stop_loss | number:'1.2-6' }}</td>
             <td>${{ trade.take_profit | number:'1.2-6' }}</td>
             <td>
-              <span class="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+              <span *ngIf="trade.pattern; else noPattern" class="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                 {{ trade.pattern }}
               </span>
+              <ng-template #noPattern>-</ng-template>
             </td>
             <td>
               <p-tag
+                *ngIf="trade.score !== null && trade.score !== undefined; else noScore"
                 [value]="trade.score.toString()"
                 [severity]="getScoreSeverity(trade.score)"
               ></p-tag>
+              <ng-template #noScore>-</ng-template>
             </td>
             <td>
-              <span class="text-sm" [title]="trade.reason">
+              <span *ngIf="trade.reason; else noReason" class="text-sm" [title]="trade.reason">
                 {{ trade.reason | slice:0:50 }}{{ trade.reason.length > 50 ? '...' : '' }}
               </span>
+              <ng-template #noReason>-</ng-template>
             </td>
             <td>
               <p-tag
-                [value]="trade.status"
-                [severity]="getStatusSeverity(trade.status)"
+                [value]="getResultDisplayText(trade.result)"
+                [severity]="getResultSeverity(trade.result)"
               ></p-tag>
             </td>
           </tr>
@@ -202,7 +215,7 @@
         
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="12" class="text-center py-8">
+            <td colspan="13" class="text-center py-8">
               <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
               <p class="text-gray-500 dark:text-gray-400">Nincs kereskedési előzmény</p>
             </td>

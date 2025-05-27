@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface TradeHistory {
-  id: string;
+  id?: string;
   symbol: string;
   timestamp: string;
   interval: string;
@@ -13,11 +13,11 @@ export interface TradeHistory {
   profit_percent?: number;
   stop_loss: number;
   take_profit: number;
-  pattern: string;
-  score: number;
-  reason: string;
-  signal_type: 'BUY' | 'SELL' | 'HOLD';
-  status: 'OPEN' | 'CLOSED' | 'STOPPED';
+  pattern?: string;
+  score?: number;
+  reason?: string;
+  signal: 'BUY' | 'SELL' | 'HOLD';
+  result?: string;
 }
 
 @Injectable({
@@ -51,14 +51,15 @@ export class HistoryService {
 
   exportToCsv(data: TradeHistory[]): void {
     const headers = [
-      'Symbol', 'Timestamp', 'Interval', 'Entry Price', 'Exit Price', 
-      'Profit %', 'Stop Loss', 'Take Profit', 'Pattern', 'Score', 'Reason'
+      'Symbol', 'Signal', 'Timestamp', 'Interval', 'Entry Price', 'Exit Price',
+      'Profit %', 'Stop Loss', 'Take Profit', 'Pattern', 'Score', 'Reason', 'Result'
     ];
     
     const csvContent = [
       headers.join(','),
       ...data.map(row => [
         row.symbol,
+        row.signal,
         row.timestamp,
         row.interval,
         row.entry_price,
@@ -66,9 +67,10 @@ export class HistoryService {
         row.profit_percent || '',
         row.stop_loss,
         row.take_profit,
-        row.pattern,
-        row.score,
-        `"${row.reason}"`
+        row.pattern || '',
+        row.score || '',
+        `"${row.reason || ''}"`,
+        row.result || ''
       ].join(','))
     ].join('\n');
 

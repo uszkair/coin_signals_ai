@@ -123,11 +123,31 @@ export class HistoryComponent implements OnInit {
     return 'danger';
   }
 
-  getStatusSeverity(status: string): 'success' | 'warning' | 'danger' | 'info' {
-    switch (status) {
-      case 'CLOSED': return 'success';
-      case 'OPEN': return 'info';
-      case 'STOPPED': return 'danger';
+  getResultSeverity(result: string | null | undefined): 'success' | 'warning' | 'danger' | 'info' {
+    if (!result) return 'info';
+    switch (result.toLowerCase()) {
+      case 'take_profit_hit': return 'success';
+      case 'stop_loss_hit': return 'danger';
+      case 'pending':
+      case 'open': return 'warning';
+      default: return 'info';
+    }
+  }
+
+  getResultDisplayText(result: string | null | undefined): string {
+    if (!result) return 'PENDING';
+    switch (result.toLowerCase()) {
+      case 'take_profit_hit': return 'PROFIT';
+      case 'stop_loss_hit': return 'LOSS';
+      default: return result.toUpperCase();
+    }
+  }
+
+  getSignalTypeSeverity(signalType: string): 'success' | 'warning' | 'danger' | 'info' {
+    switch (signalType) {
+      case 'BUY': return 'success';
+      case 'SELL': return 'danger';
+      case 'HOLD': return 'warning';
       default: return 'info';
     }
   }
