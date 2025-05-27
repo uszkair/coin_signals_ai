@@ -32,8 +32,8 @@ export class SignalService {
 
   constructor(private http: HttpClient) {}
 
-  getCurrentSignal(symbol: string, interval: string = '1h', mode: string = 'swing'): Observable<Signal> {
-    return this.http.get<Signal>(`${this.apiUrl}/signal/${symbol}?interval=${interval}&mode=${mode}`);
+  getCurrentSignal(symbol: string, interval: string = '1h'): Observable<Signal> {
+    return this.http.get<Signal>(`${this.apiUrl}/signal/${symbol}?interval=${interval}`);
   }
 
   getMultipleSignals(symbols: string[], interval: string = '1h'): Observable<Signal[]> {
