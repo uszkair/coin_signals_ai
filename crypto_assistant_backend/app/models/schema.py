@@ -57,3 +57,29 @@ class PortfolioSummary(BaseModel):
     profit_loss: float
     profit_loss_percentage: float
     assets: list[PortfolioItem]
+
+class PortfolioStats(BaseModel):
+    total_profit_percent: float
+    profitable_trades: int
+    total_trades: int
+    loss_trades: int
+    best_coin: str
+    worst_coin: str
+    win_rate: float
+    avg_profit_per_trade: float
+
+class ProfitTimeline(BaseModel):
+    date: str
+    cumulative_profit: float
+    daily_profit: float
+
+class CoinProfit(BaseModel):
+    symbol: str
+    profit_percent: float
+    trade_count: int
+    win_rate: float
+
+class TradeStatsResponse(BaseModel):
+    stats: PortfolioStats
+    profit_timeline: list[ProfitTimeline]
+    coin_profits: list[CoinProfit]
