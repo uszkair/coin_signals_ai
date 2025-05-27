@@ -16,6 +16,7 @@ app.add_middleware(
 
 # Routerek regisztrálása
 app.include_router(signal.router, prefix="/api/signal", tags=["Signal"])
+app.include_router(signal.router, prefix="/api/signals", tags=["Signals"])
 app.include_router(history.router, prefix="/api/history", tags=["History"])
 app.include_router(history.router, prefix="/api", tags=["Trade History"])
 app.include_router(news.router, prefix="/api/news", tags=["News"])
