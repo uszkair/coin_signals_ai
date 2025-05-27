@@ -44,6 +44,6 @@ export class PortfolioService {
       stats: PortfolioStats;
       profit_timeline: ProfitTimeline[];
       coin_profits: CoinProfit[];
-    }>(`${this.apiUrl}/trade-stats?timeframe=${timeframe}`);
+    }>(`${this.apiUrl}/portfolio/trade-stats?timeframe=${timeframe}`);
   }
 }
