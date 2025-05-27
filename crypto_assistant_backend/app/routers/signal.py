@@ -6,8 +6,8 @@ from app.services.signal_engine import get_current_signal
 
 router = APIRouter()
 
-@router.get("/", response_model=SignalResponse)
-async def get_signal(symbol: str = "BTCUSDT", interval: str = "1h"):
+@router.get("/{symbol}", response_model=SignalResponse)
+async def get_signal(symbol: str, interval: str = "1h"):
     try:
         signal = await get_current_signal(symbol, interval)
         return signal
