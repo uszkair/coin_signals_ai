@@ -324,14 +324,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  addToWatchlist(signal: Signal): void {
-    // Here you would implement watchlist functionality
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Figyelőlistára adva',
-      detail: `${signal.symbol} hozzáadva a figyelőlistához`
-    });
-  }
 
   showChart(signal: Signal): void {
     this.selectedSignal = signal;

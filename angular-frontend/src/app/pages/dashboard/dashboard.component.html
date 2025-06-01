@@ -152,7 +152,7 @@
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Pattern:</span>
-                  <span class="font-medium">{{ selectedSignal.pattern || 'N/A' }}</span>
+                  <span class="font-medium">{{ selectedSignal.pattern || 'Nincs felismert pattern' }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Trend:</span>
@@ -213,20 +213,12 @@
                 class="w-full"
               ></p-button>
               <p-button
-                label="Figyelőlistára"
-                icon="pi pi-bookmark"
-                severity="info"
-                size="large"
-                (onClick)="addToWatchlist(selectedSignal)"
-                class="w-full"
-              ></p-button>
-              <p-button
                 label="Chart megjelenítése"
                 icon="pi pi-chart-line"
                 severity="secondary"
                 size="large"
                 (onClick)="showChart(selectedSignal)"
-                class="w-full"
+                class="w-full col-span-2"
               ></p-button>
             </div>
           </div>

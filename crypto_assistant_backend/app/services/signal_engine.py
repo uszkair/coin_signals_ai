@@ -74,7 +74,7 @@ async def get_current_signal(symbol: str, interval: str):
         "entry_price": result.entry_price,
         "stop_loss": result.stop_loss,
         "take_profit": result.take_profit,
-        "pattern": pattern or "None",
+        "pattern": pattern,  # Send None instead of "None" string
         "score": score,
         "trend": indicators["trend"],
         "confidence": 85 if score >= 3 else 65,  # Percentage as number

@@ -60,7 +60,7 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
         timezone: "Europe/Budapest",
         theme: this.theme,
         style: "1",
-        locale: "hu_HU",
+        locale: "en",
         toolbar_bg: "#f1f3f6",
         enable_publishing: false,
         allow_symbol_change: false,
