@@ -23,9 +23,14 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   ngOnDestroy(): void {
-    if (this.widget) {
-      this.widget.remove();
+    if (this.widget && typeof this.widget.remove === 'function') {
+      try {
+        this.widget.remove();
+      } catch (error) {
+        console.warn('Error removing TradingView widget:', error);
+      }
     }
+    this.widget = null;
   }
 
   private loadTradingViewWidget(): void {
@@ -79,9 +84,14 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
 
   // Update widget when inputs change
   ngOnChanges(): void {
-    if (this.widget) {
-      this.widget.remove();
-      this.loadTradingViewWidget();
+    if (this.widget && typeof this.widget.remove === 'function') {
+      try {
+        this.widget.remove();
+      } catch (error) {
+        console.warn('Error removing TradingView widget on change:', error);
+      }
+      this.widget = null;
     }
+    this.loadTradingViewWidget();
   }
 }
