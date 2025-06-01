@@ -1,9 +1,17 @@
-<div #tradingViewContainer class="w-full h-full min-h-96">
-  <div class="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-800 rounded-lg">
-    <div class="text-center">
-      <i class="pi pi-chart-line text-4xl text-gray-400 mb-4"></i>
-      <p class="text-gray-500 dark:text-gray-400">TradingView Chart</p>
-      <p class="text-sm text-gray-400">{{ symbol }} - {{ interval }}</p>
+<div class="trading-view-widget w-full h-full">
+  <div
+    #tradingViewContainer
+    [id]="'tradingview_' + symbol"
+    class="w-full h-full min-h-[320px]"
+  >
+    <!-- TradingView widget will be loaded here -->
+    <div class="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-800 rounded-lg">
+      <div class="text-center">
+        <i class="pi pi-chart-line text-4xl text-gray-400 mb-4"></i>
+        <p class="text-gray-500 dark:text-gray-400">
+          Betöltés... {{ symbol }} ({{ interval }})
+        </p>
+      </div>
     </div>
   </div>
 </div>

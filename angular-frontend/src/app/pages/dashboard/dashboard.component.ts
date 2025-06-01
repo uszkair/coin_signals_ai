@@ -19,6 +19,7 @@ import { ConfirmationService } from 'primeng/api';
 
 import { SignalService, Signal, NewsItem } from '../../services/signal.service';
 import { WebSocketService } from '../../services/websocket.service';
+import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
 
 interface FilterOption {
   label: string;
@@ -40,7 +41,8 @@ interface FilterOption {
     ChartModule,
     ToastModule,
     InputSwitchModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    TradingViewWidgetComponent
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './dashboard.component.html',

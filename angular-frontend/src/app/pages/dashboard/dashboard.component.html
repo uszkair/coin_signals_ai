@@ -127,6 +127,15 @@
           </div>
         </div>
 
+        <!-- TradingView Chart -->
+        <div class="h-80 border-b border-gray-200 dark:border-gray-700">
+          <app-trading-view-widget
+            [symbol]="selectedSignal.symbol"
+            [interval]="'1H'"
+            [theme]="'light'"
+          ></app-trading-view-widget>
+        </div>
+
         <!-- Signal Details -->
         <div class="flex-1 p-6 overflow-auto">
           <!-- Price Information -->
