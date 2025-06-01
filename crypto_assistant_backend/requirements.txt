@@ -8,3 +8,7 @@ numpy==1.26.0
 python-binance==1.0.19
 ta==0.10.2
 pytest==7.4.2
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.13.1
+asyncpg==0.29.0
