@@ -13,7 +13,8 @@ export interface Signal {
   trend: string;
   confidence: number;
   timestamp: string;
-  reason: string;
+  reason?: string;
+  score?: number;
 }
 
 export interface NewsItem {

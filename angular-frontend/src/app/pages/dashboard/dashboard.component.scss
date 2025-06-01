@@ -1,0 +1,120 @@
+.selected-row {
+  @apply bg-blue-100 dark:bg-blue-900/30 !important;
+  border-left-color: #3b82f6 !important;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  @apply bg-gray-50 dark:bg-gray-700;
+}
+
+.p-datatable .p-datatable-tbody > tr.selected-row:hover {
+  @apply bg-blue-100 dark:bg-blue-900/30 !important;
+}
+
+// Signal strength indicators
+.signal-strength-high {
+  @apply border-l-4 border-green-500 bg-green-50 dark:bg-green-900/10;
+}
+
+.signal-strength-medium {
+  @apply border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/10;
+}
+
+.signal-strength-low {
+  @apply border-l-4 border-red-500 bg-red-50 dark:bg-red-900/10;
+}
+
+// Confidence bars
+.confidence-bar {
+  @apply h-2 rounded transition-all duration-300;
+}
+
+.confidence-high {
+  @apply bg-green-500;
+}
+
+.confidence-medium {
+  @apply bg-yellow-500;
+}
+
+.confidence-low {
+  @apply bg-red-500;
+}
+
+// Connection status indicator
+.connection-indicator {
+  @apply w-3 h-3 rounded-full animate-pulse;
+}
+
+.connection-connected {
+  @apply bg-green-500;
+  animation: none;
+}
+
+.connection-disconnected {
+  @apply bg-red-500;
+}
+
+// Toast notifications
+.p-toast .p-toast-message.p-toast-message-success {
+  @apply border-l-4 border-green-500;
+}
+
+.p-toast .p-toast-message.p-toast-message-warn {
+  @apply border-l-4 border-yellow-500;
+}
+
+.p-toast .p-toast-message.p-toast-message-error {
+  @apply border-l-4 border-red-500;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .dashboard-container {
+    @apply flex-col;
+  }
+  
+  .signals-panel {
+    @apply w-full h-1/2;
+  }
+  
+  .details-panel {
+    @apply w-full h-1/2;
+  }
+}
+
+// Animation for new signals
+@keyframes newSignal {
+  0% {
+    @apply bg-blue-200 dark:bg-blue-800;
+  }
+  100% {
+    @apply bg-transparent;
+  }
+}
+
+.new-signal {
+  animation: newSignal 2s ease-out;
+}
+
+// Loading states
+.loading-shimmer {
+  @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+}
+
+// Custom scrollbar
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
