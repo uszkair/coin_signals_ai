@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
+import random
 from app.utils.price_data import get_historical_data, get_current_price
 
 class TradeResult:
@@ -66,6 +67,11 @@ async def get_current_signal(symbol: str, interval: str):
 
     indicators = compute_indicators(latest)
     pattern, score = detect_patterns(latest)
+    
+    # Use the candle's timestamp with small random offset for more realistic signal times
+    # Add random minutes within the candle period to simulate different signal generation times
+    random_minutes = random.randint(0, 59) if interval == "1h" else random.randint(0, 14) if interval == "15m" else random.randint(0, 4)
+    signal_timestamp = latest["timestamp"] + timedelta(minutes=random_minutes)
 
     # Signal generation based on multiple factors
     signal_score = 0
@@ -110,5 +116,5 @@ async def get_current_signal(symbol: str, interval: str):
         "score": abs(signal_score),  # Use our calculated signal score instead of pattern score
         "trend": indicators["trend"],
         "confidence": 95 if abs(signal_score) >= 3 else (50 + abs(signal_score) * 15),  # Dynamic confidence based on signal strength
-        "timestamp": datetime.now()
+        "timestamp": signal_timestamp
     }
