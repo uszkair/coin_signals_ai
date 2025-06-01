@@ -9,6 +9,7 @@ class SignalResponse(BaseModel):
     interval: str
     signal: str  # BUY, SELL, HOLD
     entry_price: float
+    current_price: float  # Real-time current price
     stop_loss: float
     take_profit: float
     pattern: Optional[str]

@@ -46,3 +46,29 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         })
 
     return candles
+
+async def get_current_price(symbol: str):
+    """
+    Get current price for a symbol from Binance API
+    """
+    endpoint = f"/api/v3/ticker/price"
+    url = f"{BINANCE_BASE_URL}{endpoint}"
+    
+    params = {
+        "symbol": symbol
+    }
+    
+    headers = {}
+    if BINANCE_API_KEY:
+        headers["X-MBX-APIKEY"] = BINANCE_API_KEY
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+    
+    return {
+        "symbol": data["symbol"],
+        "price": float(data["price"]),
+        "timestamp": datetime.utcnow()
+    }

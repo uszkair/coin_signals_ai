@@ -69,7 +69,7 @@
               <th style="width: 100px">Symbol</th>
               <th style="width: 80px">Jel</th>
               <th style="width: 100px">Erősség</th>
-              <th style="width: 120px">Entry Price</th>
+              <th style="width: 120px">Aktuális Ár</th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-signal let-rowIndex="rowIndex">
@@ -89,12 +89,9 @@
                 ></p-tag>
               </td>
               <td>
-                <div class="flex items-center">
-                  <div [class]="getConfidenceBarClass(signal.confidence)" class="w-12 h-2 rounded mr-2"></div>
-                  <span class="text-sm">{{ signal.confidence }}%</span>
-                </div>
+                <span class="text-sm font-medium">{{ getConfidenceText(signal.confidence) }}</span>
               </td>
-              <td class="text-sm font-mono">${{ signal.entry_price | number:'1.2-6' }}</td>
+              <td class="text-sm font-mono">${{ signal.current_price | number:'1.2-6' }}</td>
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
@@ -130,7 +127,11 @@
         <!-- Signal Details -->
         <div class="flex-1 p-6 overflow-auto">
           <!-- Price Information -->
-          <div class="grid grid-cols-3 gap-6 mb-8">
+          <div class="grid grid-cols-4 gap-4 mb-8">
+            <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div class="text-sm text-blue-600 dark:text-blue-400 mb-1">Aktuális Ár</div>
+              <div class="text-xl font-bold text-blue-600 dark:text-blue-400">${{ selectedSignal.current_price | number:'1.2-6' }}</div>
+            </div>
             <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">Entry Price</div>
               <div class="text-xl font-bold text-gray-900 dark:text-white">${{ selectedSignal.entry_price | number:'1.2-6' }}</div>
@@ -168,11 +169,8 @@
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Kockázat</h3>
               <div class="space-y-3">
                 <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Confidence:</span>
-                  <div class="flex items-center">
-                    <div [class]="getConfidenceBarClass(selectedSignal.confidence)" class="w-16 h-3 rounded mr-2"></div>
-                    <span class="font-medium">{{ selectedSignal.confidence }}%</span>
-                  </div>
+                  <span class="text-gray-600 dark:text-gray-400">Erősség:</span>
+                  <span class="font-medium">{{ getConfidenceText(selectedSignal.confidence) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Risk/Reward:</span>

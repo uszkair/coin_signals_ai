@@ -7,6 +7,7 @@ export interface Signal {
   symbol: string;
   signal: 'BUY' | 'SELL' | 'HOLD';
   entry_price: number;
+  current_price: number;  // Real-time current price
   stop_loss: number;
   take_profit: number;
   pattern: string;

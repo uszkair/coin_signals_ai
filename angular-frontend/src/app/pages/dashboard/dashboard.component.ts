@@ -291,6 +291,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  getConfidenceText(confidence: number): string {
+    if (confidence >= 80) {
+      return 'Erős';
+    } else if (confidence >= 60) {
+      return 'Közepes';
+    } else {
+      return 'Gyenge';
+    }
+  }
+
   // Calculation methods
   calculateRiskReward(signal: Signal): string {
     const risk = Math.abs(signal.entry_price - signal.stop_loss);
