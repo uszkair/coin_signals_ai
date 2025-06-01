@@ -67,7 +67,34 @@ async def get_current_signal(symbol: str, interval: str):
     indicators = compute_indicators(latest)
     pattern, score = detect_patterns(latest)
 
-    direction = "BUY" if pattern in ["Hammer", "Bullish Engulfing"] else "SELL"
+    # Signal generation based on multiple factors
+    signal_score = 0
+    
+    # Pattern-based signals (if pattern exists)
+    if pattern in ["Hammer", "Bullish Engulfing"]:
+        signal_score += 2
+    elif pattern in ["Shooting Star", "Bearish Engulfing"]:
+        signal_score -= 2
+    elif pattern == "Doji":
+        signal_score += 0  # Neutral
+    
+    # Trend-based signals
+    if indicators["trend"] == "bullish":
+        signal_score += 1
+    elif indicators["trend"] == "bearish":
+        signal_score -= 1
+    
+    # Strength-based signals
+    if indicators["strength"] == "strong":
+        signal_score += 1 if indicators["trend"] == "bullish" else -1
+    
+    # Determine final direction
+    if signal_score > 0:
+        direction = "BUY"
+    elif signal_score < 0:
+        direction = "SELL"
+    else:
+        direction = "HOLD"
 
     result = await simulate_trade(entry=latest["close"], direction=direction, candle=latest)
 
@@ -80,8 +107,8 @@ async def get_current_signal(symbol: str, interval: str):
         "stop_loss": result.stop_loss,
         "take_profit": result.take_profit,
         "pattern": pattern,  # Send None instead of "None" string
-        "score": score,
+        "score": abs(signal_score),  # Use our calculated signal score instead of pattern score
         "trend": indicators["trend"],
-        "confidence": 85 if score >= 3 else 65,  # Percentage as number
+        "confidence": 95 if abs(signal_score) >= 3 else (50 + abs(signal_score) * 15),  # Dynamic confidence based on signal strength
         "timestamp": datetime.now()
     }
