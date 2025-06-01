@@ -14,7 +14,8 @@ class SignalResponse(BaseModel):
     pattern: Optional[str]
     score: Optional[int]
     trend: Optional[str]
-    confidence: Optional[str]
+    confidence: Optional[int]  # Percentage as integer
+    timestamp: Optional[datetime]
 
 class SignalHistoryItem(BaseModel):
     timestamp: datetime

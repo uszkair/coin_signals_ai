@@ -116,7 +116,7 @@
           </ng-template>
           <ng-template pTemplate="body" let-signal>
             <tr>
-              <td>{{ signal.timestamp | date:'short' }}</td>
+              <td>{{ signal.timestamp | date:'yyyy.MM.dd HH:mm':'hu-HU' }}</td>
               <td>{{ signal.symbol }}</td>
               <td>
                 <p-tag
@@ -148,7 +148,7 @@
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                 {{ item.content }}
               </p>
-              <small class="text-gray-500">{{ item.timestamp | date:'short' }}</small>
+              <small class="text-gray-500">{{ item.timestamp | date:'yyyy.MM.dd HH:mm':'hu-HU' }}</small>
             </div>
           </ng-template>
         </p-timeline>

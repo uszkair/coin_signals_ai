@@ -77,5 +77,6 @@ async def get_current_signal(symbol: str, interval: str):
         "pattern": pattern or "None",
         "score": score,
         "trend": indicators["trend"],
-        "confidence": "high" if score >= 3 else "medium"
+        "confidence": 85 if score >= 3 else 65,  # Percentage as number
+        "timestamp": datetime.now()
     }
