@@ -127,15 +127,6 @@
           </div>
         </div>
 
-        <!-- TradingView Chart -->
-        <div class="h-80 border-b border-gray-200 dark:border-gray-700">
-          <app-trading-view-widget
-            [symbol]="selectedSignal.symbol"
-            [interval]="'1H'"
-            [theme]="'light'"
-          ></app-trading-view-widget>
-        </div>
-
         <!-- Signal Details -->
         <div class="flex-1 p-6 overflow-auto">
           <!-- Price Information -->
@@ -202,7 +193,7 @@
           <!-- Trading Actions -->
           <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Kereskedési Műveletek</h3>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
               <p-button
                 *ngIf="selectedSignal.signal === 'BUY'"
                 label="Vásárlás"
@@ -229,6 +220,14 @@
                 (onClick)="addToWatchlist(selectedSignal)"
                 class="w-full"
               ></p-button>
+              <p-button
+                label="Chart megjelenítése"
+                icon="pi pi-chart-line"
+                severity="secondary"
+                size="large"
+                (onClick)="showChart(selectedSignal)"
+                class="w-full"
+              ></p-button>
             </div>
           </div>
         </div>
@@ -252,3 +251,24 @@
 
 <!-- Confirmation Dialog -->
 <p-confirmDialog></p-confirmDialog>
+
+<!-- Chart Modal -->
+<p-dialog
+  [(visible)]="showChartModal"
+  [header]="'Chart: ' + (selectedSignal?.symbol || '')"
+  [modal]="true"
+  [closable]="true"
+  [resizable]="true"
+  [maximizable]="true"
+  styleClass="chart-modal"
+  [style]="{width: '90vw', height: '80vh'}"
+>
+  <div class="w-full h-full" style="min-height: 600px;">
+    <app-trading-view-widget
+      *ngIf="selectedSignal && showChartModal"
+      [symbol]="selectedSignal.symbol"
+      [interval]="'1H'"
+      [theme]="'light'"
+    ></app-trading-view-widget>
+  </div>
+</p-dialog>

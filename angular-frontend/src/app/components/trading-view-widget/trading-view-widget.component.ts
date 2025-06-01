@@ -35,11 +35,11 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
       script.src = 'https://s3.tradingview.com/tv.js';
       script.async = true;
       script.onload = () => {
-        this.initializeWidget();
+        setTimeout(() => this.initializeWidget(), 100); // Small delay to ensure DOM is ready
       };
       document.head.appendChild(script);
     } else {
-      this.initializeWidget();
+      setTimeout(() => this.initializeWidget(), 100); // Small delay for DOM readiness
     }
   }
 
@@ -60,13 +60,19 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
         enable_publishing: false,
         allow_symbol_change: false,
         container_id: this.tradingViewContainer.nativeElement.id,
+        // Reduced studies for faster loading
         studies: [
-          "RSI@tv-basicstudies",
-          "MACD@tv-basicstudies"
+          "RSI@tv-basicstudies"
         ],
-        show_popup_button: true,
-        popup_width: "1000",
-        popup_height: "650"
+        show_popup_button: false, // Disable popup for faster loading
+        loading_screen: { backgroundColor: "#ffffff" },
+        disabled_features: [
+          "use_localstorage_for_settings",
+          "volume_force_overlay"
+        ],
+        enabled_features: [
+          "hide_left_toolbar"
+        ]
       });
     }
   }

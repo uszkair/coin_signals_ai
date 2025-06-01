@@ -14,6 +14,7 @@ import { ChartModule } from 'primeng/chart';
 import { ToastModule } from 'primeng/toast';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 
@@ -42,6 +43,7 @@ interface FilterOption {
     ToastModule,
     InputSwitchModule,
     ConfirmDialogModule,
+    DialogModule,
     TradingViewWidgetComponent
   ],
   providers: [MessageService, ConfirmationService],
@@ -61,6 +63,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   allSignals: Signal[] = [];
   filteredSignals: Signal[] = [];
   selectedSignal: Signal | null = null;
+  
+  // Chart modal
+  showChartModal = false;
   
   // Filters
   selectedSymbolFilter: string | null = null;
@@ -139,18 +144,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loading = true;
     }
     
+    // Load signals for all symbols to populate the list
     const symbols = this.symbolOptions.map(option => option.value);
     this.signalService.getMultipleSignals(symbols, '1h')
       .pipe(take(1))
       .subscribe({
         next: (signals) => {
           // Sort by timestamp descending (newest first)
-          this.allSignals = signals.sort((a, b) => 
+          this.allSignals = signals.sort((a, b) =>
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           );
           this.applyFilters();
           this.connectionStatus = 'connected';
           this.loading = false;
+          
+          // Auto-select first signal if none selected
+          if (this.filteredSignals.length > 0 && !this.selectedSignal) {
+            this.selectedSignal = this.filteredSignals[0];
+          }
           
           if (!silent && signals.length > 0) {
             this.showNewSignalNotification(signals[0]);
@@ -165,6 +176,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
             summary: 'Hiba',
             detail: 'Nem sikerült betölteni a szignálokat'
           });
+        }
+      });
+  }
+
+  // Load single signal for faster chart display
+  private loadSingleSignal(symbol: string): void {
+    this.signalService.getCurrentSignal(symbol, '1h')
+      .pipe(take(1))
+      .subscribe({
+        next: (signal) => {
+          // Update or add the signal to the list
+          const existingIndex = this.allSignals.findIndex(s => s.symbol === symbol);
+          if (existingIndex >= 0) {
+            this.allSignals[existingIndex] = signal;
+          } else {
+            this.allSignals.unshift(signal);
+          }
+          
+          // Re-sort and filter
+          this.allSignals.sort((a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+          this.applyFilters();
+        },
+        error: (error) => {
+          console.error(`Error loading signal for ${symbol}:`, error);
         }
       });
   }
@@ -200,6 +237,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       
       return true;
     });
+
+    // Auto-select first signal after filtering
+    if (this.filteredSignals.length > 0) {
+      // If current selection is not in filtered results, select first
+      if (!this.selectedSignal || !this.filteredSignals.includes(this.selectedSignal)) {
+        this.selectedSignal = this.filteredSignals[0];
+      }
+    } else {
+      this.selectedSignal = null;
+    }
   }
 
   // Signal selection
@@ -284,6 +331,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       summary: 'Figyelőlistára adva',
       detail: `${signal.symbol} hozzáadva a figyelőlistához`
     });
+  }
+
+  showChart(signal: Signal): void {
+    this.selectedSignal = signal;
+    this.showChartModal = true;
+    
+    // Load fresh data for the selected symbol to ensure chart has latest data
+    this.loadSingleSignal(signal.symbol);
   }
 
   // Notifications
