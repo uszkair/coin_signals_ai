@@ -66,6 +66,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   
   // Chart modal
   showChartModal = false;
+  chartLocked = false; // Flag to prevent auto-selection when chart is open
   
   // Filters
   selectedSymbolFilter: string | null = null;
@@ -158,8 +159,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.connectionStatus = 'connected';
           this.loading = false;
           
-          // Auto-select first signal if none selected
-          if (this.filteredSignals.length > 0 && !this.selectedSignal) {
+          // Auto-select first signal if none selected (only if chart is not locked)
+          if (!this.chartLocked && this.filteredSignals.length > 0 && !this.selectedSignal) {
             this.selectedSignal = this.filteredSignals[0];
           }
           
@@ -238,14 +239,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return true;
     });
 
-    // Auto-select first signal after filtering
-    if (this.filteredSignals.length > 0) {
-      // If current selection is not in filtered results, select first
-      if (!this.selectedSignal || !this.filteredSignals.includes(this.selectedSignal)) {
-        this.selectedSignal = this.filteredSignals[0];
+    // Auto-select first signal after filtering (only if chart is not locked)
+    if (!this.chartLocked) {
+      if (this.filteredSignals.length > 0) {
+        // If current selection is not in filtered results, select first
+        if (!this.selectedSignal || !this.filteredSignals.includes(this.selectedSignal)) {
+          this.selectedSignal = this.filteredSignals[0];
+        }
+      } else {
+        this.selectedSignal = null;
       }
-    } else {
-      this.selectedSignal = null;
     }
   }
 
@@ -338,9 +341,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   showChart(signal: Signal): void {
     this.selectedSignal = signal;
     this.showChartModal = true;
+    this.chartLocked = true; // Lock the selection to prevent auto-changes
     
     // Load fresh data for the selected symbol to ensure chart has latest data
     this.loadSingleSignal(signal.symbol);
+  }
+
+  closeChart(): void {
+    this.showChartModal = false;
+    this.chartLocked = false; // Unlock selection when chart is closed
   }
 
   // Notifications
@@ -409,8 +418,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       // Show notification
       this.showNewSignalNotification(newSignal);
       
-      // Auto-select if no signal is currently selected
-      if (!this.selectedSignal) {
+      // Auto-select if no signal is currently selected (only if chart is not locked)
+      if (!this.chartLocked && !this.selectedSignal) {
         this.selectedSignal = newSignal;
       }
     }

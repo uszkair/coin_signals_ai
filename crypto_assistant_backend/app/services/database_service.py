@@ -13,27 +13,40 @@ class DatabaseService:
     @staticmethod
     async def save_signal(db: AsyncSession, signal_data: dict) -> Signal:
         """Save a new signal to the database"""
-        signal = Signal(
-            symbol=signal_data["symbol"],
-            signal_type=signal_data["signal"],
-            price=signal_data.get("entry_price", signal_data.get("current_price", 0)),
-            confidence=signal_data["confidence"],
-            pattern=signal_data.get("pattern"),
-            trend=signal_data.get("trend"),
-            volume=signal_data.get("volume"),
-            rsi=signal_data.get("rsi"),
-            macd=signal_data.get("macd"),
-            bollinger_position=signal_data.get("bollinger_position"),
-            support_level=signal_data.get("stop_loss"),
-            resistance_level=signal_data.get("take_profit"),
-            interval_type=signal_data.get("interval", "1h"),
-            created_at=signal_data.get("timestamp", datetime.now())
-        )
-        
-        db.add(signal)
-        await db.commit()
-        await db.refresh(signal)
-        return signal
+        try:
+            # Convert timestamp if it's a datetime object
+            timestamp = signal_data.get("timestamp", datetime.now())
+            if isinstance(timestamp, str):
+                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            
+            signal = Signal(
+                symbol=signal_data["symbol"],
+                signal_type=signal_data["signal"],
+                price=float(signal_data.get("entry_price", signal_data.get("current_price", 0))),
+                confidence=float(signal_data["confidence"]),
+                pattern=signal_data.get("pattern"),
+                trend=signal_data.get("trend"),
+                volume=float(signal_data.get("volume")) if signal_data.get("volume") else None,
+                rsi=float(signal_data.get("rsi")) if signal_data.get("rsi") else None,
+                macd=float(signal_data.get("macd")) if signal_data.get("macd") else None,
+                bollinger_position=float(signal_data.get("bollinger_position")) if signal_data.get("bollinger_position") else None,
+                support_level=float(signal_data.get("stop_loss")) if signal_data.get("stop_loss") else None,
+                resistance_level=float(signal_data.get("take_profit")) if signal_data.get("take_profit") else None,
+                interval_type=signal_data.get("interval", "1h"),
+                created_at=timestamp
+            )
+            
+            db.add(signal)
+            await db.commit()
+            await db.refresh(signal)
+            
+            print(f"✅ Signal saved successfully: {signal.symbol} - {signal.signal_type} @ {signal.price}")
+            return signal
+            
+        except Exception as e:
+            print(f"❌ Error saving signal: {str(e)}")
+            await db.rollback()
+            raise e
 
     @staticmethod
     async def get_recent_signals(

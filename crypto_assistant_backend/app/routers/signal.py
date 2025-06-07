@@ -23,56 +23,42 @@ if DATABASE_AVAILABLE:
     @router.get("/", response_model=List[SignalResponse])
     async def get_signals(symbols: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
         """
-        Több szimbólum jelzéseinek lekérése egyszerre.
+        Trading signals lekérése adatbázisból.
+        A háttérben futó monitor szolgáltatás már elemzi és menti a signalokat.
         symbols: vesszővel elválasztott szimbólumok (pl: BTCUSDT,ETHUSDT)
         """
         try:
             symbol_list = [s.strip() for s in symbols.split(',')]
             signals = []
             
-            # Database mode
-            try:
-                # First try to get recent signals from database
-                db_signals = await DatabaseService.get_signals_by_symbols(db, symbol_list, interval, hours=1)
-                db_signal_symbols = {signal.symbol for signal in db_signals}
-                
-                # Add database signals
-                for db_signal in db_signals:
-                    signals.append(db_signal.to_dict())
-                
-                # Generate new signals for symbols not in database or outdated
-                for symbol in symbol_list:
-                    if symbol not in db_signal_symbols:
+            # Get latest signals from database for each symbol
+            for symbol in symbol_list:
+                try:
+                    # Get the most recent signal for this symbol (within 24 hours)
+                    recent_signals = await DatabaseService.get_recent_signals(
+                        db, hours=24, symbol=symbol, limit=1
+                    )
+                    
+                    if recent_signals:
+                        signal_dict = recent_signals[0].to_dict()
+                        # Update current price for real-time display
                         try:
-                            # Generate new signal
-                            signal_data = await get_current_signal(symbol, interval)
-                            
-                            # Save to database
-                            await DatabaseService.save_signal(db, signal_data)
-                            
-                            signals.append(signal_data)
-                        except Exception as e:
-                            print(f"Error generating signal for {symbol}: {e}")
-                            continue
-            except Exception as e:
-                print(f"Database error, falling back to cache: {e}")
-                # Fall back to cache mode
-                cached_signals = fallback_service.get_signals_by_symbols(symbol_list, interval)
-                cached_symbols = {signal.get('symbol') for signal in cached_signals}
-                
-                # Add cached signals
-                signals.extend(cached_signals)
-                
-                # Generate new signals for missing symbols
-                for symbol in symbol_list:
-                    if symbol not in cached_symbols:
-                        try:
-                            signal_data = await get_current_signal(symbol, interval)
-                            fallback_service.add_signal(signal_data)
-                            signals.append(signal_data)
-                        except Exception as e:
-                            print(f"Error generating signal for {symbol}: {e}")
-                            continue
+                            from app.utils.price_data import get_current_price
+                            current_price = await get_current_price(symbol)
+                            signal_dict['current_price'] = float(current_price)
+                        except:
+                            signal_dict['current_price'] = signal_dict['entry_price']
+                        signals.append(signal_dict)
+                    else:
+                        # If no recent signal found, this shouldn't happen with background monitor
+                        # but we'll generate one as fallback
+                        signal_data = await get_current_signal(symbol, interval)
+                        await DatabaseService.save_signal(db, signal_data)
+                        signals.append(signal_data)
+                        
+                except Exception as e:
+                    print(f"Error getting signal for {symbol}: {e}")
+                    continue
                     
             return signals
         except Exception as e:

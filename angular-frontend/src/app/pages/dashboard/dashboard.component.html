@@ -252,6 +252,7 @@
   [maximizable]="true"
   styleClass="chart-modal"
   [style]="{width: '90vw', height: '80vh'}"
+  (onHide)="closeChart()"
 >
   <div class="w-full h-full" style="min-height: 600px;">
     <app-trading-view-widget

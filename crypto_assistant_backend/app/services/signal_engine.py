@@ -62,8 +62,11 @@ async def get_current_signal(symbol: str, interval: str):
     latest = candles[-1]
 
     # Get current real-time price
-    current_price_data = await get_current_price(symbol)
-    current_price = current_price_data["price"]
+    try:
+        current_price_data = await get_current_price(symbol)
+        current_price = float(current_price_data)
+    except:
+        current_price = float(latest["close"])
 
     indicators = compute_indicators(latest)
     pattern, score = detect_patterns(latest)
