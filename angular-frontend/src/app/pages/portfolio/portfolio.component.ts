@@ -97,8 +97,8 @@ export class PortfolioComponent implements OnInit {
   }
 
   private updateLineChart(): void {
-    const labels = this.profitTimeline.map(item => 
-      new Date(item.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
+    const labels = this.profitTimeline.map(item =>
+      new Date(item.date).toLocaleDateString('default', { month: 'short', day: 'numeric' })
     );
     const data = this.profitTimeline.map(item => item.cumulative_profit);
 

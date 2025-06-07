@@ -203,7 +203,7 @@
                 [severity]="getSignalTypeSeverity(trade.signal)"
               ></p-tag>
             </td>
-            <td>{{ trade.timestamp | date:'short' }}</td>
+            <td>{{ trade.timestamp | date:'MM.dd HH:mm' }}</td>
             <td>{{ trade.interval }}</td>
             <td>${{ trade.entry_price | number:'1.2-6' }}</td>
             <td>
