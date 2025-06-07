@@ -92,14 +92,6 @@ export class WebSocketService {
     }
   }
 
-  // Send message
-  sendMessage(message: WebSocketMessage): void {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
-    } else {
-      console.warn('WebSocket is not connected. Message not sent:', message);
-    }
-  }
 
   // Subscribe to specific message types
   onSignalUpdate(): Observable<Signal> {
@@ -126,19 +118,4 @@ export class WebSocketService {
     });
   }
 
-  // Cleanup
-  disconnect(): void {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-    }
-    this.connectionStatusSubject.next('disconnected');
-  }
-
-  // Manual reconnect
-  reconnect(): void {
-    this.disconnect();
-    this.reconnectAttempts = 0;
-    this.connect();
-  }
 }

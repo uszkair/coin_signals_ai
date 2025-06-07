@@ -9,8 +9,6 @@ import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { TimelineModule } from 'primeng/timeline';
-import { ChartModule } from 'primeng/chart';
 import { ToastModule } from 'primeng/toast';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -18,7 +16,7 @@ import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 
-import { SignalService, Signal, NewsItem } from '../../services/signal.service';
+import { SignalService, Signal } from '../../services/signal.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
 
@@ -38,8 +36,6 @@ interface FilterOption {
     ButtonModule,
     TableModule,
     TagModule,
-    TimelineModule,
-    ChartModule,
     ToastModule,
     InputSwitchModule,
     ConfirmDialogModule,
@@ -182,31 +178,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
   }
 
-  // Load single signal for faster chart display
-  private loadSingleSignal(symbol: string): void {
-    this.signalService.getCurrentSignal(symbol, '1h')
-      .pipe(take(1))
-      .subscribe({
-        next: (signal) => {
-          // Update or add the signal to the list
-          const existingIndex = this.allSignals.findIndex(s => s.symbol === symbol);
-          if (existingIndex >= 0) {
-            this.allSignals[existingIndex] = signal;
-          } else {
-            this.allSignals.unshift(signal);
-          }
-          
-          // Re-sort and filter
-          this.allSignals.sort((a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          );
-          this.applyFilters();
-        },
-        error: (error) => {
-          console.error(`Error loading signal for ${symbol}:`, error);
-        }
-      });
-  }
 
   // Filtering
   applyFilters(): void {
@@ -326,9 +297,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.selectedSignal = signal;
     this.showChartModal = true;
     this.chartLocked = true; // Lock the selection to prevent auto-changes
-    
-    // Load fresh data for the selected symbol to ensure chart has latest data
-    this.loadSingleSignal(signal.symbol);
   }
 
   closeChart(): void {
