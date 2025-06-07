@@ -13,21 +13,23 @@ try:
     DATABASE_AVAILABLE = True
 except ImportError:
     DATABASE_AVAILABLE = False
+    AsyncSession = None
+    get_db = None
     print("Database not available, using fallback service")
 
 router = APIRouter()
 
-@router.get("/", response_model=List[SignalResponse])
-async def get_signals(symbols: str, interval: str = "1h", db=None):
-    """
-    Több szimbólum jelzéseinek lekérése egyszerre.
-    symbols: vesszővel elválasztott szimbólumok (pl: BTCUSDT,ETHUSDT)
-    """
-    try:
-        symbol_list = [s.strip() for s in symbols.split(',')]
-        signals = []
-        
-        if DATABASE_AVAILABLE and db is not None:
+if DATABASE_AVAILABLE:
+    @router.get("/", response_model=List[SignalResponse])
+    async def get_signals(symbols: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
+        """
+        Több szimbólum jelzéseinek lekérése egyszerre.
+        symbols: vesszővel elválasztott szimbólumok (pl: BTCUSDT,ETHUSDT)
+        """
+        try:
+            symbol_list = [s.strip() for s in symbols.split(',')]
+            signals = []
+            
             # Database mode
             try:
                 # First try to get recent signals from database
@@ -55,9 +57,37 @@ async def get_signals(symbols: str, interval: str = "1h", db=None):
             except Exception as e:
                 print(f"Database error, falling back to cache: {e}")
                 # Fall back to cache mode
-                DATABASE_AVAILABLE = False
-        
-        if not DATABASE_AVAILABLE:
+                cached_signals = fallback_service.get_signals_by_symbols(symbol_list, interval)
+                cached_symbols = {signal.get('symbol') for signal in cached_signals}
+                
+                # Add cached signals
+                signals.extend(cached_signals)
+                
+                # Generate new signals for missing symbols
+                for symbol in symbol_list:
+                    if symbol not in cached_symbols:
+                        try:
+                            signal_data = await get_current_signal(symbol, interval)
+                            fallback_service.add_signal(signal_data)
+                            signals.append(signal_data)
+                        except Exception as e:
+                            print(f"Error generating signal for {symbol}: {e}")
+                            continue
+                    
+            return signals
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+else:
+    @router.get("/", response_model=List[SignalResponse])
+    async def get_signals(symbols: str, interval: str = "1h"):
+        """
+        Több szimbólum jelzéseinek lekérése egyszerre.
+        symbols: vesszővel elválasztott szimbólumok (pl: BTCUSDT,ETHUSDT)
+        """
+        try:
+            symbol_list = [s.strip() for s in symbols.split(',')]
+            signals = []
+            
             # Fallback mode - use cache
             cached_signals = fallback_service.get_signals_by_symbols(symbol_list, interval)
             cached_symbols = {signal.get('symbol') for signal in cached_signals}
@@ -75,15 +105,15 @@ async def get_signals(symbols: str, interval: str = "1h", db=None):
                     except Exception as e:
                         print(f"Error generating signal for {symbol}: {e}")
                         continue
-                
-        return signals
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                    
+            return signals
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{symbol}", response_model=SignalResponse)
-async def get_signal(symbol: str, interval: str = "1h", db=None):
-    try:
-        if DATABASE_AVAILABLE and db is not None:
+if DATABASE_AVAILABLE:
+    @router.get("/{symbol}", response_model=SignalResponse)
+    async def get_signal(symbol: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
+        try:
             # Database mode
             try:
                 recent_signals = await DatabaseService.get_recent_signals(
@@ -102,52 +132,92 @@ async def get_signal(symbol: str, interval: str = "1h", db=None):
                 return signal_data
             except Exception as e:
                 print(f"Database error, using fallback: {e}")
-        
-        # Fallback mode
-        recent_signals = fallback_service.get_recent_signals(hours=1, symbol=symbol, limit=1)
-        
-        if recent_signals:
-            return recent_signals[0]
-        
-        # Generate new signal
-        signal_data = await get_current_signal(symbol, interval)
-        fallback_service.add_signal(signal_data)
-        
-        return signal_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                # Fallback mode
+                recent_signals = fallback_service.get_recent_signals(hours=1, symbol=symbol, limit=1)
+                
+                if recent_signals:
+                    return recent_signals[0]
+                
+                # Generate new signal
+                signal_data = await get_current_signal(symbol, interval)
+                fallback_service.add_signal(signal_data)
+                
+                return signal_data
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/history/{symbol}", response_model=List[SignalResponse])
-async def get_signal_history(
-    symbol: str,
-    hours: int = 24,
-    limit: int = 50,
-    db=None
-):
-    """Get signal history for a specific symbol"""
-    try:
-        if DATABASE_AVAILABLE and db is not None:
+    @router.get("/history/{symbol}", response_model=List[SignalResponse])
+    async def get_signal_history(
+        symbol: str,
+        hours: int = 24,
+        limit: int = 50,
+        db: AsyncSession = Depends(get_db)
+    ):
+        """Get signal history for a specific symbol"""
+        try:
             # Database mode
             signals = await DatabaseService.get_recent_signals(
                 db, hours=hours, symbol=symbol, limit=limit
             )
             return [signal.to_dict() for signal in signals]
-        else:
-            # Fallback mode
-            signals = fallback_service.get_recent_signals(hours=hours, symbol=symbol, limit=limit)
-            return signals
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/stats/{symbol}")
-async def get_signal_stats(symbol: str, days: int = 7, db=None):
-    """Get signal statistics for a symbol"""
-    try:
-        if DATABASE_AVAILABLE and db is not None:
+    @router.get("/stats/{symbol}")
+    async def get_signal_stats(symbol: str, days: int = 7, db: AsyncSession = Depends(get_db)):
+        """Get signal statistics for a symbol"""
+        try:
             # Database mode
             stats = await DatabaseService.get_signal_statistics(db, symbol=symbol, days=days)
             return stats
-        else:
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get("/stats/all")
+    async def get_all_signal_stats(days: int = 7, db: AsyncSession = Depends(get_db)):
+        """Get overall signal statistics"""
+        try:
+            # Database mode
+            stats = await DatabaseService.get_signal_statistics(db, days=days)
+            return stats
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+else:
+    @router.get("/{symbol}", response_model=SignalResponse)
+    async def get_signal(symbol: str, interval: str = "1h"):
+        try:
+            # Fallback mode
+            recent_signals = fallback_service.get_recent_signals(hours=1, symbol=symbol, limit=1)
+            
+            if recent_signals:
+                return recent_signals[0]
+            
+            # Generate new signal
+            signal_data = await get_current_signal(symbol, interval)
+            fallback_service.add_signal(signal_data)
+            
+            return signal_data
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get("/history/{symbol}", response_model=List[SignalResponse])
+    async def get_signal_history(
+        symbol: str,
+        hours: int = 24,
+        limit: int = 50
+    ):
+        """Get signal history for a specific symbol"""
+        try:
+            # Fallback mode
+            signals = fallback_service.get_recent_signals(hours=hours, symbol=symbol, limit=limit)
+            return signals
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get("/stats/{symbol}")
+    async def get_signal_stats(symbol: str, days: int = 7):
+        """Get signal statistics for a symbol"""
+        try:
             # Fallback mode - basic stats
             signals = fallback_service.get_recent_signals(hours=days*24, symbol=symbol)
             total_signals = len(signals)
@@ -161,18 +231,13 @@ async def get_signal_stats(symbol: str, days: int = 7, db=None):
                 "sell_signals": sell_signals,
                 "days": days
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/stats/all")
-async def get_all_signal_stats(days: int = 7, db=None):
-    """Get overall signal statistics"""
-    try:
-        if DATABASE_AVAILABLE and db is not None:
-            # Database mode
-            stats = await DatabaseService.get_signal_statistics(db, days=days)
-            return stats
-        else:
+    @router.get("/stats/all")
+    async def get_all_signal_stats(days: int = 7):
+        """Get overall signal statistics"""
+        try:
             # Fallback mode - basic stats
             signals = fallback_service.get_recent_signals(hours=days*24)
             total_signals = len(signals)
@@ -198,5 +263,5 @@ async def get_all_signal_stats(days: int = 7, db=None):
                 "days": days,
                 "symbols": symbols
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))

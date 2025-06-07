@@ -16,14 +16,16 @@ class DatabaseService:
         signal = Signal(
             symbol=signal_data["symbol"],
             signal_type=signal_data["signal"],
-            entry_price=signal_data["entry_price"],
-            current_price=signal_data["current_price"],
-            stop_loss=signal_data.get("stop_loss"),
-            take_profit=signal_data.get("take_profit"),
+            price=signal_data.get("entry_price", signal_data.get("current_price", 0)),
             confidence=signal_data["confidence"],
-            score=signal_data.get("score", 0),
             pattern=signal_data.get("pattern"),
             trend=signal_data.get("trend"),
+            volume=signal_data.get("volume"),
+            rsi=signal_data.get("rsi"),
+            macd=signal_data.get("macd"),
+            bollinger_position=signal_data.get("bollinger_position"),
+            support_level=signal_data.get("stop_loss"),
+            resistance_level=signal_data.get("take_profit"),
             interval_type=signal_data.get("interval", "1h"),
             created_at=signal_data.get("timestamp", datetime.now())
         )

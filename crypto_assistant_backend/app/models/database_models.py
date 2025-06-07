@@ -8,21 +8,23 @@ from app.database import Base
 
 class Signal(Base):
     __tablename__ = "signals"
+    __table_args__ = {'schema': 'crypto'}
 
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(20), nullable=False, index=True)
     signal_type = Column(String(10), nullable=False, index=True)  # BUY, SELL, HOLD
-    entry_price = Column(DECIMAL(20, 8), nullable=False)
-    current_price = Column(DECIMAL(20, 8), nullable=False)
-    stop_loss = Column(DECIMAL(20, 8))
-    take_profit = Column(DECIMAL(20, 8))
-    confidence = Column(Integer, nullable=False, index=True)
-    score = Column(Integer, default=0)
+    price = Column(DECIMAL(20, 8), nullable=False)
+    confidence = Column(DECIMAL(10, 4), nullable=False, index=True)
     pattern = Column(String(50), index=True)
     trend = Column(String(20))
+    volume = Column(DECIMAL(20, 8))
+    rsi = Column(DECIMAL(5, 2))
+    macd = Column(DECIMAL(20, 8))
+    bollinger_position = Column(DECIMAL(5, 4))
+    support_level = Column(DECIMAL(20, 8))
+    resistance_level = Column(DECIMAL(20, 8))
     interval_type = Column(String(10), default='1h')
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False, index=True)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationship to performance
     performance = relationship("SignalPerformance", back_populates="signal", cascade="all, delete-orphan")
@@ -32,23 +34,30 @@ class Signal(Base):
             "id": self.id,
             "symbol": self.symbol,
             "signal": self.signal_type,
-            "entry_price": float(self.entry_price),
-            "current_price": float(self.current_price),
-            "stop_loss": float(self.stop_loss) if self.stop_loss else None,
-            "take_profit": float(self.take_profit) if self.take_profit else None,
-            "confidence": self.confidence,
-            "score": self.score,
+            "entry_price": float(self.price),
+            "current_price": float(self.price),
+            "stop_loss": float(self.support_level) if self.support_level else None,
+            "take_profit": float(self.resistance_level) if self.resistance_level else None,
+            "confidence": float(self.confidence) if self.confidence else 0,
+            "score": 0,  # Not available in current schema
             "pattern": self.pattern,
             "trend": self.trend,
             "interval": self.interval_type,
-            "timestamp": self.created_at.isoformat() if self.created_at else None
+            "timestamp": self.created_at.isoformat() if self.created_at else None,
+            "volume": float(self.volume) if self.volume else None,
+            "rsi": float(self.rsi) if self.rsi else None,
+            "macd": float(self.macd) if self.macd else None,
+            "bollinger_position": float(self.bollinger_position) if self.bollinger_position else None,
+            "support_level": float(self.support_level) if self.support_level else None,
+            "resistance_level": float(self.resistance_level) if self.resistance_level else None
         }
 
 class SignalPerformance(Base):
     __tablename__ = "signal_performance"
+    __table_args__ = {'schema': 'crypto'}
 
     id = Column(Integer, primary_key=True, index=True)
-    signal_id = Column(Integer, ForeignKey("signals.id", ondelete="CASCADE"), nullable=False)
+    signal_id = Column(Integer, ForeignKey("crypto.signals.id", ondelete="CASCADE"), nullable=False)
     exit_price = Column(DECIMAL(20, 8))
     exit_time = Column(TIMESTAMP(timezone=True))
     profit_loss = Column(DECIMAL(20, 8))
@@ -73,6 +82,7 @@ class SignalPerformance(Base):
 
 class PriceHistory(Base):
     __tablename__ = "price_history"
+    __table_args__ = {'schema': 'crypto'}
 
     id = Column(Integer, primary_key=True, index=True)
     symbol = Column(String(20), nullable=False, index=True)
@@ -100,6 +110,7 @@ class PriceHistory(Base):
 
 class UserSettings(Base):
     __tablename__ = "user_settings"
+    __table_args__ = {'schema': 'crypto'}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(50), unique=True, nullable=False, index=True)
