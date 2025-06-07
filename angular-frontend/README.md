@@ -36,28 +36,75 @@ Angular 17+ frontend alkalmazás AI-alapú kereskedési szignálokhoz.
 
 ### Előfeltételek
 - Node.js 18+
-- npm vagy yarn
+- npm vagy yarn (ajánlott: yarn)
 
-### Telepítés
+### 1. Projekt klónozása
 ```bash
+git clone <repository-url>
 cd angular-frontend
+```
+
+### 2. Függőségek telepítése
+```bash
+# Yarn használatával (ajánlott)
+yarn install
+
+# vagy npm használatával
 npm install
 ```
 
-### Fejlesztői szerver indítása
+### 3. Fejlesztői szerver indítása
 ```bash
+# Yarn használatával
+yarn start
+
+# vagy npm használatával
 npm start
-# vagy
+
+# vagy Angular CLI-vel közvetlenül
 ng serve
 ```
 
 Az alkalmazás elérhető lesz a `http://localhost:4200` címen.
 
-### Build
+### 4. Elérhető parancsok
+
+#### Fejlesztés
 ```bash
-npm run build
+# Fejlesztői szerver indítása
+yarn start
 # vagy
-ng build
+npm start
+
+# Fejlesztői szerver indítása watch móddal
+yarn watch
+# vagy
+npm run watch
+```
+
+#### Build és tesztelés
+```bash
+# Production build
+yarn build
+# vagy
+npm run build
+
+# Unit tesztek futtatása
+yarn test
+# vagy
+npm test
+```
+
+#### Angular CLI parancsok
+```bash
+# Új komponens generálása
+ng generate component components/my-component --standalone
+
+# Új szolgáltatás generálása
+ng generate service services/my-service
+
+# Angular CLI segítség
+ng help
 ```
 
 ## API integráció
