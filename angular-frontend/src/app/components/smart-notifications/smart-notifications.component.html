@@ -1,0 +1,98 @@
+<!-- Smart Notifications Panel -->
+<div class="fixed top-4 right-4 w-80 space-y-3 z-50 max-h-96 overflow-y-auto">
+  
+  <!-- Alert Cards -->
+  <p-card 
+    *ngFor="let alert of alerts; let i = index"
+    [style]="{'padding': '0'}"
+    styleClass="shadow-lg border-l-4 transition-all duration-300 hover:shadow-xl"
+    [ngClass]="{
+      'border-l-red-500': alert.severity === 'high',
+      'border-l-yellow-500': alert.severity === 'medium', 
+      'border-l-blue-500': alert.severity === 'low'
+    }">
+    
+    <div class="flex items-start p-4">
+      <!-- Alert Icon -->
+      <div class="w-10 h-10 rounded-full flex items-center justify-center mr-3 flex-shrink-0"
+           [ngClass]="{
+             'bg-red-100 dark:bg-red-900/20': alert.severity === 'high',
+             'bg-yellow-100 dark:bg-yellow-900/20': alert.severity === 'medium',
+             'bg-blue-100 dark:bg-blue-900/20': alert.severity === 'low'
+           }">
+        <i class="text-lg" [ngClass]="getSeverityIcon(alert.severity)"></i>
+      </div>
+      
+      <!-- Alert Content -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-sm font-semibold" [ngClass]="getSeverityTextColor(alert.severity)">
+            <i class="mr-1" [ngClass]="getTypeIcon(alert.type)"></i>
+            {{ getAlertTitle(alert.type) }}
+          </h4>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs" [ngClass]="getSeverityTextColor(alert.severity)">
+              {{ formatTime(alert.timestamp) }}
+            </span>
+            <p-button 
+              (onClick)="dismissAlert(i)"
+              icon="pi pi-times"
+              [text]="true"
+              size="small"
+              severity="secondary"
+              pTooltip="Dismiss">
+            </p-button>
+          </div>
+        </div>
+        
+        <p class="text-sm mb-3" [ngClass]="getSeverityTextColor(alert.severity)">
+          {{ alert.message }}
+        </p>
+        
+        <!-- Symbol and Actions -->
+        <div class="flex items-center justify-between">
+          <p-tag 
+            [value]="alert.symbol"
+            [severity]="alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info'">
+          </p-tag>
+          
+          <!-- Action Buttons -->
+          <div class="flex space-x-2">
+            <p-button
+              *ngIf="alert.type === 'trading_opportunity'"
+              label="View Signal"
+              size="small"
+              [severity]="alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'secondary' : 'info'">
+            </p-button>
+            <p-button
+              label="Details"
+              size="small"
+              [outlined]="true"
+              [severity]="alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'secondary' : 'info'">
+            </p-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </p-card>
+  
+  <!-- Clear All Button -->
+  <div *ngIf="alerts.length > 1" class="text-center pt-2">
+    <p-button 
+      (onClick)="clearAllAlerts()"
+      label="Clear all notifications"
+      [text]="true"
+      size="small"
+      severity="secondary">
+    </p-button>
+  </div>
+  
+  <!-- No Alerts Message -->
+  <p-card *ngIf="alerts.length === 0" styleClass="text-center shadow-lg">
+    <div class="py-4">
+      <i class="pi pi-check-circle text-green-600 text-4xl mb-3 block"></i>
+      <h4 class="text-lg font-semibold text-green-800 dark:text-green-400 mb-1">No Active Alerts</h4>
+      <p class="text-sm text-green-600 dark:text-green-500">All systems operating normally</p>
+    </div>
+  </p-card>
+</div>

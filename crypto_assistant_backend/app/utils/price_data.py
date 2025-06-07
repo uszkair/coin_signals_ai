@@ -67,8 +67,4 @@ async def get_current_price(symbol: str):
         response.raise_for_status()
         data = response.json()
     
-    return {
-        "symbol": data["symbol"],
-        "price": float(data["price"]),
-        "timestamp": datetime.utcnow()
-    }
+    return float(data["price"])

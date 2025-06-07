@@ -1,0 +1,194 @@
+<p-card styleClass="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100">
+  <!-- Header -->
+  <ng-template pTemplate="header">
+    <div class="flex items-center justify-between p-4">
+      <div class="flex items-center">
+        <i class="pi pi-sparkles text-purple-600 text-xl mr-2"></i>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">AI Insights</h3>
+        <p-tag value="LIVE" severity="help" class="ml-2 animate-pulse"></p-tag>
+      </div>
+      <p-button 
+        (onClick)="refresh()"
+        [disabled]="isLoading"
+        icon="pi pi-refresh"
+        [text]="true"
+        size="small"
+        severity="help"
+        pTooltip="Refresh"
+        [ngClass]="{'animate-spin': isLoading}">
+      </p-button>
+    </div>
+  </ng-template>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="space-y-4">
+    <p-skeleton height="4rem"></p-skeleton>
+    <p-skeleton height="6rem"></p-skeleton>
+    <p-skeleton height="4rem"></p-skeleton>
+  </div>
+
+  <!-- Error State -->
+  <p-card *ngIf="error && !isLoading" styleClass="bg-red-50 border-red-200">
+    <div class="flex items-center p-4">
+      <i class="pi pi-exclamation-triangle text-red-600 mr-2"></i>
+      <span class="text-red-800 text-sm">{{ error }}</span>
+    </div>
+    <p-button 
+      (onClick)="refresh()"
+      label="Try again"
+      [text]="true"
+      severity="danger"
+      size="small">
+    </p-button>
+  </p-card>
+
+  <!-- Market Overview -->
+  <div *ngIf="marketOverview && !isLoading" class="space-y-4">
+    
+    <!-- Overall Market Sentiment -->
+    <p-card styleClass="border border-purple-100">
+      <ng-template pTemplate="header">
+        <div class="flex justify-between items-center p-4">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Market Sentiment</span>
+          <div class="flex items-center">
+            <i class="mr-1" [ngClass]="getSentimentIcon(marketOverview.market_summary.overall_sentiment)" [class]="getSentimentColor(marketOverview.market_summary.overall_sentiment)"></i>
+            <span class="font-bold" [class]="getSentimentColor(marketOverview.market_summary.overall_sentiment)">
+              {{ marketOverview.market_summary.market_mood }}
+            </span>
+          </div>
+        </div>
+      </ng-template>
+      
+      <p-progressBar 
+        [value]="Math.abs(marketOverview.market_summary.overall_sentiment) * 100"
+        [style]="{'height': '12px'}"
+        [ngClass]="{
+          'p-progressbar-success': marketOverview.market_summary.overall_sentiment > 0.2,
+          'p-progressbar-danger': marketOverview.market_summary.overall_sentiment < -0.2,
+          'p-progressbar-info': marketOverview.market_summary.overall_sentiment >= -0.2 && marketOverview.market_summary.overall_sentiment <= 0.2
+        }">
+      </p-progressBar>
+      
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        Based on AI analysis of {{ marketOverview.market_summary.analyzed_symbols }} symbols
+      </p>
+    </p-card>
+
+    <!-- AI Predictions -->
+    <p-card styleClass="border border-blue-100">
+      <ng-template pTemplate="header">
+        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 p-4 flex items-center">
+          <i class="pi pi-chart-line mr-2 text-blue-600"></i>
+          24h AI Predictions
+        </h4>
+      </ng-template>
+      
+      <div class="space-y-3">
+        <div *ngFor="let symbol of getSymbolKeys()" class="flex justify-between items-center">
+          <span class="text-sm font-medium">{{ getSymbolDisplayName(symbol) }}</span>
+          <div class="flex items-center space-x-2">
+            <span
+              class="text-sm font-bold"
+              [class]="(marketOverview.symbols[symbol].prediction.price_change_percent || 0) > 0 ? 'text-green-600' : 'text-red-600'">
+              {{ formatPercentage(marketOverview.symbols[symbol].prediction.price_change_percent || 0) }}
+            </span>
+            <p-tag
+              [value]="(marketOverview.symbols[symbol].prediction.confidence || 0) + '% conf.'"
+              [severity]="getConfidenceTagSeverity(marketOverview.symbols[symbol].prediction.confidence || 0)">
+            </p-tag>
+          </div>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Smart Alerts -->
+    <p-card styleClass="bg-amber-50 border-amber-200">
+      <ng-template pTemplate="header">
+        <div class="flex items-center justify-between p-4">
+          <div class="flex items-center">
+            <i class="pi pi-bell text-amber-600 mr-2"></i>
+            <span class="text-sm font-medium text-amber-800">Smart Alerts</span>
+          </div>
+          <p-tag value="Live" severity="warning" class="animate-pulse"></p-tag>
+        </div>
+      </ng-template>
+      
+      <!-- High Risk Alert -->
+      <div *ngIf="hasHighRiskSymbol()" class="mb-3 p-3 bg-amber-100 rounded-lg">
+        <p class="text-sm text-amber-700 flex items-center">
+          <i class="pi pi-exclamation-triangle mr-2"></i>
+          High risk detected in {{ getHighRiskSymbol() }}. Consider reviewing position.
+        </p>
+      </div>
+      
+      <!-- Strong Signal Alert -->
+      <div *ngIf="hasStrongSignal()" class="mb-3 p-3 bg-amber-100 rounded-lg">
+        <p class="text-sm text-amber-700 flex items-center">
+          <i class="pi pi-sparkles mr-2"></i>
+          Strong {{ getStrongSignalAction() }} signal detected in {{ getStrongSignalSymbol() }}.
+        </p>
+      </div>
+      
+      <!-- Volume Anomaly Alert -->
+      <div *ngIf="hasVolumeAnomaly()" class="mb-3 p-3 bg-amber-100 rounded-lg">
+        <p class="text-sm text-amber-700 flex items-center">
+          <i class="pi pi-chart-bar mr-2"></i>
+          Unusual volume spike in {{ getVolumeAnomalySymbol() }}. Monitor for breakout.
+        </p>
+      </div>
+      
+      <!-- No Alerts -->
+      <div *ngIf="!hasHighRiskSymbol() && !hasStrongSignal() && !hasVolumeAnomaly()" class="p-3 bg-green-100 rounded-lg">
+        <p class="text-sm text-green-700 flex items-center">
+          <i class="pi pi-check-circle mr-2"></i>
+          No critical alerts. Markets operating normally.
+        </p>
+      </div>
+      
+      <p-button
+        label="View All Alerts →"
+        [text]="true"
+        severity="secondary"
+        size="small"
+        class="mt-2">
+      </p-button>
+    </p-card>
+
+    <!-- AI Recommendations Summary -->
+    <p-card styleClass="bg-blue-50 border-blue-200">
+      <ng-template pTemplate="header">
+        <h4 class="text-sm font-medium text-blue-900 p-4 flex items-center">
+          <i class="pi pi-lightbulb mr-2"></i>
+          Top AI Recommendations
+        </h4>
+      </ng-template>
+      
+      <div class="space-y-3">
+        <div *ngFor="let recommendation of getTopRecommendations()" class="flex items-start p-3 bg-blue-100 rounded-lg">
+          <i 
+            class="mr-2 mt-1 text-sm"
+            [ngClass]="getActionIcon(recommendation.action)"
+            [class]="getActionColor(recommendation.action)">
+          </i>
+          <div class="flex-1">
+            <p class="text-sm text-blue-800 font-medium">
+              {{ recommendation.action.replace('_', ' ') }} {{ recommendation.symbol }}
+            </p>
+            <p class="text-xs text-blue-600 mb-2">{{ recommendation.reasoning }}</p>
+            <p-tag 
+              [value]="recommendation.confidence + '% confidence'"
+              [severity]="getConfidenceTagSeverity(recommendation.confidence)">
+            </p-tag>
+          </div>
+        </div>
+      </div>
+    </p-card>
+
+    <!-- Last Updated -->
+    <div class="text-center">
+      <span class="text-xs text-gray-500 dark:text-gray-400">
+        Last updated: {{ formatLastUpdated() }}
+      </span>
+    </div>
+  </div>
+</p-card>

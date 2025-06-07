@@ -1,0 +1,171 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">AI Trading Assistant</h1>
+      <p class="text-gray-600">Intelligent market analysis, predictions, and trading recommendations powered by AI</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- AI Insights Panel -->
+      <div class="lg:col-span-2">
+        <p-card header="AI Market Insights" styleClass="h-full">
+          <app-ai-insights-panel></app-ai-insights-panel>
+        </p-card>
+      </div>
+
+      <!-- Smart Notifications -->
+      <div class="lg:col-span-1">
+        <p-card header="Smart Alerts" styleClass="h-full">
+          <app-smart-notifications></app-smart-notifications>
+        </p-card>
+      </div>
+    </div>
+
+    <!-- AI Features Overview -->
+    <div class="mt-8">
+      <p-card header="AI Capabilities">
+        <p-tabView>
+          <p-tabPanel header="Market Analysis">
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mb-3">Real-time Market Sentiment Analysis</h3>
+              <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  News sentiment analysis from multiple sources
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Social media sentiment tracking
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Fear & Greed Index integration
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Technical indicator analysis (RSI, MACD, Bollinger Bands)
+                </li>
+              </ul>
+            </div>
+          </p-tabPanel>
+
+          <p-tabPanel header="Price Predictions">
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mb-3">Machine Learning Price Forecasting</h3>
+              <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Random Forest ML models for price prediction
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Support and resistance level calculation
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Volatility analysis and trend detection
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Confidence scoring for predictions
+                </li>
+              </ul>
+            </div>
+          </p-tabPanel>
+
+          <p-tabPanel header="Risk Management">
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mb-3">AI-Powered Risk Assessment</h3>
+              <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Volume and price anomaly detection
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Portfolio optimization recommendations
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Risk scoring based on multiple factors
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Smart alert system for unusual market conditions
+                </li>
+              </ul>
+            </div>
+          </p-tabPanel>
+
+          <p-tabPanel header="Trading Recommendations">
+            <div class="p-4">
+              <h3 class="text-lg font-semibold mb-3">Intelligent Trading Signals</h3>
+              <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Buy/Sell recommendations with confidence scores
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Multi-factor analysis combining sentiment and technicals
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Real-time signal generation and updates
+                </li>
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Detailed reasoning for each recommendation
+                </li>
+              </ul>
+            </div>
+          </p-tabPanel>
+        </p-tabView>
+      </p-card>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-8">
+      <p-card header="Quick Actions">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <p-button 
+            label="Open AI Chat" 
+            icon="pi pi-comments" 
+            styleClass="w-full"
+            severity="info"
+            (onClick)="openChat()">
+          </p-button>
+          
+          <p-button 
+            label="Market Overview" 
+            icon="pi pi-chart-line" 
+            styleClass="w-full"
+            severity="success"
+            routerLink="/dashboard">
+          </p-button>
+          
+          <p-button
+            label="Portfolio Analysis"
+            icon="pi pi-wallet"
+            styleClass="w-full"
+            severity="secondary"
+            routerLink="/portfolio">
+          </p-button>
+          
+          <p-button 
+            label="Trading History" 
+            icon="pi pi-history" 
+            styleClass="w-full"
+            severity="secondary"
+            routerLink="/history">
+          </p-button>
+        </div>
+      </p-card>
+    </div>
+  </div>
+
+  <!-- AI Chat Component -->
+  <app-ai-chat></app-ai-chat>
+</div>

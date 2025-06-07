@@ -34,14 +34,29 @@
         <i class="pi pi-wallet mr-3"></i>
         Portfólió
       </a>
+      
+      <a
+        routerLink="/ai-assistant"
+        routerLinkActive="bg-purple-50 dark:bg-purple-900 text-purple-700 dark:text-purple-300"
+        class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <i class="pi pi-sparkles mr-3"></i>
+        AI Assistant
+      </a>
     </div>
   </nav>
   
   <div class="absolute bottom-4 left-4 right-4">
     <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center">
+          <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+          <span class="text-xs text-gray-600 dark:text-gray-400">API Connected</span>
+        </div>
+      </div>
       <div class="flex items-center">
-        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-        <span class="text-xs text-gray-600 dark:text-gray-400">API Connected</span>
+        <div class="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
+        <span class="text-xs text-purple-600 dark:text-purple-400">AI Active</span>
       </div>
     </div>
   </div>

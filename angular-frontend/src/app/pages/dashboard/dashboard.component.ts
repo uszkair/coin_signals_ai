@@ -19,6 +19,7 @@ import { ConfirmationService } from 'primeng/api';
 import { SignalService, Signal } from '../../services/signal.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
+import { AiInsightsPanelComponent } from '../../components/ai-insights-panel/ai-insights-panel.component';
 
 interface FilterOption {
   label: string;
@@ -40,7 +41,8 @@ interface FilterOption {
     InputSwitchModule,
     ConfirmDialogModule,
     DialogModule,
-    TradingViewWidgetComponent
+    TradingViewWidgetComponent,
+    AiInsightsPanelComponent
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './dashboard.component.html',

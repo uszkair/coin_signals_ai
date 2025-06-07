@@ -1,0 +1,154 @@
+<!-- Floating AI Chat Button -->
+<div class="fixed bottom-6 right-6 z-50">
+  <p-button 
+    (onClick)="toggleChat()"
+    icon="pi pi-comments"
+    [rounded]="true"
+    size="large"
+    severity="help"
+    class="relative">
+    <p-badge 
+      *ngIf="unreadCount > 0" 
+      [value]="unreadCount.toString()" 
+      severity="danger"
+      class="absolute -top-2 -right-2">
+    </p-badge>
+  </p-button>
+</div>
+
+<!-- AI Chat Panel -->
+<p-dialog
+  [(visible)]="isOpen"
+  [header]="'AI Trading Assistant'"
+  [modal]="false"
+  [closable]="true"
+  [resizable]="false"
+  [draggable]="true"
+  [style]="{width: '400px', height: '500px'}"
+  [position]="'bottomright'"
+  styleClass="ai-chat-dialog"
+  (onHide)="closeChat()">
+  
+  <!-- Chat Header Info -->
+  <div class="flex items-center mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center mr-3">
+      <i class="pi pi-sparkles text-blue-600 dark:text-blue-400"></i>
+    </div>
+    <div>
+      <h4 class="font-semibold text-gray-900 dark:text-white">AI Assistant</h4>
+      <p class="text-xs text-gray-600 dark:text-gray-400">Online • Analyzing markets</p>
+    </div>
+    <div class="ml-auto">
+      <p-button 
+        (onClick)="clearChat()"
+        icon="pi pi-trash"
+        [text]="true"
+        size="small"
+        severity="secondary"
+        pTooltip="Clear chat">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div 
+    #chatMessages
+    class="h-64 overflow-y-auto mb-4 space-y-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+    
+    <div *ngFor="let message of messages" class="flex" [ngClass]="{'justify-end': message.isUser}">
+      <!-- AI Message -->
+      <div *ngIf="!message.isUser" class="flex items-start max-w-xs">
+        <p-avatar
+          icon="pi pi-sparkles"
+          size="normal"
+          [style]="{'background-color': '#e0e7ff', 'color': '#6366f1'}"
+          class="mr-2 mt-1 flex-shrink-0">
+        </p-avatar>
+        <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-600">
+          <p class="text-sm text-gray-800 dark:text-gray-200">{{ message.message }}</p>
+          <div *ngIf="message.suggestions && message.suggestions.length > 0" class="flex flex-wrap mt-2 gap-1">
+            <p-button 
+              *ngFor="let suggestion of message.suggestions"
+              (onClick)="selectSuggestion(suggestion)"
+              [label]="suggestion"
+              size="small"
+              [text]="true"
+              severity="help"
+              class="text-xs">
+            </p-button>
+          </div>
+          <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 block">{{ formatTime(message.timestamp) }}</span>
+        </div>
+      </div>
+
+      <!-- User Message -->
+      <div *ngIf="message.isUser" class="flex items-start justify-end max-w-xs">
+        <div class="bg-blue-600 text-white rounded-lg p-3 shadow-sm">
+          <p class="text-sm">{{ message.message }}</p>
+          <span class="text-xs text-blue-200 mt-1 block">{{ formatTime(message.timestamp) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div *ngIf="isTyping" class="flex items-start">
+      <p-avatar
+        icon="pi pi-sparkles"
+        size="normal"
+        [style]="{'background-color': '#e0e7ff', 'color': '#6366f1'}"
+        class="mr-2 mt-1">
+      </p-avatar>
+      <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-600">
+        <div class="flex space-x-1">
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input -->
+  <div class="space-y-3">
+    <div class="flex items-center space-x-2">
+      <p-inputText
+        [(ngModel)]="newMessage"
+        (keypress)="onKeyPress($event)"
+        placeholder="Ask me anything about crypto..."
+        class="flex-1"
+        [disabled]="isTyping">
+      </p-inputText>
+      <p-button 
+        (onClick)="sendMessage()"
+        icon="pi pi-send"
+        [disabled]="!newMessage.trim() || isTyping"
+        severity="help">
+      </p-button>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="flex flex-wrap gap-2">
+      <p-button 
+        (onClick)="selectSuggestion('Market Summary')"
+        label="Market Summary"
+        size="small"
+        [outlined]="true"
+        severity="secondary">
+      </p-button>
+      <p-button 
+        (onClick)="selectSuggestion('Risk Analysis')"
+        label="Risk Analysis"
+        size="small"
+        [outlined]="true"
+        severity="secondary">
+      </p-button>
+      <p-button 
+        (onClick)="selectSuggestion('Portfolio Tips')"
+        label="Portfolio Tips"
+        size="small"
+        [outlined]="true"
+        severity="secondary">
+      </p-button>
+    </div>
+  </div>
+</p-dialog>

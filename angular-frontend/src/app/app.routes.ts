@@ -19,6 +19,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/portfolio/portfolio.component').then(m => m.PortfolioComponent)
   },
   {
+    path: 'ai-assistant',
+    loadComponent: () => import('./pages/ai-assistant/ai-assistant.component').then(m => m.AiAssistantComponent)
+  },
+  {
     path: '**',
     redirectTo: '/dashboard'
   }

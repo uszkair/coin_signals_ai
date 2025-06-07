@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import signal, history, news, portfolio
+from app.routers import signal, history, news, portfolio, ai
 
 app = FastAPI(title="Crypto Trading Assistant API")
 
@@ -21,6 +21,7 @@ app.include_router(history.router, prefix="/api/history", tags=["History"])
 app.include_router(history.router, prefix="/api", tags=["Trade History"])
 app.include_router(news.router, prefix="/api/news", tags=["News"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
+app.include_router(ai.router, prefix="/api", tags=["AI"])
 
 @app.get("/")
 def root():
