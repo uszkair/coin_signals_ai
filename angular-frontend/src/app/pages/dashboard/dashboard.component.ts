@@ -106,6 +106,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadSignals();
     this.startAutoRefresh();
     this.setupWebSocketConnection();
+    this.selectedSignal = this.filteredSignals[0];
   }
 
   ngOnDestroy(): void {
@@ -238,23 +239,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       
       return true;
     });
-
-    // Auto-select first signal after filtering (only if chart is not locked)
-    if (!this.chartLocked) {
-      if (this.filteredSignals.length > 0) {
-        // If current selection is not in filtered results, select first
-        if (!this.selectedSignal || !this.filteredSignals.includes(this.selectedSignal)) {
-          this.selectedSignal = this.filteredSignals[0];
-        }
-      } else {
-        this.selectedSignal = null;
-      }
-    }
-  }
-
-  // Signal selection
-  onSignalSelect(event: any): void {
-    this.selectedSignal = event.data;
   }
 
   selectSignal(signal: Signal): void {
