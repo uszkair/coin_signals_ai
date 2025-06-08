@@ -336,34 +336,62 @@ async def validate_position_size_config(config: PositionSizeConfig):
         # Calculate what the position size would be
         if config.mode == 'percentage' and config.max_percentage:
             calculated_size = total_balance * (config.max_percentage / 100)
+            mode_description = f"{config.max_percentage}% of wallet"
+        elif config.mode == 'fixed_usd' and config.fixed_amount_usd:
+            calculated_size = config.fixed_amount_usd
+            mode_description = f"${config.fixed_amount_usd} fixed amount"
+        else:
+            return {
+                "success": False,
+                "error": "Invalid configuration",
+                "details": {"message": "Either percentage or fixed amount must be specified"}
+            }
             
-            # Check if we're in mainnet mode and if position size is too small
-            if not binance_trader.testnet:  # Only validate in mainnet mode
-                # Get minimum requirements for common symbols
-                symbols_to_check = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
-                validation_errors = []
-                
-                for symbol in symbols_to_check:
-                    min_required = binance_trader._get_minimum_position_size(symbol)
-                    if calculated_size < min_required:
-                        validation_errors.append({
-                            'symbol': symbol,
-                            'calculated_size': calculated_size,
-                            'minimum_required': min_required
-                        })
-                
-                if validation_errors:
-                    return {
-                        "success": False,
-                        "error": "Position size too small for mainnet trading",
-                        "details": {
-                            "wallet_balance": total_balance,
-                            "calculated_position_size": calculated_size,
-                            "percentage": config.max_percentage,
-                            "validation_errors": validation_errors,
-                            "recommendation": f"Increase wallet balance to at least ${max(err['minimum_required'] for err in validation_errors) / (config.max_percentage / 100):.2f} or use fixed USD mode with at least ${max(err['minimum_required'] for err in validation_errors):.2f}"
-                        }
+        # Check if we're in mainnet mode and validate requirements
+        if not binance_trader.testnet:  # Only validate in mainnet mode
+            # Get minimum requirements for common symbols
+            symbols_to_check = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
+            validation_errors = []
+            
+            for symbol in symbols_to_check:
+                min_required = binance_trader._get_minimum_position_size(symbol)
+                if calculated_size < min_required:
+                    validation_errors.append({
+                        'symbol': symbol,
+                        'calculated_size': calculated_size,
+                        'minimum_required': min_required
+                    })
+            
+            # Additional check for fixed USD mode: ensure user has enough balance
+            if config.mode == 'fixed_usd' and calculated_size > total_balance:
+                return {
+                    "success": False,
+                    "error": "Insufficient wallet balance for fixed USD amount",
+                    "details": {
+                        "wallet_balance": total_balance,
+                        "requested_amount": calculated_size,
+                        "mode": mode_description,
+                        "recommendation": f"Reduce fixed amount to ${total_balance:.2f} or add more funds to wallet"
                     }
+                }
+            
+            if validation_errors:
+                if config.mode == 'percentage':
+                    recommendation = f"Increase wallet balance to at least ${max(err['minimum_required'] for err in validation_errors) / (config.max_percentage / 100):.2f} or use fixed USD mode with at least ${max(err['minimum_required'] for err in validation_errors):.2f}"
+                else:  # fixed_usd
+                    recommendation = f"Increase fixed amount to at least ${max(err['minimum_required'] for err in validation_errors):.2f}"
+                
+                return {
+                    "success": False,
+                    "error": "Position size too small for mainnet trading",
+                    "details": {
+                        "wallet_balance": total_balance,
+                        "calculated_position_size": calculated_size,
+                        "mode": mode_description,
+                        "validation_errors": validation_errors,
+                        "recommendation": recommendation
+                    }
+                }
         
         return {
             "success": True,

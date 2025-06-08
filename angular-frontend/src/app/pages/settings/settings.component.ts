@@ -211,8 +211,15 @@ export class SettingsComponent implements OnInit {
           if (details) {
             errorMessage += `\n\nRészletek:`;
             errorMessage += `\nWallet egyenleg: $${details.wallet_balance?.toFixed(2)}`;
-            errorMessage += `\nSzámított position size: $${details.calculated_position_size?.toFixed(2)}`;
-            errorMessage += `\nSzázalék: ${details.percentage}%`;
+            
+            if (details.mode) {
+              errorMessage += `\nMód: ${details.mode}`;
+            } else {
+              errorMessage += `\nSzámított position size: $${details.calculated_position_size?.toFixed(2)}`;
+              if (details.percentage) {
+                errorMessage += `\nSzázalék: ${details.percentage}%`;
+              }
+            }
             
             if (details.validation_errors?.length > 0) {
               errorMessage += `\n\nMinimum követelmények:`;
