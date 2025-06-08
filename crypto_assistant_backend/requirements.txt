@@ -22,3 +22,4 @@ textblob==0.17.1
 vaderSentiment==3.3.2
 requests==2.31.0
 beautifulsoup4==4.12.2
+python-binance==1.0.19
