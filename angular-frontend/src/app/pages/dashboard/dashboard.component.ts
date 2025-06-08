@@ -466,11 +466,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getSignalStrengthText(totalScore: number): string {
-    if (totalScore >= 3) return 'Erős BUY';
-    if (totalScore >= 1) return 'Közepes BUY';
-    if (totalScore <= -3) return 'Erős SELL';
-    if (totalScore <= -1) return 'Közepes SELL';
-    return 'Semleges';
+    if (totalScore >= 3) return `Erősség: ${totalScore}/5`;
+    if (totalScore >= 1) return `Erősség: ${totalScore}/5`;
+    if (totalScore <= -3) return `Erősség: ${Math.abs(totalScore)}/5`;
+    if (totalScore <= -1) return `Erősség: ${Math.abs(totalScore)}/5`;
+    return 'Semleges (0/5)';
   }
 
   getSignalStrengthClass(totalScore: number): string {
