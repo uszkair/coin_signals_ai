@@ -44,23 +44,38 @@ class BinanceTrader:
         if testnet is None:
             try:
                 # Import here to avoid circular imports
-                import asyncio
                 from app.services.trading_settings_service import trading_settings_service
                 
-                # Get settings from database
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # If we're already in an async context, use default
-                    db_testnet = True
-                else:
-                    risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
-                    db_testnet = risk_settings.get('testnet_mode', True)
+                # Always try to get from database first
+                try:
+                    # Use the cached settings if available to avoid async issues
+                    cached_settings = trading_settings_service.get_cached_settings()
+                    if cached_settings:
+                        db_testnet = cached_settings.get('testnet_mode', True)  # Default to testnet for safety
+                        logger.info(f"Using cached settings: testnet_mode = {db_testnet}")
+                    else:
+                        # Try to load from database
+                        import asyncio
+                        try:
+                            loop = asyncio.get_running_loop()
+                            # We're in async context, use safe default and log warning
+                            logger.warning("In async context without cached settings, using testnet=True for safety")
+                            db_testnet = True
+                        except RuntimeError:
+                            # Not in async context, can use asyncio.run directly
+                            risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
+                            db_testnet = risk_settings.get('testnet_mode', True)
+                            logger.info(f"Database settings loaded: testnet_mode = {db_testnet}")
+                    
+                except Exception as db_error:
+                    logger.warning(f"Could not get database settings: {db_error}")
+                    db_testnet = True  # Default to testnet for safety if database fails
                 
                 testnet = db_testnet
                 
             except Exception as e:
                 logger.warning(f"Could not get database settings, using testnet=True: {e}")
-                testnet = True
+                testnet = True  # Default to testnet for safety
         
         # Set API credentials based on testnet mode
         if testnet:
@@ -84,18 +99,28 @@ class BinanceTrader:
                     from app.services.trading_settings_service import trading_settings_service
                     
                     # Get settings from database
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        db_use_futures = True
+                    # Use cached settings if available
+                    cached_settings = trading_settings_service.get_cached_settings()
+                    if cached_settings:
+                        db_use_futures = cached_settings.get('use_futures', True if self.testnet else False)
+                        logger.info(f"Using cached settings: use_futures = {db_use_futures}")
                     else:
-                        risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
-                        db_use_futures = True  # Always use futures for trading
+                        try:
+                            loop = asyncio.get_running_loop()
+                            # We're in async context, use testnet-appropriate default
+                            db_use_futures = True if self.testnet else False
+                            logger.warning(f"In async context without cached settings, using use_futures={db_use_futures}")
+                        except RuntimeError:
+                            # Not in async context, can use asyncio.run directly
+                            risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
+                            db_use_futures = risk_settings.get('use_futures', True if self.testnet else False)
+                            logger.info(f"Database settings loaded: use_futures = {db_use_futures}")
                     
                     self.use_futures = db_use_futures
                     
                 except Exception as e:
                     logger.warning(f"Could not get database settings for futures, using default: {e}")
-                    self.use_futures = True
+                    self.use_futures = False  # Default to Spot for mainnet
         else:
             self.use_futures = use_futures
         
@@ -753,12 +778,13 @@ class BinanceTrader:
 # Global trader instance - will be initialized from database settings
 binance_trader = None
 
-def initialize_global_trader():
+def initialize_global_trader(force_reinit=False):
     """Initialize global trader with database settings"""
     global binance_trader
-    if binance_trader is None:
+    if binance_trader is None or force_reinit:
         # Initialize with database settings (None means read from DB)
-        binance_trader = BinanceTrader(testnet=None, use_futures=True)
+        binance_trader = BinanceTrader(testnet=None, use_futures=None)
+        logger.info(f"Global trader {'reinitialized' if force_reinit else 'initialized'}: {'Testnet' if binance_trader.testnet else 'Mainnet'} mode")
     return binance_trader
 
 # Function to switch between different trading environments
@@ -787,14 +813,23 @@ async def switch_trading_environment(use_testnet: bool = True, use_futures: bool
     try:
         from app.services.trading_settings_service import trading_settings_service
         await trading_settings_service.update_risk_management_settings({
-            'testnet_mode': use_testnet
+            'testnet_mode': use_testnet,
+            'use_futures': use_futures
         })
-        logger.info(f"Database updated: testnet_mode = {use_testnet}")
+        logger.info(f"Database updated: testnet_mode = {use_testnet}, use_futures = {use_futures}")
     except Exception as e:
         logger.error(f"Failed to update database settings: {e}")
     
     # Create new trader instance with new environment
     binance_trader = BinanceTrader(testnet=use_testnet, use_futures=use_futures)
+    
+    # Force reload environment variables to ensure fresh credentials
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(override=True)  # Override existing environment variables
+        logger.info("Environment variables reloaded")
+    except ImportError:
+        pass
     
     # Restore configuration if we had previous settings
     if current_config:
@@ -808,18 +843,27 @@ async def switch_trading_environment(use_testnet: bool = True, use_futures: bool
     net_type = "Testnet" if use_testnet else "Mainnet"
     logger.info(f"Switched to {env_type} {net_type} trading environment")
     
+    # Force reinitialize global trader to ensure all services use the new environment
+    initialize_global_trader(force_reinit=True)
+    
+    # Verify the new trader settings
+    final_trader = initialize_global_trader(force_reinit=False)
+    logger.info(f"Final trader state: testnet={final_trader.testnet}, use_futures={final_trader.use_futures}")
+    
     return {
         'success': True,
         'environment': f"{env_type.lower()}_{net_type.lower()}",
         'testnet': use_testnet,
         'futures': use_futures,
-        'message': f"Trading environment switched to {env_type} {net_type}"
+        'message': f"Trading environment switched to {env_type} {net_type}",
+        'api_key_type': 'TESTNET' if use_testnet else 'MAINNET',
+        'credentials_refreshed': True
     }
 
 
 def get_trading_environment_info():
     """Get current trading environment information"""
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     env_type = "Futures" if trader.use_futures else "Spot"
     net_type = "Testnet" if trader.testnet else "Mainnet"
     
@@ -844,13 +888,13 @@ async def execute_automatic_trade(signal: Dict[str, Any], position_size_usd: flo
     Returns:
         Trade execution result
     """
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     return await trader.execute_signal_trade(signal, position_size_usd)
 
 
 async def get_trading_account_status() -> Dict[str, Any]:
     """Get current trading account status"""
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     account_info = await trader.get_account_info()
     trading_stats = await trader.get_trading_statistics()
     active_positions = await trader.get_active_positions()
@@ -870,13 +914,13 @@ async def get_trading_account_status() -> Dict[str, Any]:
 
 async def close_trading_position(position_id: str, reason: str = "manual") -> Dict[str, Any]:
     """Close a specific trading position"""
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     return await trader.close_position(position_id, reason)
 
 
 async def get_binance_trade_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
     """Get real trading history from Binance API"""
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     if not trader.client:
         return {'success': False, 'error': 'Binance client not connected'}
     
@@ -929,7 +973,7 @@ async def get_binance_trade_history(symbol: str = None, limit: int = 100) -> Dic
 
 async def get_binance_order_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
     """Get real order history from Binance API"""
-    trader = initialize_global_trader()
+    trader = initialize_global_trader(force_reinit=False)
     if not trader.client:
         return {'success': False, 'error': 'Binance client not connected'}
     

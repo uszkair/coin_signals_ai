@@ -38,6 +38,14 @@ async def startup_event():
     """Start background services on application startup"""
     logger.info("Starting Crypto Trading Assistant API...")
     
+    # Load trading settings first to cache them
+    try:
+        from app.services.trading_settings_service import trading_settings_service
+        settings = await trading_settings_service.get_settings()
+        logger.info(f"Trading settings loaded and cached: testnet_mode={settings.get('testnet_mode')}")
+    except Exception as e:
+        logger.error(f"Failed to load trading settings: {e}")
+    
     # Initialize global trader with database settings
     try:
         from app.services.binance_trading import initialize_global_trader

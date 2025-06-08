@@ -19,8 +19,12 @@ async def get_binance_config():
         risk_settings = await trading_settings_service.get_risk_management_settings()
         use_testnet = risk_settings.get('testnet_mode', True)
         
-        # For now, we'll use Spot API for price data (more reliable)
-        use_futures = False
+        # For price data, use Spot API for testnet (more reliable for price queries)
+        # But use Futures for mainnet if available
+        if use_testnet:
+            use_futures = False  # Use Spot for testnet price data
+        else:
+            use_futures = False  # Use Spot for mainnet price data too (more symbols available)
         
         # Select URL based on settings
         if use_testnet:
@@ -41,7 +45,7 @@ async def get_binance_config():
         }
     except Exception as e:
         print(f"Error getting database config, using defaults: {e}")
-        # Fallback to safe defaults
+        # Fallback to safe defaults (mainnet spot)
         return {
             'base_url': os.environ.get("BINANCE_SPOT_URL", "https://api.binance.com"),
             'use_testnet': False,

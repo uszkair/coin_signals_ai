@@ -103,7 +103,8 @@ class TradingSettingsService:
         return {
             'max_daily_trades': settings.get('max_daily_trades', 10),
             'daily_loss_limit': settings.get('daily_loss_limit', 0.05),
-            'testnet_mode': settings.get('testnet_mode', True)
+            'testnet_mode': settings.get('testnet_mode', True),  # Default to testnet for safety
+            'use_futures': settings.get('use_futures', True)   # Default to Futures for testnet
         }
     
     async def update_risk_management_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -116,6 +117,8 @@ class TradingSettingsService:
             update_data['daily_loss_limit'] = settings_data['daily_loss_limit']
         if 'testnet_mode' in settings_data:
             update_data['testnet_mode'] = settings_data['testnet_mode']
+        if 'use_futures' in settings_data:
+            update_data['use_futures'] = settings_data['use_futures']
         
         return await self.update_settings(update_data)
     
@@ -132,7 +135,8 @@ class TradingSettingsService:
             'default_position_size_usd': None,
             'max_daily_trades': 10,
             'daily_loss_limit': 0.05,
-            'testnet_mode': True
+            'testnet_mode': True,   # Default to testnet for safety
+            'use_futures': True    # Default to Futures for testnet
         }
     
     def get_cached_settings(self) -> Optional[Dict[str, Any]]:
