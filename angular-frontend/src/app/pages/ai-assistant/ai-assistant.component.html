@@ -8,10 +8,19 @@
 
     <!-- Main Content -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- AI Insights Panel -->
+      <!-- AI Market Insights -->
       <div class="lg:col-span-2">
         <p-card header="AI Market Insights" styleClass="h-full">
-          <app-ai-insights-panel></app-ai-insights-panel>
+          <div class="p-4">
+            <p class="text-gray-600 mb-4">AI market insights are available on the main dashboard where you can see real-time analysis, trading signals, and AI-powered recommendations.</p>
+            <p-button
+              label="Go to Dashboard"
+              icon="pi pi-chart-line"
+              styleClass="w-full"
+              severity="info"
+              routerLink="/dashboard">
+            </p-button>
+          </div>
         </p-card>
       </div>
 

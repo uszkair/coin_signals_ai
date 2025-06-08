@@ -24,7 +24,6 @@ import { SignalService, Signal } from '../../services/signal.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { AIService, AIInsight } from '../../services/ai.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
-import { AiInsightsPanelComponent } from '../../components/ai-insights-panel/ai-insights-panel.component';
 import { TradingService } from '../../services/trading.service';
 import { AiMlService, AISignal } from '../../services/ai-ml.service';
 
