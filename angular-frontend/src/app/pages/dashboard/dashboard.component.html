@@ -303,20 +303,13 @@
           </div>
 
           <!-- Chart Content -->
-          <div class="flex-1 p-4">
-            <div class="h-full bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center min-h-[300px]">
-              <div class="text-center">
-                <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
-                <p class="text-gray-500 dark:text-gray-400 mb-3">Chart megjelenítés hamarosan elérhető</p>
-                <p-button
-                  label="TradingView Chart megnyitása"
-                  icon="pi pi-external-link"
-                  severity="secondary"
-                  size="small"
-                  (onClick)="showChart(selectedSignal)"
-                  class="mt-2">
-                </p-button>
-              </div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg overflow-hidden" style="min-height: 400px;">
+              <app-trading-view-widget
+                [symbol]="selectedSignal.symbol"
+                [interval]="'1H'"
+                [theme]="'light'"
+              ></app-trading-view-widget>
             </div>
           </div>
         </div>
