@@ -55,6 +55,7 @@ async def simulate_trade(entry: float, direction: str, candle: dict,
 # === GET CURRENT SIGNAL (for /api/signal/current) ===
 from app.services.indicators import compute_indicators
 from app.services.candlestick_analyzer import detect_patterns
+from app.services.technical_indicators import calculate_professional_indicators
 
 async def get_current_signal(symbol: str, interval: str):
     """
@@ -63,7 +64,8 @@ async def get_current_signal(symbol: str, interval: str):
     Note: This function does not use a 'mode' parameter (scalp, swing).
     Those trading modes are not needed for this implementation.
     """
-    candles = await get_historical_data(symbol, interval, days=2)
+    # Get more historical data for accurate technical indicators (minimum 50 candles)
+    candles = await get_historical_data(symbol, interval, days=7)
     latest = candles[-1]
     previous = candles[-2] if len(candles) > 1 else None
 
@@ -74,6 +76,10 @@ async def get_current_signal(symbol: str, interval: str):
     except:
         current_price = float(latest["close"])
 
+    # Calculate professional technical indicators
+    professional_indicators = calculate_professional_indicators(candles)
+    
+    # Keep legacy indicators for compatibility
     indicators = compute_indicators(latest)
     pattern, score = detect_patterns(latest, previous)
     
@@ -165,56 +171,59 @@ async def get_current_signal(symbol: str, interval: str):
         decision_factors["momentum_strength"]["reasoning"] = f"Strong momentum supporting {indicators['trend']} trend"
         decision_factors["momentum_strength"]["weight"] = weight
     
-    # Simulated RSI analysis
-    close = latest["close"]
-    open_price = latest["open"]
-    rsi_value = 50 + (close - open_price) / open_price * 100  # Simplified RSI simulation
-    rsi_value = max(0, min(100, rsi_value))  # Clamp between 0-100
+    # Professional RSI analysis
+    rsi_data = professional_indicators.get('rsi', {})
+    rsi_value = rsi_data.get('value', 50)
+    rsi_signal = rsi_data.get('signal', 'NEUTRAL')
     
     decision_factors["rsi_analysis"]["value"] = rsi_value
-    if rsi_value > 70:
+    if rsi_signal == "SELL":
         signal_score -= 1
         decision_factors["rsi_analysis"]["signal"] = "SELL"
-        decision_factors["rsi_analysis"]["reasoning"] = f"RSI overbought at {rsi_value:.1f}"
+        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI overbought at {rsi_value:.1f}"
         decision_factors["rsi_analysis"]["weight"] = -1
-    elif rsi_value < 30:
+    elif rsi_signal == "BUY":
         signal_score += 1
         decision_factors["rsi_analysis"]["signal"] = "BUY"
-        decision_factors["rsi_analysis"]["reasoning"] = f"RSI oversold at {rsi_value:.1f}"
+        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI oversold at {rsi_value:.1f}"
         decision_factors["rsi_analysis"]["weight"] = 1
     else:
-        decision_factors["rsi_analysis"]["reasoning"] = f"RSI neutral at {rsi_value:.1f}"
+        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI neutral at {rsi_value:.1f}"
     
-    # Simulated MACD analysis
-    high = latest["high"]
-    low = latest["low"]
-    macd_value = (close - (high + low) / 2) / close * 100  # Simplified MACD
+    # Professional MACD analysis
+    macd_data = professional_indicators.get('macd', {})
+    macd_value = macd_data.get('macd', 0)
+    macd_signal_type = macd_data.get('signal_type', 'NEUTRAL')
+    macd_histogram = macd_data.get('histogram', 0)
     
     decision_factors["macd_analysis"]["value"] = macd_value
-    if macd_value > 1:
+    if macd_signal_type == "BUY":
         signal_score += 1
         decision_factors["macd_analysis"]["signal"] = "BUY"
-        decision_factors["macd_analysis"]["reasoning"] = f"MACD bullish at {macd_value:.2f}"
+        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD bullish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
         decision_factors["macd_analysis"]["weight"] = 1
-    elif macd_value < -1:
+    elif macd_signal_type == "SELL":
         signal_score -= 1
         decision_factors["macd_analysis"]["signal"] = "SELL"
-        decision_factors["macd_analysis"]["reasoning"] = f"MACD bearish at {macd_value:.2f}"
+        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD bearish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
         decision_factors["macd_analysis"]["weight"] = -1
     else:
-        decision_factors["macd_analysis"]["reasoning"] = f"MACD neutral at {macd_value:.2f}"
+        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD neutral (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
     
-    # Volume analysis (simplified)
-    volume = latest.get("volume", 1000000)
-    avg_volume = volume * 0.8  # Simulate average volume
-    if volume > avg_volume * 1.5:
+    # Professional Volume analysis
+    volume_data = professional_indicators.get('volume', {})
+    current_volume = volume_data.get('current', 0)
+    volume_trend = volume_data.get('volume_trend', 'NORMAL')
+    is_high_volume = volume_data.get('high_volume', False)
+    
+    if is_high_volume and volume_trend == 'HIGH':
         weight = 1 if signal_score > 0 else -1 if signal_score < 0 else 0
         signal_score += weight
         decision_factors["volume_analysis"]["signal"] = "BUY" if weight > 0 else "SELL" if weight < 0 else "NEUTRAL"
-        decision_factors["volume_analysis"]["reasoning"] = f"High volume ({volume/1000000:.1f}M) confirms signal"
+        decision_factors["volume_analysis"]["reasoning"] = f"Professional volume analysis: High volume ({current_volume/1000000:.1f}M) confirms signal"
         decision_factors["volume_analysis"]["weight"] = weight
     else:
-        decision_factors["volume_analysis"]["reasoning"] = f"Normal volume ({volume/1000000:.1f}M)"
+        decision_factors["volume_analysis"]["reasoning"] = f"Professional volume analysis: {volume_trend.lower()} volume ({current_volume/1000000:.1f}M)"
     
     # Support/Resistance analysis
     price_position = (close - low) / (high - low) if high != low else 0.5
@@ -231,10 +240,32 @@ async def get_current_signal(symbol: str, interval: str):
     else:
         decision_factors["support_resistance"]["reasoning"] = "Price in middle range"
     
+    # Add Bollinger Bands analysis
+    bb_data = professional_indicators.get('bollinger_bands', {})
+    bb_breakout = bb_data.get('breakout', 'NONE')
+    bb_percent = bb_data.get('percent_b', 0.5)
+    
+    if bb_breakout == 'UPPER':
+        signal_score += 1
+        decision_factors["support_resistance"]["signal"] = "BUY"
+        decision_factors["support_resistance"]["reasoning"] = f"Bollinger Bands upper breakout (BB%: {bb_percent:.2f})"
+        decision_factors["support_resistance"]["weight"] = 1
+    elif bb_breakout == 'LOWER':
+        signal_score -= 1
+        decision_factors["support_resistance"]["signal"] = "SELL"
+        decision_factors["support_resistance"]["reasoning"] = f"Bollinger Bands lower breakout (BB%: {bb_percent:.2f})"
+        decision_factors["support_resistance"]["weight"] = -1
+    
+    # Use professional signal strength calculation
+    professional_strength = professional_indicators.get('market_assessment', {}).get('signal_strength', 0)
+    
+    # Combine traditional scoring with professional assessment
+    combined_score = (signal_score + professional_strength) // 2
+    
     # Determine final direction
-    if signal_score > 0:
+    if combined_score > 0:
         direction = "BUY"
-    elif signal_score < 0:
+    elif combined_score < 0:
         direction = "SELL"
     else:
         direction = "HOLD"
@@ -250,10 +281,11 @@ async def get_current_signal(symbol: str, interval: str):
         "stop_loss": result.stop_loss,
         "take_profit": result.take_profit,
         "pattern": pattern,  # Send None instead of "None" string
-        "score": abs(signal_score),  # Use our calculated signal score instead of pattern score
-        "trend": indicators["trend"],
-        "confidence": 95 if abs(signal_score) >= 3 else (50 + abs(signal_score) * 15),  # Dynamic confidence based on signal strength
+        "score": abs(combined_score),  # Use combined professional + traditional score
+        "trend": professional_indicators.get('market_assessment', {}).get('trend', indicators["trend"]),
+        "confidence": min(95, max(5, 50 + abs(combined_score) * 10)),  # Dynamic confidence based on combined signal strength
         "timestamp": signal_timestamp.isoformat(),
         "decision_factors": decision_factors,  # Detailed breakdown of decision logic
-        "total_score": signal_score  # Raw signal score
+        "total_score": combined_score,  # Combined professional + traditional score
+        "professional_indicators": professional_indicators  # Full professional analysis
     }
