@@ -1,14 +1,14 @@
-<!-- Smart Notifications Panel -->
-<div class="fixed top-20 right-4 w-80 space-y-3 z-40 max-h-96 overflow-y-auto">
+<!-- Smart Notifications Panel - Only show when there are active alerts -->
+<div *ngIf="alerts.length > 0" class="fixed top-20 right-4 w-80 space-y-3 z-40 max-h-96 overflow-y-auto">
   
   <!-- Alert Cards -->
-  <p-card 
+  <p-card
     *ngFor="let alert of alerts; let i = index"
     [style]="{'padding': '0'}"
     styleClass="shadow-lg border-l-4 transition-all duration-300 hover:shadow-xl"
     [ngClass]="{
       'border-l-red-500': alert.severity === 'high',
-      'border-l-yellow-500': alert.severity === 'medium', 
+      'border-l-yellow-500': alert.severity === 'medium',
       'border-l-blue-500': alert.severity === 'low'
     }">
     
@@ -34,7 +34,7 @@
             <span class="text-xs" [ngClass]="getSeverityTextColor(alert.severity)">
               {{ formatTime(alert.timestamp) }}
             </span>
-            <p-button 
+            <p-button
               (onClick)="dismissAlert(i)"
               icon="pi pi-times"
               [text]="true"
@@ -51,7 +51,7 @@
         
         <!-- Symbol and Actions -->
         <div class="flex items-center justify-between">
-          <p-tag 
+          <p-tag
             [value]="alert.symbol"
             [severity]="alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info'">
           </p-tag>
@@ -78,7 +78,7 @@
   
   <!-- Clear All Button -->
   <div *ngIf="alerts.length > 1" class="text-center pt-2">
-    <p-button 
+    <p-button
       (onClick)="clearAllAlerts()"
       label="Clear all notifications"
       [text]="true"
@@ -86,13 +86,4 @@
       severity="secondary">
     </p-button>
   </div>
-  
-  <!-- No Alerts Message -->
-  <p-card *ngIf="alerts.length === 0" styleClass="text-center shadow-lg">
-    <div class="py-4">
-      <i class="pi pi-check-circle text-green-600 text-4xl mb-3 block"></i>
-      <h4 class="text-lg font-semibold text-green-800 dark:text-green-400 mb-1">No Active Alerts</h4>
-      <p class="text-sm text-green-600 dark:text-green-500">All systems operating normally</p>
-    </div>
-  </p-card>
 </div>
