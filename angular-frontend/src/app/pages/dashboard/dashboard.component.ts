@@ -182,13 +182,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   toggleAutoTrading(): void {
     const newState = !this.autoTradingEnabled;
-    this.tradingService.setAutoTrading(newState);
     
-    this.messageService.add({
-      severity: newState ? 'success' : 'info',
-      summary: 'Automata Kereskedés',
-      detail: newState ? 'Bekapcsolva - Minden új szignál automatikusan végrehajtódik' : 'Kikapcsolva - Csak manuális kereskedés',
-      life: 5000
+    this.tradingService.setAutoTrading(newState).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.tradingService.updateAutoTradingState(newState);
+          
+          this.messageService.add({
+            severity: newState ? 'success' : 'info',
+            summary: 'Automata Kereskedés',
+            detail: newState ?
+              'Bekapcsolva - A rendszer automatikusan figyelni fogja a piacot és végrehajtja a kereskedéseket' :
+              'Kikapcsolva - Csak manuális kereskedés engedélyezett',
+            life: 8000
+          });
+          
+          // Show additional info for auto-trading
+          if (newState) {
+            this.messageService.add({
+              severity: 'info',
+              summary: 'Auto-Trading Aktív',
+              detail: 'A rendszer 5 percenként ellenőrzi a szignálokat és automatikusan kereskedik ha a feltételek teljesülnek',
+              life: 10000
+            });
+          }
+        } else {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Hiba',
+            detail: 'Nem sikerült módosítani az auto-trading beállítást: ' + (response.error || 'Ismeretlen hiba'),
+            life: 8000
+          });
+        }
+      },
+      error: (error) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Kapcsolódási Hiba',
+          detail: 'Nem sikerült kapcsolódni a szerverhez: ' + error.message,
+          life: 8000
+        });
+      }
     });
   }
 

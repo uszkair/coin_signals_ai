@@ -22,32 +22,84 @@ export interface TradeResult {
   error?: string;
 }
 
+export interface PositionSizeConfig {
+  mode: 'percentage' | 'fixed_usd';
+  fixed_amount_usd?: number;
+  max_percentage?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class TradingService {
   private baseUrl = 'http://localhost:8000/api/trading';
+  private autoTradingUrl = 'http://localhost:8000/api/auto-trading';
   
   // Auto trading state
   private autoTradingSubject = new BehaviorSubject<boolean>(false);
   public autoTrading$ = this.autoTradingSubject.asObservable();
 
   constructor(private http: HttpClient) {
-    // Load auto trading state from localStorage
-    const savedState = localStorage.getItem('autoTrading');
-    if (savedState !== null) {
-      this.autoTradingSubject.next(JSON.parse(savedState));
+    // Load auto trading state from localStorage and sync with backend
+    this.loadAutoTradingState();
+  }
+
+  private async loadAutoTradingState(): Promise<void> {
+    try {
+      // Get current state from backend
+      const response = await this.getAutoTradingStatus().toPromise();
+      if (response?.success) {
+        const enabled = response.data.auto_trading_enabled;
+        this.autoTradingSubject.next(enabled);
+        localStorage.setItem('autoTrading', JSON.stringify(enabled));
+      }
+    } catch (error) {
+      // Fallback to localStorage if backend is not available
+      const savedState = localStorage.getItem('autoTrading');
+      if (savedState !== null) {
+        this.autoTradingSubject.next(JSON.parse(savedState));
+      }
     }
   }
 
   // Auto trading methods
-  setAutoTrading(enabled: boolean): void {
-    this.autoTradingSubject.next(enabled);
-    localStorage.setItem('autoTrading', JSON.stringify(enabled));
+  setAutoTrading(enabled: boolean): Observable<TradeResult> {
+    const endpoint = enabled ? 'enable' : 'disable';
+    return this.http.post<TradeResult>(`${this.autoTradingUrl}/${endpoint}`, {});
   }
 
   getAutoTrading(): boolean {
     return this.autoTradingSubject.value;
+  }
+
+  updateAutoTradingState(enabled: boolean): void {
+    this.autoTradingSubject.next(enabled);
+    localStorage.setItem('autoTrading', JSON.stringify(enabled));
+  }
+
+  // Auto trading API methods
+  getAutoTradingStatus(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.autoTradingUrl}/status`);
+  }
+
+  getAutoTradingSettings(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.autoTradingUrl}/settings`);
+  }
+
+  updateAutoTradingSettings(settings: any): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.autoTradingUrl}/settings`, settings);
+  }
+
+  getAutoTradingHistory(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.autoTradingUrl}/history`);
+  }
+
+  getAutoTradingPerformance(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.autoTradingUrl}/performance`);
+  }
+
+  autoTradingEmergencyStop(): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.autoTradingUrl}/emergency-stop`, {});
   }
 
   // Account Management
@@ -112,5 +164,14 @@ export class TradingService {
 
   getWalletBalance(): Observable<TradeResult> {
     return this.http.get<TradeResult>(`${this.baseUrl}/wallet-balance`);
+  }
+
+  // Position Size Configuration
+  getPositionSizeConfig(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.baseUrl}/position-size-config`);
+  }
+
+  updatePositionSizeConfig(config: PositionSizeConfig): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.baseUrl}/position-size-config`, config);
   }
 }

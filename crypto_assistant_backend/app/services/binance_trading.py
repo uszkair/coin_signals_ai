@@ -52,6 +52,8 @@ class BinanceTrader:
         
         # Trading configuration
         self.max_position_size = 0.02  # Maximum 2% of portfolio per trade
+        self.default_position_size_usd = None  # Fixed USD amount per trade (if set, overrides percentage)
+        self.position_size_mode = 'percentage'  # 'percentage' or 'fixed_usd'
         self.max_daily_trades = 10     # Maximum trades per day
         self.min_profit_threshold = 0.005  # Minimum 0.5% profit threshold
         
@@ -308,17 +310,43 @@ class BinanceTrader:
         return {'valid': True}
     
     async def _calculate_position_size(self, symbol: str, confidence: float) -> float:
-        """Calculate position size based on confidence and risk management"""
-        account_info = await self.get_account_info()
-        total_balance = account_info.get('total_wallet_balance', 10000)  # Default for simulation
+        """Calculate position size based on configuration and risk management"""
+        if self.position_size_mode == 'fixed_usd' and self.default_position_size_usd:
+            # Use fixed USD amount
+            base_size = self.default_position_size_usd
+        else:
+            # Use percentage of portfolio
+            account_info = await self.get_account_info()
+            total_balance = account_info.get('total_wallet_balance', 10000)  # Default for simulation
+            base_size = total_balance * self.max_position_size
         
-        # Base position size (2% of portfolio)
-        base_size = total_balance * self.max_position_size
+        # Adjust based on confidence (optional)
+        if self.position_size_mode == 'percentage':
+            confidence_multiplier = min(confidence / 100, 1.0)
+            return base_size * confidence_multiplier
+        else:
+            # For fixed USD mode, don't adjust by confidence
+            return base_size
+    
+    def set_position_size_config(self, mode: str, amount: float = None, max_percentage: float = None):
+        """
+        Configure position sizing
         
-        # Adjust based on confidence
-        confidence_multiplier = min(confidence / 100, 1.0)
+        Args:
+            mode: 'percentage' or 'fixed_usd'
+            amount: Fixed USD amount per trade (for fixed_usd mode)
+            max_percentage: Maximum percentage of portfolio per trade (for percentage mode)
+        """
+        if mode == 'fixed_usd':
+            self.position_size_mode = 'fixed_usd'
+            if amount:
+                self.default_position_size_usd = amount
+        elif mode == 'percentage':
+            self.position_size_mode = 'percentage'
+            if max_percentage:
+                self.max_position_size = max_percentage / 100  # Convert percentage to decimal
         
-        return base_size * confidence_multiplier
+        logger.info(f"Position size config updated: mode={mode}, amount={amount}, max_percentage={max_percentage}")
     
     async def _get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol trading information"""

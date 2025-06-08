@@ -39,6 +39,12 @@ class TradingConfig(BaseModel):
     testnet: Optional[bool] = None
 
 
+class PositionSizeConfig(BaseModel):
+    mode: str  # 'percentage' or 'fixed_usd'
+    fixed_amount_usd: Optional[float] = None  # For fixed_usd mode
+    max_percentage: Optional[float] = None    # For percentage mode (e.g., 2.5 for 2.5%)
+
+
 @router.get("/account")
 async def get_account_status():
     """Get trading account status and statistics"""
@@ -234,7 +240,77 @@ async def get_trading_config():
                 "max_daily_trades": binance_trader.max_daily_trades,
                 "daily_loss_limit": binance_trader.daily_loss_limit,
                 "testnet": binance_trader.testnet,
-                "api_connected": binance_trader.client is not None
+                "api_connected": binance_trader.client is not None,
+                "position_size_config": {
+                    "mode": binance_trader.position_size_mode,
+                    "fixed_amount_usd": binance_trader.default_position_size_usd,
+                    "max_percentage": binance_trader.max_position_size * 100
+                }
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/position-size-config")
+async def update_position_size_config(config: PositionSizeConfig):
+    """Update position size configuration"""
+    try:
+        # Validate input
+        if config.mode not in ['percentage', 'fixed_usd']:
+            raise HTTPException(status_code=400, detail="Mode must be 'percentage' or 'fixed_usd'")
+        
+        if config.mode == 'fixed_usd' and not config.fixed_amount_usd:
+            raise HTTPException(status_code=400, detail="fixed_amount_usd is required for fixed_usd mode")
+        
+        if config.mode == 'percentage' and not config.max_percentage:
+            raise HTTPException(status_code=400, detail="max_percentage is required for percentage mode")
+        
+        # Validate ranges
+        if config.fixed_amount_usd and (config.fixed_amount_usd < 1 or config.fixed_amount_usd > 10000):
+            raise HTTPException(status_code=400, detail="Fixed amount must be between $1 and $10,000")
+        
+        if config.max_percentage and (config.max_percentage < 0.1 or config.max_percentage > 10):
+            raise HTTPException(status_code=400, detail="Percentage must be between 0.1% and 10%")
+        
+        # Update configuration
+        binance_trader.set_position_size_config(
+            mode=config.mode,
+            amount=config.fixed_amount_usd,
+            max_percentage=config.max_percentage
+        )
+        
+        return {
+            "success": True,
+            "message": "Position size configuration updated successfully",
+            "data": {
+                "mode": binance_trader.position_size_mode,
+                "fixed_amount_usd": binance_trader.default_position_size_usd,
+                "max_percentage": binance_trader.max_position_size * 100
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/position-size-config")
+async def get_position_size_config():
+    """Get current position size configuration"""
+    try:
+        return {
+            "success": True,
+            "data": {
+                "mode": binance_trader.position_size_mode,
+                "fixed_amount_usd": binance_trader.default_position_size_usd,
+                "max_percentage": binance_trader.max_position_size * 100,
+                "description": {
+                    "percentage": "Position size calculated as percentage of total portfolio",
+                    "fixed_usd": "Fixed USD amount per trade regardless of portfolio size"
+                }
             }
         }
         
