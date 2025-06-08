@@ -418,7 +418,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Helper methods for safe access to decision factors
   getDecisionFactorSignal(factorName: keyof NonNullable<Signal['decision_factors']>): string {
-    return (this.selectedSignal?.decision_factors as any)?.[factorName]?.signal || 'NEUTRAL';
+    const signal = (this.selectedSignal?.decision_factors as any)?.[factorName]?.signal || 'NEUTRAL';
+    return signal === 'NEUTRAL' ? 'Semleges' : signal;
   }
 
   getDecisionFactorWeight(factorName: keyof NonNullable<Signal['decision_factors']>): number {
@@ -461,6 +462,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getDecisionFactorWeightDisplay(factorName: keyof NonNullable<Signal['decision_factors']>): string {
     const weight = this.getDecisionFactorWeight(factorName);
-    return `${weight > 0 ? '+' : ''}${weight}`;
+    if (weight === 0) return 'Nincs hatás';
+    return `${weight > 0 ? '+' : ''}${weight} pont`;
+  }
+
+  getSignalStrengthText(totalScore: number): string {
+    if (totalScore >= 3) return 'Erős BUY';
+    if (totalScore >= 1) return 'Közepes BUY';
+    if (totalScore <= -3) return 'Erős SELL';
+    if (totalScore <= -1) return 'Közepes SELL';
+    return 'Semleges';
+  }
+
+  getSignalStrengthClass(totalScore: number): string {
+    if (totalScore >= 3) return 'text-green-700 dark:text-green-400';
+    if (totalScore >= 1) return 'text-green-600 dark:text-green-500';
+    if (totalScore <= -3) return 'text-red-700 dark:text-red-400';
+    if (totalScore <= -1) return 'text-red-600 dark:text-red-500';
+    return 'text-gray-600 dark:text-gray-400';
   }
 }

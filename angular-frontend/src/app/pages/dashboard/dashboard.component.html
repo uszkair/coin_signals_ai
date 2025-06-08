@@ -21,19 +21,22 @@
   </div>
 
   <!-- Main Content -->
-  <div class="flex-1 flex flex-col overflow-hidden">
-    <!-- Top Panel - Signals List -->
-    <div class="h-1/2 flex border-b border-gray-200 dark:border-gray-700">
-      <!-- Signals Table -->
-      <div class="w-1/2 flex flex-col border-r border-gray-200 dark:border-gray-700">
-        <!-- Filters -->
-        <div class="bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700">
-          <div class="flex space-x-4">
+  <div class="flex-1 overflow-auto">
+    <!-- 4 Panel Grid Layout -->
+    <div class="grid grid-cols-2 gap-4 p-4 min-h-screen">
+      
+      <!-- Panel 1: Signals Table -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+        <!-- Panel Header -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Trading Signals</h2>
+          <!-- Filters -->
+          <div class="flex space-x-2">
             <p-dropdown
               [options]="symbolOptions"
               [(ngModel)]="selectedSymbolFilter"
               (onChange)="applyFilters()"
-              placeholder="Összes symbol"
+              placeholder="Symbol"
               [showClear]="true"
               class="flex-1"
             ></p-dropdown>
@@ -41,7 +44,7 @@
               [options]="signalTypeOptions"
               [(ngModel)]="selectedSignalFilter"
               (onChange)="applyFilters()"
-              placeholder="Összes jel"
+              placeholder="Jel"
               [showClear]="true"
               class="flex-1"
             ></p-dropdown>
@@ -49,7 +52,7 @@
               [options]="confidenceOptions"
               [(ngModel)]="selectedConfidenceFilter"
               (onChange)="applyFilters()"
-              placeholder="Összes erősség"
+              placeholder="Erősség"
               [showClear]="true"
               class="flex-1"
             ></p-dropdown>
@@ -57,7 +60,7 @@
         </div>
 
         <!-- Signals Table -->
-        <div class="flex-1 overflow-auto bg-white dark:bg-gray-800">
+        <div class="flex-1 overflow-auto">
           <p-table
             [value]="filteredSignals"
             [loading]="loading"
@@ -108,8 +111,8 @@
         </div>
       </div>
 
-      <!-- Signal Summary -->
-      <div class="w-1/2 flex flex-col bg-white dark:bg-gray-800">
+      <!-- Panel 2: Signal Details -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
         <div *ngIf="selectedSignal; else noSelection" class="flex-1 flex flex-col">
           <!-- Signal Header -->
           <div class="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -148,7 +151,7 @@
             </div>
 
             <!-- Quick Stats -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Technikai Elemzés</h3>
                 <div class="space-y-1">
@@ -178,8 +181,99 @@
                     <span class="font-medium">{{ calculateRiskReward(selectedSignal) }}</span>
                   </div>
                   <div class="flex justify-between text-xs">
-                    <span class="text-gray-600 dark:text-gray-400">Összpontszám:</span>
-                    <span class="font-medium">{{ selectedSignal.total_score || 0 }}</span>
+                    <span class="text-gray-600 dark:text-gray-400">Jel Erőssége:</span>
+                    <span class="font-medium" [class]="getSignalStrengthClass(selectedSignal.total_score || 0)">{{ getSignalStrengthText(selectedSignal.total_score || 0) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Signal Decision Matrix -->
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                <i class="pi pi-cog text-blue-600 mr-2"></i>
+                Döntési Mátrix
+              </h3>
+              
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <!-- Candlestick Pattern -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">🕯️ Gyertyaminta</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('candlestick_pattern')">
+                      {{ getDecisionFactorWeightDisplay('candlestick_pattern') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('candlestick_pattern') }}</div>
+                </div>
+
+                <!-- Trend Analysis -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">📈 Trend</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('trend_analysis')">
+                      {{ getDecisionFactorWeightDisplay('trend_analysis') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('trend_analysis') }}</div>
+                </div>
+
+                <!-- RSI Analysis -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">📊 RSI</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('rsi_analysis')">
+                      {{ getDecisionFactorWeightDisplay('rsi_analysis') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('rsi_analysis') }}</div>
+                </div>
+
+                <!-- MACD Analysis -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">📈 MACD</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('macd_analysis')">
+                      {{ getDecisionFactorWeightDisplay('macd_analysis') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('macd_analysis') }}</div>
+                </div>
+
+                <!-- Momentum -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">⚡ Momentum</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('momentum_strength')">
+                      {{ getDecisionFactorWeightDisplay('momentum_strength') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('momentum_strength') }}</div>
+                </div>
+
+                <!-- Volume -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white">📊 Volume</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('volume_analysis')">
+                      {{ getDecisionFactorWeightDisplay('volume_analysis') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400">{{ getDecisionFactorReasoning('volume_analysis') }}</div>
+                </div>
+              </div>
+
+              <!-- Final Decision Summary -->
+              <div class="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold text-blue-900 dark:text-blue-100">Végső Döntés: {{ selectedSignal.signal }}</div>
+                    <div class="text-xs text-blue-700 dark:text-blue-300">Risk/Reward: {{ calculateRiskReward(selectedSignal) }}</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-sm font-bold" [class]="getSignalStrengthClass(selectedSignal.total_score || 0)">
+                      {{ getSignalStrengthText(selectedSignal.total_score || 0) }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -197,244 +291,232 @@
           </div>
         </ng-template>
       </div>
-    </div>
 
-    <!-- Bottom Panel - Signal Details -->
-    <div class="h-1/2 flex bg-white dark:bg-gray-800">
-      <!-- Signal Decision Matrix -->
-      <div class="w-2/3 flex flex-col border-r border-gray-200 dark:border-gray-700">
-        <div *ngIf="selectedSignal; else noDecisionMatrix" class="flex-1 flex flex-col">
-          <!-- Decision Matrix Header -->
+      <!-- Panel 3: Chart Area -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div *ngIf="selectedSignal; else noChart" class="flex-1 flex flex-col">
+          <!-- Chart Header -->
           <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-              <i class="pi pi-cog text-blue-600 mr-2"></i>
-              Szignál Döntési Mátrix
-              <span class="ml-2 text-sm font-normal text-gray-500">
-                (Összpontszám: {{ selectedSignal.total_score || 0 }})
-              </span>
-            </h3>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <i class="pi pi-chart-line text-blue-600 mr-2"></i>
+              {{ selectedSignal.symbol }} Chart
+            </h2>
           </div>
 
-          <!-- Decision Matrix Content -->
-          <div class="flex-1 p-4 overflow-auto">
-            <div class="grid grid-cols-4 gap-3">
-              <!-- Candlestick Pattern Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-chart-bar text-purple-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">Gyertyaminta</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="selectedSignal.decision_factors?.candlestick_pattern?.signal || 'NEUTRAL'"
-                      [severity]="selectedSignal.decision_factors?.candlestick_pattern?.signal === 'BUY' ? 'success' : selectedSignal.decision_factors?.candlestick_pattern?.signal === 'SELL' ? 'danger' : 'secondary'"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="(selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? 'text-green-600' : (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) < 0 ? 'text-red-600' : 'text-gray-600'">
-                      {{ (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? '+' : '' }}{{ selectedSignal.decision_factors?.candlestick_pattern?.weight || 0 }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {{ getDecisionFactorName() }} ({{ getDecisionFactorScore() }}/5)
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('candlestick_pattern') }}
-                </div>
-              </div>
-
-              <!-- Trend Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-arrow-up-right text-green-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">Trend</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('trend_analysis')"
-                      [severity]="getDecisionFactorSeverity('trend_analysis')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('trend_analysis')">
-                      {{ getDecisionFactorWeightDisplay('trend_analysis') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {{ getDecisionFactorTrend() }}
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('trend_analysis') }}
-                </div>
-              </div>
-
-              <!-- RSI Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-chart-line text-blue-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">RSI</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('rsi_analysis')"
-                      [severity]="getDecisionFactorSeverity('rsi_analysis')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('rsi_analysis')">
-                      {{ getDecisionFactorWeightDisplay('rsi_analysis') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {{ getDecisionFactorValue('rsi_analysis') | number:'1.1-1' }}
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('rsi_analysis') }}
-                </div>
-              </div>
-
-              <!-- MACD Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-sitemap text-orange-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">MACD</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('macd_analysis')"
-                      [severity]="getDecisionFactorSeverity('macd_analysis')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('macd_analysis')">
-                      {{ getDecisionFactorWeightDisplay('macd_analysis') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {{ getDecisionFactorValue('macd_analysis') | number:'1.2-2' }}
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('macd_analysis') }}
-                </div>
-              </div>
-
-              <!-- Momentum Strength -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-bolt text-yellow-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">Momentum</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('momentum_strength')"
-                      [severity]="getDecisionFactorSeverity('momentum_strength')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('momentum_strength')">
-                      {{ getDecisionFactorWeightDisplay('momentum_strength') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  {{ getDecisionFactorStrength() }}
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('momentum_strength') }}
-                </div>
-              </div>
-
-              <!-- Volume Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-chart-bar text-indigo-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">Volume</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('volume_analysis')"
-                      [severity]="getDecisionFactorSeverity('volume_analysis')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('volume_analysis')">
-                      {{ getDecisionFactorWeightDisplay('volume_analysis') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('volume_analysis') }}
-                </div>
-              </div>
-
-              <!-- Support/Resistance Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <i class="pi pi-minus text-gray-600 mr-1 text-xs"></i>
-                    <span class="font-medium text-gray-900 dark:text-white text-xs">S/R</span>
-                  </div>
-                  <div class="flex items-center space-x-1">
-                    <p-tag
-                      [value]="getDecisionFactorSignal('support_resistance')"
-                      [severity]="getDecisionFactorSeverity('support_resistance')"
-                      class="text-xs scale-75">
-                    </p-tag>
-                    <span class="text-xs font-medium"
-                          [class]="getDecisionFactorWeightClass('support_resistance')">
-                      {{ getDecisionFactorWeightDisplay('support_resistance') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                  {{ getDecisionFactorReasoning('support_resistance') }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Final Decision Summary -->
-            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-1">Végső Döntés</h4>
-                  <p class="text-sm text-blue-700 dark:text-blue-300">
-                    Az összes elemzési tényező alapján: <strong>{{ selectedSignal.signal }}</strong>
-                  </p>
-                </div>
-                <div class="text-right">
-                  <div class="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                    {{ selectedSignal.total_score || 0 }}
-                  </div>
-                  <div class="text-sm text-blue-600 dark:text-blue-400">Összpontszám</div>
-                </div>
+          <!-- Chart Content -->
+          <div class="flex-1 p-4">
+            <div class="h-full bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center min-h-[300px]">
+              <div class="text-center">
+                <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
+                <p class="text-gray-500 dark:text-gray-400 mb-3">Chart megjelenítés hamarosan elérhető</p>
+                <p-button
+                  label="TradingView Chart megnyitása"
+                  icon="pi pi-external-link"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="showChart(selectedSignal)"
+                  class="mt-2">
+                </p-button>
               </div>
             </div>
           </div>
         </div>
 
-        <ng-template #noDecisionMatrix>
+        <ng-template #noChart>
+          <div class="flex-1 flex items-center justify-center min-h-[400px]">
+            <div class="text-center">
+              <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Chart Nézet</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">Válassz egy szignált a chart megtekintéséhez</p>
+            </div>
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Panel 4: AI Analysis -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div *ngIf="selectedSignal; else noAIAnalysis" class="flex-1 flex flex-col">
+          <!-- AI Analysis Header -->
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <i class="pi pi-sparkles text-purple-600 mr-2"></i>
+              AI Elemzés
+            </h2>
+          </div>
+
+          <!-- AI Analysis Content -->
+          <div class="flex-1 p-4 overflow-auto">
+            <!-- Loading State -->
+            <div *ngIf="loadingAIAnalysis" class="space-y-3">
+              <p-skeleton height="3rem"></p-skeleton>
+              <p-skeleton height="4rem"></p-skeleton>
+              <p-skeleton height="3rem"></p-skeleton>
+            </div>
+
+            <!-- AI Analysis Content -->
+            <div *ngIf="!loadingAIAnalysis && selectedSignalAIAnalysis" class="space-y-4">
+              <!-- Sentiment Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <h4 class="font-medium text-gray-900 dark:text-white mb-2">🧠 Sentiment</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Sentiment:</span>
+                    <span class="font-medium" [class]="selectedSignalAIAnalysis.sentiment.overall_sentiment > 0 ? 'text-green-600' : 'text-red-600'">
+                      {{ selectedSignalAIAnalysis.sentiment.sentiment_label }}
+                    </span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Bizalom:</span>
+                    <span class="font-medium">{{ selectedSignalAIAnalysis.sentiment.confidence | number:'1.0-0' }}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Price Prediction -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <h4 class="font-medium text-gray-900 dark:text-white mb-2">📈 Előrejelzés</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Előrejelzett Ár:</span>
+                    <span class="font-medium">${{ selectedSignalAIAnalysis.prediction.predicted_price | number:'1.2-6' }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Változás:</span>
+                    <span class="font-medium" [class]="selectedSignalAIAnalysis.prediction.price_change_percent > 0 ? 'text-green-600' : 'text-red-600'">
+                      {{ selectedSignalAIAnalysis.prediction.price_change_percent | number:'1.2-2' }}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI Recommendation -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <h4 class="font-medium text-gray-900 dark:text-white mb-2">🎯 AI Ajánlás</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Akció:</span>
+                    <span class="font-medium">{{ selectedSignalAIAnalysis.recommendation.action }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Bizalom:</span>
+                    <span class="font-medium">{{ selectedSignalAIAnalysis.recommendation.confidence }}%</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">Kockázat:</span>
+                    <span class="font-medium" [class]="selectedSignalAIAnalysis.risk_score > 70 ? 'text-red-600' : selectedSignalAIAnalysis.risk_score > 40 ? 'text-yellow-600' : 'text-green-600'">
+                      {{ selectedSignalAIAnalysis.risk_score }}/100
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- No AI Analysis Available -->
+            <div *ngIf="!loadingAIAnalysis && !selectedSignalAIAnalysis" class="text-center py-8">
+              <i class="pi pi-exclamation-triangle text-3xl text-gray-400 mb-2"></i>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">AI elemzés nem elérhető</p>
+              <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                <p>• Technikai indikátorok: RSI, MACD, Bollinger Bands</p>
+                <p>• Gyertyaminta elemzés</p>
+                <p>• Trend és momentum analízis</p>
+              </div>
+            </div>
+
+            <!-- Trading Actions -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+              <h4 class="font-medium text-gray-900 dark:text-white mb-3">Kereskedési Műveletek</h4>
+              <div class="space-y-2">
+                <p-button
+                  *ngIf="selectedSignal.signal === 'BUY'"
+                  label="Vásárlás"
+                  icon="pi pi-arrow-up"
+                  severity="success"
+                  size="small"
+                  (onClick)="executeTrade('BUY', selectedSignal)"
+                  class="w-full"
+                ></p-button>
+                <p-button
+                  *ngIf="selectedSignal.signal === 'SELL'"
+                  label="Eladás"
+                  icon="pi pi-arrow-down"
+                  severity="danger"
+                  size="small"
+                  (onClick)="executeTrade('SELL', selectedSignal)"
+                  class="w-full"
+                ></p-button>
+                <p-button
+                  label="Chart megjelenítése"
+                  icon="pi pi-chart-line"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="showChart(selectedSignal)"
+                  class="w-full"
+                ></p-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noAIAnalysis>
+          <div class="flex-1 flex items-center justify-center min-h-[400px]">
+            <div class="text-center">
+              <i class="pi pi-sparkles text-4xl text-gray-400 mb-2"></i>
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">AI Elemzés</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">Válassz egy szignált az elemzés megtekintéséhez</p>
+            </div>
+          </div>
+        </ng-template>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+    <!-- Bottom Panel - Chart and Additional Info -->
+    <div class="h-1/2 flex bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <!-- Chart Area -->
+      <div class="w-2/3 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div *ngIf="selectedSignal; else noChart" class="flex-1 flex flex-col">
+          <!-- Chart Header -->
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+              <i class="pi pi-chart-line text-blue-600 mr-2"></i>
+              {{ selectedSignal.symbol }} Chart
+            </h3>
+          </div>
+
+          <!-- Chart Content -->
+          <div class="flex-1 p-4">
+            <div class="h-full bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <div class="text-center">
+                <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
+                <p class="text-gray-500 dark:text-gray-400">Chart megjelenítés hamarosan elérhető</p>
+                <p-button
+                  label="TradingView Chart megnyitása"
+                  icon="pi pi-external-link"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="showChart(selectedSignal)"
+                  class="mt-2">
+                </p-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noChart>
           <div class="flex-1 flex items-center justify-center">
             <div class="text-center">
-              <i class="pi pi-cog text-4xl text-gray-400 mb-2"></i>
-              <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Döntési Mátrix</h3>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Válassz egy szignált a mátrix megtekintéséhez</p>
+              <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Chart Nézet</h3>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">Válassz egy szignált a chart megtekintéséhez</p>
             </div>
           </div>
         </ng-template>
       </div>
 
       <!-- AI Analysis Panel -->
-      <div class="w-1/3 flex flex-col">
+      <div class="w-1/3 flex flex-col bg-white dark:bg-gray-800">
         <div *ngIf="selectedSignal; else noAIAnalysis" class="flex-1 flex flex-col">
           <!-- AI Analysis Header -->
           <div class="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -562,9 +644,7 @@
           </div>
         </ng-template>
       </div>
-    </div>
   </div>
-</div>
 
 <!-- Toast for notifications -->
 <p-toast position="top-right"></p-toast>
