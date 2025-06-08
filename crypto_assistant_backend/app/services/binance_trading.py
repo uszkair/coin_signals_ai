@@ -149,10 +149,12 @@ class BinanceTrader:
                     testnet=self.testnet
                 )
                 
-                # Set custom base URL from environment
+                # Set custom base URL from environment for futures testnet
                 if self.use_futures and self.testnet:
                     # For futures testnet, we need to set the API_URL manually
+                    # The python-binance library will automatically add /fapi/v1 prefix
                     self.client.API_URL = self.base_url
+                    logger.info(f"Set Futures Testnet API URL: {self.base_url}")
                 
                 # Log initialization
                 env_type = "Futures" if self.use_futures else "Spot"
@@ -550,17 +552,22 @@ class BinanceTrader:
             if self.use_futures:
                 # Futures exchange info
                 exchange_info = self.client.futures_exchange_info()
+                logger.info(f"Got futures exchange info for {symbol}")
             else:
                 # Spot exchange info
                 exchange_info = self.client.get_exchange_info()
+                logger.info(f"Got spot exchange info for {symbol}")
                 
             for symbol_info in exchange_info['symbols']:
                 if symbol_info['symbol'] == symbol:
+                    logger.info(f"Found symbol info for {symbol}: filters={len(symbol_info.get('filters', []))}")
                     return symbol_info
+            
+            logger.warning(f"Symbol {symbol} not found in exchange info")
             return None
         except Exception as e:
-            logger.error(f"Error getting symbol info: {e}")
-            return None
+            logger.error(f"Error getting symbol info for {symbol}: {e}")
+            return self._simulate_symbol_info(symbol)
     
     def _calculate_quantity(self, position_size_usd: float, price: float, symbol_info: Dict[str, Any]) -> float:
         """Calculate order quantity with proper precision"""
@@ -568,14 +575,44 @@ class BinanceTrader:
         
         # Get step size for precision
         step_size = 0.001  # Default
+        min_qty = 0.001    # Default minimum
+        
         for filter_info in symbol_info.get('filters', []):
             if filter_info['filterType'] == 'LOT_SIZE':
                 step_size = float(filter_info['stepSize'])
+                min_qty = float(filter_info.get('minQty', step_size))
                 break
         
-        # Round down to step size
-        precision = len(str(step_size).split('.')[-1]) if '.' in str(step_size) else 0
-        return float(Decimal(str(quantity)).quantize(Decimal(str(step_size)), rounding=ROUND_DOWN))
+        # Ensure quantity meets minimum requirement
+        if quantity < min_qty:
+            quantity = min_qty
+        
+        # Round down to step size with proper precision
+        if step_size >= 1:
+            # For step sizes >= 1, round to integer
+            precision = 0
+        else:
+            # Count decimal places in step size
+            step_str = f"{step_size:.10f}".rstrip('0')
+            if '.' in step_str:
+                precision = len(step_str.split('.')[1])
+            else:
+                precision = 0
+        
+        # Use Decimal for precise calculation
+        decimal_quantity = Decimal(str(quantity))
+        decimal_step = Decimal(str(step_size))
+        
+        # Round down to nearest step size
+        steps = decimal_quantity // decimal_step
+        final_quantity = float(steps * decimal_step)
+        
+        # Ensure we don't go below minimum
+        if final_quantity < min_qty:
+            final_quantity = min_qty
+        
+        # Round to appropriate precision
+        return round(final_quantity, precision)
     
     async def _place_market_order(self, symbol: str, side: str, quantity: float) -> Dict[str, Any]:
         """Place a market order"""
@@ -585,22 +622,44 @@ class BinanceTrader:
         try:
             binance_side = SIDE_BUY if side == 'BUY' else SIDE_SELL
             
-            order = self.client.order_market(
-                symbol=symbol,
-                side=binance_side,
-                quantity=quantity
-            )
-            
-            return {
-                'success': True,
-                'order_id': order['orderId'],
-                'symbol': order['symbol'],
-                'side': order['side'],
-                'quantity': float(order['executedQty']),
-                'price': float(order['fills'][0]['price']) if order['fills'] else 0,
-                'commission': sum(float(fill['commission']) for fill in order['fills']),
-                'status': order['status']
-            }
+            # Use appropriate order method based on API type
+            if self.use_futures:
+                order = self.client.futures_create_order(
+                    symbol=symbol,
+                    side=binance_side,
+                    type=ORDER_TYPE_MARKET,
+                    quantity=quantity
+                )
+                
+                # Futures API response format
+                return {
+                    'success': True,
+                    'order_id': order['orderId'],
+                    'symbol': order['symbol'],
+                    'side': order['side'],
+                    'quantity': float(order['executedQty']),
+                    'price': float(order.get('avgPrice', order.get('price', 0))),
+                    'commission': 0,  # Commission calculated separately in futures
+                    'status': order['status']
+                }
+            else:
+                order = self.client.order_market(
+                    symbol=symbol,
+                    side=binance_side,
+                    quantity=quantity
+                )
+                
+                # Spot API response format
+                return {
+                    'success': True,
+                    'order_id': order['orderId'],
+                    'symbol': order['symbol'],
+                    'side': order['side'],
+                    'quantity': float(order['executedQty']),
+                    'price': float(order['fills'][0]['price']) if order['fills'] else 0,
+                    'commission': sum(float(fill['commission']) for fill in order['fills']),
+                    'status': order['status']
+                }
             
         except BinanceOrderException as e:
             logger.error(f"Binance order error: {e}")
@@ -617,13 +676,22 @@ class BinanceTrader:
         try:
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
-            order = self.client.order_stop_loss_limit(
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                stopPrice=stop_price,
-                price=stop_price * 0.99 if side == SIDE_SELL else stop_price * 1.01  # Slight buffer
-            )
+            if self.use_futures:
+                order = self.client.futures_create_order(
+                    symbol=symbol,
+                    side=side,
+                    type=FUTURE_ORDER_TYPE_STOP_MARKET,
+                    quantity=quantity,
+                    stopPrice=stop_price
+                )
+            else:
+                order = self.client.order_stop_loss_limit(
+                    symbol=symbol,
+                    side=side,
+                    quantity=quantity,
+                    stopPrice=stop_price,
+                    price=stop_price * 0.99 if side == SIDE_SELL else stop_price * 1.01  # Slight buffer
+                )
             
             return {
                 'success': True,
@@ -644,13 +712,22 @@ class BinanceTrader:
         try:
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
-            order = self.client.order_take_profit_limit(
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                stopPrice=take_profit_price,
-                price=take_profit_price
-            )
+            if self.use_futures:
+                order = self.client.futures_create_order(
+                    symbol=symbol,
+                    side=side,
+                    type=FUTURE_ORDER_TYPE_TAKE_PROFIT_MARKET,
+                    quantity=quantity,
+                    stopPrice=take_profit_price
+                )
+            else:
+                order = self.client.order_take_profit_limit(
+                    symbol=symbol,
+                    side=side,
+                    quantity=quantity,
+                    stopPrice=take_profit_price,
+                    price=take_profit_price
+                )
             
             return {
                 'success': True,
@@ -669,7 +746,10 @@ class BinanceTrader:
             return True  # Simulate success
         
         try:
-            self.client.cancel_order(symbol=symbol, orderId=order_id)
+            if self.use_futures:
+                self.client.futures_cancel_order(symbol=symbol, orderId=order_id)
+            else:
+                self.client.cancel_order(symbol=symbol, orderId=order_id)
             return True
         except Exception as e:
             logger.error(f"Error canceling order {order_id}: {e}")
@@ -769,12 +849,37 @@ class BinanceTrader:
     
     def _simulate_symbol_info(self, symbol: str) -> Dict[str, Any]:
         """Simulate symbol info for testing"""
+        # Different precision for different symbols
+        if symbol == 'BTCUSDT':
+            step_size = '0.001'
+            min_qty = '0.001'
+        elif symbol == 'ETHUSDT':
+            step_size = '0.001'
+            min_qty = '0.001'
+        else:
+            step_size = '0.01'
+            min_qty = '0.01'
+        
         return {
             'symbol': symbol,
             'status': 'TRADING',
             'filters': [
-                {'filterType': 'LOT_SIZE', 'stepSize': '0.00001000'},
-                {'filterType': 'PRICE_FILTER', 'tickSize': '0.01000000'}
+                {
+                    'filterType': 'LOT_SIZE',
+                    'stepSize': step_size,
+                    'minQty': min_qty,
+                    'maxQty': '10000.00000000'
+                },
+                {
+                    'filterType': 'PRICE_FILTER',
+                    'tickSize': '0.01000000',
+                    'minPrice': '0.01000000',
+                    'maxPrice': '1000000.00000000'
+                },
+                {
+                    'filterType': 'MIN_NOTIONAL',
+                    'minNotional': '5.00000000'
+                }
             ]
         }
     
@@ -812,14 +917,15 @@ class BinanceTrader:
                 trade_data = {
                     "quantity": quantity,
                     "position_size_usd": position_size_usd,
-                    "main_order_id": main_order.get("order_id"),
-                    "stop_loss_order_id": stop_loss_order.get("order_id"),
-                    "take_profit_order_id": take_profit_order.get("order_id"),
+                    "main_order_id": str(main_order.get("order_id")) if main_order.get("order_id") else None,
+                    "stop_loss_order_id": str(stop_loss_order.get("order_id")) if stop_loss_order.get("order_id") else None,
+                    "take_profit_order_id": str(take_profit_order.get("order_id")) if take_profit_order.get("order_id") else None,
                     "result": "pending",
                     "testnet_mode": self.testnet
                 }
                 
                 performance = await DatabaseService.save_trading_performance(db, signal_id, trade_data)
+                logger.info(f"✅ Trade saved to history: Signal {signal_id}, Order {trade_data['main_order_id']}")
                 return performance.id
                 
         except Exception as e:
@@ -850,7 +956,7 @@ class BinanceTrader:
                 }
                 
                 await DatabaseService.save_trading_performance(db, signal_id, trade_data)
-                logger.info(f"Failed trade saved to performance: {signal['symbol']} - {failure_reason}")
+                logger.info(f"✅ Failed trade saved to history: {signal['symbol']} - {failure_reason}")
                 
         except Exception as e:
             logger.error(f"Error saving failed trade to performance: {e}")
