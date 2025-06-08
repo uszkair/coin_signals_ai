@@ -275,7 +275,7 @@ async def get_trading_config():
                 "position_size_config": {
                     "mode": position_settings['mode'],
                     "fixed_amount_usd": position_settings['default_position_size_usd'],
-                    "max_percentage": position_settings['max_position_size']
+                    "max_percentage": position_settings['max_position_size'] * 100 if position_settings['max_position_size'] else None  # Convert to percentage
                 }
             }
         }
@@ -331,7 +331,7 @@ async def update_position_size_config(config: PositionSizeConfig):
             "data": {
                 "mode": updated_settings['mode'],
                 "fixed_amount_usd": updated_settings['default_position_size_usd'],
-                "max_percentage": updated_settings['max_position_size']
+                "max_percentage": updated_settings['max_position_size'] * 100 if updated_settings['max_position_size'] else None  # Convert to percentage
             }
         }
         
@@ -353,7 +353,7 @@ async def get_position_size_config():
             "data": {
                 "mode": position_settings['mode'],
                 "fixed_amount_usd": position_settings['default_position_size_usd'],
-                "max_percentage": position_settings['max_position_size'],
+                "max_percentage": position_settings['max_position_size'] * 100 if position_settings['max_position_size'] else None,  # Convert to percentage
                 "description": {
                     "percentage": "Position size calculated as percentage of total portfolio",
                     "fixed_usd": "Fixed USD amount per trade regardless of portfolio size"

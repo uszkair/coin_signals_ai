@@ -80,7 +80,7 @@ class TradingSettingsService:
         settings = await self.get_settings()
         return {
             'mode': settings.get('position_size_mode', 'percentage'),
-            'max_position_size': settings.get('max_position_size', 2.0),  # Keep as stored in DB
+            'max_position_size': settings.get('max_position_size', 0.02),  # Store as decimal in DB (0.02 = 2%)
             'default_position_size_usd': settings.get('default_position_size_usd')
         }
     
