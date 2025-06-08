@@ -22,8 +22,8 @@
 
   <!-- Main Content -->
   <div class="flex-1 overflow-hidden">
-    <!-- 4 Panel Grid Layout -->
-    <div class="grid grid-cols-2 gap-4 p-4 h-[calc(100vh-80px)]">
+    <!-- Top Row: Signals Table and System Status -->
+    <div class="grid grid-cols-2 gap-4 p-4 h-1/2">
       
       <!-- Panel 1: Signals Table -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
@@ -291,6 +291,12 @@
         </ng-template>
       </div>
 
+
+    </div>
+
+    <!-- Bottom Row: Chart and AI Analysis -->
+    <div class="grid grid-cols-2 gap-4 px-4 pb-4 h-1/2">
+      
       <!-- Panel 3: Chart Area -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
         <div *ngIf="selectedSignal; else noChart" class="flex-1 flex flex-col">
@@ -304,7 +310,7 @@
 
           <!-- Chart Content -->
           <div class="flex-1 p-2">
-            <div class="h-full rounded-lg overflow-hidden" style="min-height: 400px;">
+            <div class="h-full rounded-lg overflow-hidden" style="min-height: 300px;">
               <app-trading-view-widget
                 [symbol]="selectedSignal.symbol"
                 [interval]="'1H'"
@@ -315,7 +321,7 @@
         </div>
 
         <ng-template #noChart>
-          <div class="flex-1 flex items-center justify-center min-h-[400px]">
+          <div class="flex-1 flex items-center justify-center min-h-[300px]">
             <div class="text-center">
               <i class="pi pi-chart-line text-4xl text-gray-400 mb-2"></i>
               <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Chart Nézet</h3>
@@ -450,7 +456,7 @@
         </div>
 
         <ng-template #noAIAnalysis>
-          <div class="flex-1 flex items-center justify-center min-h-[400px]">
+          <div class="flex-1 flex items-center justify-center min-h-[300px]">
             <div class="text-center">
               <i class="pi pi-sparkles text-4xl text-gray-400 mb-2"></i>
               <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">AI Elemzés</h3>
