@@ -3,6 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export interface DecisionFactor {
+  signal: 'BUY' | 'SELL' | 'NEUTRAL';
+  reasoning: string;
+  weight: number;
+  [key: string]: any;
+}
+
 export interface Signal {
   symbol: string;
   signal: 'BUY' | 'SELL' | 'HOLD';
@@ -16,6 +23,17 @@ export interface Signal {
   timestamp: string;
   reason?: string;
   score?: number;
+  interval?: string;
+  decision_factors?: {
+    candlestick_pattern: DecisionFactor & { name: string; score: number };
+    trend_analysis: DecisionFactor & { trend: string };
+    momentum_strength: DecisionFactor & { strength: string };
+    rsi_analysis: DecisionFactor & { value: number };
+    macd_analysis: DecisionFactor & { value: number };
+    volume_analysis: DecisionFactor;
+    support_resistance: DecisionFactor;
+  };
+  total_score?: number;
 }
 
 
@@ -29,7 +47,7 @@ export class SignalService {
 
   getMultipleSignals(symbols: string[], interval: string = '1h'): Observable<Signal[]> {
     const symbolsParam = symbols.join(',');
-    return this.http.get<Signal[]>(`${this.apiUrl}/signals?symbols=${symbolsParam}&interval=${interval}`);
+    return this.http.get<Signal[]>(`${this.apiUrl}/signals/?symbols=${symbolsParam}&interval=${interval}`);
   }
 
 }

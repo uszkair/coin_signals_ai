@@ -13,11 +13,16 @@ import { ToastModule } from 'primeng/toast';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { SkeletonModule } from 'primeng/skeleton';
+import { AccordionModule } from 'primeng/accordion';
+import { DividerModule } from 'primeng/divider';
 import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 
 import { SignalService, Signal } from '../../services/signal.service';
 import { WebSocketService } from '../../services/websocket.service';
+import { AIService, AIInsight } from '../../services/ai.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
 import { AiInsightsPanelComponent } from '../../components/ai-insights-panel/ai-insights-panel.component';
 
@@ -41,6 +46,10 @@ interface FilterOption {
     InputSwitchModule,
     ConfirmDialogModule,
     DialogModule,
+    ProgressBarModule,
+    SkeletonModule,
+    AccordionModule,
+    DividerModule,
     TradingViewWidgetComponent,
     AiInsightsPanelComponent
   ],
@@ -61,6 +70,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   allSignals: Signal[] = [];
   filteredSignals: Signal[] = [];
   selectedSignal: Signal | null = null;
+  selectedSignalAIAnalysis: AIInsight | null = null;
+  loadingAIAnalysis = false;
   
   // Chart modal
   showChartModal = false;
@@ -97,7 +108,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private signalService: SignalService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private webSocketService: WebSocketService
+    private webSocketService: WebSocketService,
+    private aiService: AIService
   ) {}
 
   ngOnInit(): void {
@@ -216,6 +228,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   selectSignal(signal: Signal): void {
     this.selectedSignal = signal;
+    // Don't load AI analysis separately since decision factors are already in the signal
+    this.loadingAIAnalysis = false;
+    this.selectedSignalAIAnalysis = null;
   }
 
   // UI helper methods
@@ -377,5 +392,75 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.selectedSignal = newSignal;
       }
     }
+  }
+
+  // Make Math available in template
+  Math = Math;
+
+  // Helper methods for AI analysis display
+  getAISentimentColor(sentiment: number): string {
+    if (sentiment > 0.3) return 'text-green-600';
+    if (sentiment < -0.3) return 'text-red-600';
+    return 'text-gray-600';
+  }
+
+  getAIConfidenceColor(confidence: number): string {
+    if (confidence >= 80) return 'text-green-600';
+    if (confidence >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  }
+
+  getRiskScoreColor(risk: number): string {
+    if (risk <= 30) return 'text-green-600';
+    if (risk <= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  }
+
+  // Helper methods for safe access to decision factors
+  getDecisionFactorSignal(factorName: keyof NonNullable<Signal['decision_factors']>): string {
+    return (this.selectedSignal?.decision_factors as any)?.[factorName]?.signal || 'NEUTRAL';
+  }
+
+  getDecisionFactorWeight(factorName: keyof NonNullable<Signal['decision_factors']>): number {
+    return (this.selectedSignal?.decision_factors as any)?.[factorName]?.weight || 0;
+  }
+
+  getDecisionFactorReasoning(factorName: keyof NonNullable<Signal['decision_factors']>): string {
+    return (this.selectedSignal?.decision_factors as any)?.[factorName]?.reasoning || 'Nincs adat';
+  }
+
+  getDecisionFactorValue(factorName: 'rsi_analysis' | 'macd_analysis'): number {
+    return (this.selectedSignal?.decision_factors as any)?.[factorName]?.value || 0;
+  }
+
+  getDecisionFactorName(): string {
+    return this.selectedSignal?.decision_factors?.candlestick_pattern?.name || 'Nincs';
+  }
+
+  getDecisionFactorScore(): number {
+    return this.selectedSignal?.decision_factors?.candlestick_pattern?.score || 0;
+  }
+
+  getDecisionFactorTrend(): string {
+    return this.selectedSignal?.decision_factors?.trend_analysis?.trend || 'N/A';
+  }
+
+  getDecisionFactorStrength(): string {
+    return this.selectedSignal?.decision_factors?.momentum_strength?.strength || 'N/A';
+  }
+
+  getDecisionFactorSeverity(factorName: keyof NonNullable<Signal['decision_factors']>): string {
+    const signal = this.getDecisionFactorSignal(factorName);
+    return signal === 'BUY' ? 'success' : signal === 'SELL' ? 'danger' : 'secondary';
+  }
+
+  getDecisionFactorWeightClass(factorName: keyof NonNullable<Signal['decision_factors']>): string {
+    const weight = this.getDecisionFactorWeight(factorName);
+    return weight > 0 ? 'text-green-600' : weight < 0 ? 'text-red-600' : 'text-gray-600';
+  }
+
+  getDecisionFactorWeightDisplay(factorName: keyof NonNullable<Signal['decision_factors']>): string {
+    const weight = this.getDecisionFactorWeight(factorName);
+    return `${weight > 0 ? '+' : ''}${weight}`;
   }
 }

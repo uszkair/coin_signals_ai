@@ -1,8 +1,38 @@
 # app/models/schema.py
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
+
+class DecisionFactor(BaseModel):
+    signal: str  # BUY, SELL, NEUTRAL
+    reasoning: str
+    weight: int
+
+class CandlestickPatternFactor(DecisionFactor):
+    name: Optional[str]
+    score: Optional[int]
+
+class TrendAnalysisFactor(DecisionFactor):
+    trend: Optional[str]
+
+class MomentumStrengthFactor(DecisionFactor):
+    strength: Optional[str]
+
+class RSIAnalysisFactor(DecisionFactor):
+    value: Optional[float]
+
+class MACDAnalysisFactor(DecisionFactor):
+    value: Optional[float]
+
+class DecisionFactors(BaseModel):
+    candlestick_pattern: Optional[CandlestickPatternFactor]
+    trend_analysis: Optional[TrendAnalysisFactor]
+    momentum_strength: Optional[MomentumStrengthFactor]
+    rsi_analysis: Optional[RSIAnalysisFactor]
+    macd_analysis: Optional[MACDAnalysisFactor]
+    volume_analysis: Optional[DecisionFactor]
+    support_resistance: Optional[DecisionFactor]
 
 class SignalResponse(BaseModel):
     symbol: str
@@ -17,6 +47,8 @@ class SignalResponse(BaseModel):
     trend: Optional[str]
     confidence: Optional[int]  # Percentage as integer
     timestamp: Optional[datetime]
+    decision_factors: Optional[DecisionFactors]
+    total_score: Optional[int]
 
 class SignalHistoryItem(BaseModel):
     timestamp: datetime

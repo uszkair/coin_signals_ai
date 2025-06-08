@@ -146,10 +146,453 @@
             </div>
           </div>
 
-          <!-- Technical Analysis -->
+          <!-- Signal Decision Matrix -->
+          <div class="mb-8">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <i class="pi pi-cog text-blue-600 mr-2"></i>
+              Szignál Döntési Mátrix
+              <span class="ml-2 text-sm font-normal text-gray-500">
+                (Összpontszám: {{ selectedSignal.total_score || 0 }})
+              </span>
+            </h3>
+            
+            <div class="grid grid-cols-1 gap-4">
+              <!-- Candlestick Pattern Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-chart-bar text-purple-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">Gyertyaminta Elemzés</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="selectedSignal.decision_factors?.candlestick_pattern?.signal || 'NEUTRAL'"
+                      [severity]="selectedSignal.decision_factors?.candlestick_pattern?.signal === 'BUY' ? 'success' : selectedSignal.decision_factors?.candlestick_pattern?.signal === 'SELL' ? 'danger' : 'secondary'">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="(selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? 'text-green-600' : (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) < 0 ? 'text-red-600' : 'text-gray-600'">
+                      {{ (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? '+' : '' }}{{ selectedSignal.decision_factors?.candlestick_pattern?.weight || 0 }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <strong>Pattern:</strong> {{ getDecisionFactorName() }}
+                  <span class="ml-2"><strong>Pontszám:</strong> {{ getDecisionFactorScore() }}/5</span>
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('candlestick_pattern') }}
+                </div>
+              </div>
+
+              <!-- Trend Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-arrow-up-right text-green-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">Trend Elemzés</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('trend_analysis')"
+                      [severity]="getDecisionFactorSeverity('trend_analysis')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('trend_analysis')">
+                      {{ getDecisionFactorWeightDisplay('trend_analysis') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <strong>Trend:</strong> {{ getDecisionFactorTrend() }}
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('trend_analysis') }}
+                </div>
+              </div>
+
+              <!-- RSI Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-chart-line text-blue-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">RSI Elemzés</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('rsi_analysis')"
+                      [severity]="getDecisionFactorSeverity('rsi_analysis')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('rsi_analysis')">
+                      {{ getDecisionFactorWeightDisplay('rsi_analysis') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <strong>RSI Érték:</strong> {{ getDecisionFactorValue('rsi_analysis') | number:'1.1-1' }}
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('rsi_analysis') }}
+                </div>
+              </div>
+
+              <!-- MACD Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-sitemap text-orange-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">MACD Elemzés</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('macd_analysis')"
+                      [severity]="getDecisionFactorSeverity('macd_analysis')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('macd_analysis')">
+                      {{ getDecisionFactorWeightDisplay('macd_analysis') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <strong>MACD Érték:</strong> {{ getDecisionFactorValue('macd_analysis') | number:'1.2-2' }}
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('macd_analysis') }}
+                </div>
+              </div>
+
+              <!-- Momentum Strength -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-bolt text-yellow-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">Momentum Erősség</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('momentum_strength')"
+                      [severity]="getDecisionFactorSeverity('momentum_strength')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('momentum_strength')">
+                      {{ getDecisionFactorWeightDisplay('momentum_strength') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <strong>Erősség:</strong> {{ getDecisionFactorStrength() }}
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('momentum_strength') }}
+                </div>
+              </div>
+
+              <!-- Volume Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-chart-bar text-indigo-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">Volume Elemzés</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('volume_analysis')"
+                      [severity]="getDecisionFactorSeverity('volume_analysis')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('volume_analysis')">
+                      {{ getDecisionFactorWeightDisplay('volume_analysis') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('volume_analysis') }}
+                </div>
+              </div>
+
+              <!-- Support/Resistance Analysis -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
+                    <i class="pi pi-minus text-gray-600 mr-2"></i>
+                    <span class="font-semibold text-gray-900 dark:text-white">Support/Resistance</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <p-tag
+                      [value]="getDecisionFactorSignal('support_resistance')"
+                      [severity]="getDecisionFactorSeverity('support_resistance')">
+                    </p-tag>
+                    <span class="text-sm font-medium"
+                          [class]="getDecisionFactorWeightClass('support_resistance')">
+                      {{ getDecisionFactorWeightDisplay('support_resistance') }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  {{ getDecisionFactorReasoning('support_resistance') }}
+                </div>
+              </div>
+            </div>
+
+            <!-- No Decision Factors Available -->
+            <div *ngIf="!selectedSignal?.decision_factors" class="text-center py-8">
+              <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-500 dark:text-gray-400 mb-2">Döntési mátrix nem elérhető</p>
+              <p class="text-sm text-gray-400 dark:text-gray-500">Ez a szignál még nem tartalmazza a részletes elemzési tényezőket.</p>
+            </div>
+
+            <!-- Final Decision Summary -->
+            <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-1">Végső Döntés</h4>
+                  <p class="text-sm text-blue-700 dark:text-blue-300">
+                    Az összes elemzési tényező alapján: <strong>{{ selectedSignal.signal }}</strong>
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                    {{ selectedSignal.total_score || 0 }}
+                  </div>
+                  <div class="text-sm text-blue-600 dark:text-blue-400">Összpontszám</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p-divider *ngIf="selectedSignal?.decision_factors"></p-divider>
+
+          <!-- AI Analysis Section -->
+          <div class="mb-8">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+              <i class="pi pi-sparkles text-purple-600 mr-2"></i>
+              AI Elemzés Részletei
+            </h3>
+            
+            <!-- Loading State -->
+            <div *ngIf="loadingAIAnalysis" class="space-y-4">
+              <p-skeleton height="4rem"></p-skeleton>
+              <p-skeleton height="6rem"></p-skeleton>
+              <p-skeleton height="4rem"></p-skeleton>
+            </div>
+
+            <!-- AI Analysis Content -->
+            <div *ngIf="!loadingAIAnalysis && selectedSignalAIAnalysis" class="space-y-6">
+              
+              <!-- Sentiment Analysis -->
+              <p-accordion>
+                <p-accordionTab header="🧠 Sentiment Elemzés" [selected]="true">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Általános Sentiment:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.sentiment.overall_sentiment > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ selectedSignalAIAnalysis.sentiment.sentiment_label }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Bizalom:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.sentiment.confidence | number:'1.0-0' }}%</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Hírek Sentiment:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.sentiment.news_sentiment > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ selectedSignalAIAnalysis.sentiment.news_sentiment | number:'1.2-2' }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Reddit Sentiment:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.sentiment.reddit_sentiment > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ selectedSignalAIAnalysis.sentiment.reddit_sentiment | number:'1.2-2' }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Fear & Greed Index:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.sentiment.fear_greed_index }}</span>
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        Elemzés ideje: {{ selectedSignalAIAnalysis.sentiment.analysis_time | date:'yyyy.MM.dd HH:mm' }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-4">
+                    <p-progressBar
+                      [value]="Math.abs(selectedSignalAIAnalysis.sentiment.overall_sentiment) * 100"
+                      [style]="{'height': '12px'}"
+                      [ngClass]="{
+                        'p-progressbar-success': selectedSignalAIAnalysis.sentiment.overall_sentiment > 0.2,
+                        'p-progressbar-danger': selectedSignalAIAnalysis.sentiment.overall_sentiment < -0.2,
+                        'p-progressbar-info': selectedSignalAIAnalysis.sentiment.overall_sentiment >= -0.2 && selectedSignalAIAnalysis.sentiment.overall_sentiment <= 0.2
+                      }">
+                    </p-progressBar>
+                  </div>
+                </p-accordionTab>
+
+                <!-- Price Prediction -->
+                <p-accordionTab header="📈 AI Árfolyam Előrejelzés">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Jelenlegi Ár:</span>
+                        <span class="font-medium">${{ selectedSignalAIAnalysis.prediction.current_price | number:'1.2-6' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Előrejelzett Ár:</span>
+                        <span class="font-medium">${{ selectedSignalAIAnalysis.prediction.predicted_price | number:'1.2-6' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Változás:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.prediction.price_change_percent > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ selectedSignalAIAnalysis.prediction.price_change_percent | number:'1.2-2' }}%
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">ML Bizalom:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.prediction.confidence | number:'1.0-0' }}%</span>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Support Szint:</span>
+                        <span class="font-medium">${{ selectedSignalAIAnalysis.prediction.support_level | number:'1.2-6' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Resistance Szint:</span>
+                        <span class="font-medium">${{ selectedSignalAIAnalysis.prediction.resistance_level | number:'1.2-6' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Volatilitás:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.prediction.volatility | number:'1.2-4' }}</span>
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        {{ selectedSignalAIAnalysis.prediction.timeframe }} előrejelzés
+                      </div>
+                    </div>
+                  </div>
+                </p-accordionTab>
+
+                <!-- Technical Indicators -->
+                <p-accordionTab header="⚙️ Technikai Indikátorok">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">RSI:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.prediction.technical_indicators.rsi > 70 ? 'text-red-600' : selectedSignalAIAnalysis.prediction.technical_indicators.rsi < 30 ? 'text-green-600' : 'text-gray-900'">
+                          {{ selectedSignalAIAnalysis.prediction.technical_indicators.rsi | number:'1.1-1' }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">MACD:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.prediction.technical_indicators.macd > 0 ? 'text-green-600' : 'text-red-600'">
+                          {{ selectedSignalAIAnalysis.prediction.technical_indicators.macd | number:'1.4-4' }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Bollinger Pozíció:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.prediction.technical_indicators.bb_position }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Trend:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.prediction.technical_indicators.trend === 'bullish' ? 'text-green-600' : selectedSignalAIAnalysis.prediction.technical_indicators.trend === 'bearish' ? 'text-red-600' : 'text-gray-600'">
+                          {{ selectedSignalAIAnalysis.prediction.technical_indicators.trend }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </p-accordionTab>
+
+                <!-- Anomaly Detection -->
+                <p-accordionTab header="🔍 Anomália Detektálás">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Volume Anomália:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.anomalies.volume_anomaly ? 'text-orange-600' : 'text-green-600'">
+                          {{ selectedSignalAIAnalysis.anomalies.volume_anomaly ? 'Igen' : 'Nem' }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Volume Z-Score:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.anomalies.volume_zscore | number:'1.2-2' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Volume Arány:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.anomalies.volume_ratio | number:'1.2-2' }}x</span>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Ár Anomália:</span>
+                        <span class="font-medium" [class]="selectedSignalAIAnalysis.anomalies.price_anomaly ? 'text-orange-600' : 'text-green-600'">
+                          {{ selectedSignalAIAnalysis.anomalies.price_anomaly ? 'Igen' : 'Nem' }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Ár Z-Score:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.anomalies.price_zscore | number:'1.2-2' }}</span>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Anomália Pontszám:</span>
+                        <span class="font-medium">{{ selectedSignalAIAnalysis.anomalies.anomaly_score | number:'1.2-2' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </p-accordionTab>
+
+                <!-- AI Recommendation -->
+                <p-accordionTab header="🎯 AI Ajánlás">
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div>
+                        <div class="text-lg font-bold text-blue-900 dark:text-blue-100">
+                          {{ selectedSignalAIAnalysis.recommendation.action }}
+                        </div>
+                        <div class="text-sm text-blue-700 dark:text-blue-300">
+                          Bizalom: {{ selectedSignalAIAnalysis.recommendation.confidence }}%
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-sm text-blue-600 dark:text-blue-400">AI Pontszám</div>
+                        <div class="text-xl font-bold text-blue-900 dark:text-blue-100">
+                          {{ selectedSignalAIAnalysis.recommendation.score }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">AI Indoklás:</div>
+                      <div class="text-sm text-gray-600 dark:text-gray-400">
+                        {{ selectedSignalAIAnalysis.recommendation.reasoning }}
+                      </div>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-600 dark:text-gray-400">Kockázati Pontszám:</span>
+                      <span class="font-medium" [class]="selectedSignalAIAnalysis.risk_score > 70 ? 'text-red-600' : selectedSignalAIAnalysis.risk_score > 40 ? 'text-yellow-600' : 'text-green-600'">
+                        {{ selectedSignalAIAnalysis.risk_score }}/100
+                      </span>
+                    </div>
+                  </div>
+                </p-accordionTab>
+              </p-accordion>
+            </div>
+
+            <!-- No AI Analysis Available -->
+            <div *ngIf="!loadingAIAnalysis && !selectedSignalAIAnalysis" class="text-center py-8">
+              <i class="pi pi-exclamation-triangle text-4xl text-gray-400 mb-4"></i>
+              <p class="text-gray-500 dark:text-gray-400">AI elemzés nem elérhető ehhez a szignálhoz</p>
+            </div>
+          </div>
+
+          <p-divider></p-divider>
+
+          <!-- Basic Signal Info -->
           <div class="grid grid-cols-2 gap-6 mb-8">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Technikai Elemzés</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Alapvető Technikai Elemzés</h3>
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-gray-600 dark:text-gray-400">Pattern:</span>
