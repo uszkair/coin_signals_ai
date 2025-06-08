@@ -477,10 +477,36 @@ class BinanceTrader:
     
     def _calculate_total_balance(self, balances: Dict[str, Any]) -> float:
         """Calculate total wallet balance in USD"""
-        # Simplified - in reality would need to convert all assets to USD
-        usdt_balance = balances.get('USDT', {}).get('total', 0)
-        busd_balance = balances.get('BUSD', {}).get('total', 0)
-        return usdt_balance + busd_balance
+        total_usd_value = 0
+        
+        for asset, balance_info in balances.items():
+            total = balance_info.get('total', 0)
+            if total > 0:
+                if asset in ['USDT', 'BUSD', 'USDC']:
+                    # Stablecoins
+                    usd_value = total
+                elif asset == 'BTC':
+                    try:
+                        btc_price = float(self.client.get_symbol_ticker(symbol='BTCUSDT')['price'])
+                        usd_value = total * btc_price
+                    except:
+                        usd_value = total * 50000  # Fallback price
+                elif asset == 'ETH':
+                    try:
+                        eth_price = float(self.client.get_symbol_ticker(symbol='ETHUSDT')['price'])
+                        usd_value = total * eth_price
+                    except:
+                        usd_value = total * 3000  # Fallback price
+                else:
+                    try:
+                        price = float(self.client.get_symbol_ticker(symbol=f'{asset}USDT')['price'])
+                        usd_value = total * price
+                    except:
+                        usd_value = 0  # Skip if can't get price
+                
+                total_usd_value += usd_value
+        
+        return total_usd_value
     
     def _assess_risk_level(self) -> str:
         """Assess current risk level"""
@@ -537,7 +563,7 @@ class BinanceTrader:
 
 
 # Global trader instance
-binance_trader = BinanceTrader(testnet=True)  # Start with testnet for safety
+binance_trader = BinanceTrader(testnet=False)  # Use mainnet for real wallet data
 
 
 async def execute_automatic_trade(signal: Dict[str, Any], position_size_usd: float = None) -> Dict[str, Any]:
