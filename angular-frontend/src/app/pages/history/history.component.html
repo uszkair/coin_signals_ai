@@ -6,7 +6,7 @@
     </h1>
     
     <!-- Filters -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Coinpár
@@ -56,6 +56,32 @@
           class="w-full"
         ></p-dropdown>
       </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Eredmény
+        </label>
+        <p-dropdown
+          [options]="resultOptions"
+          [(ngModel)]="selectedResult"
+          placeholder="Összes"
+          [showClear]="true"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Környezet
+        </label>
+        <p-dropdown
+          [options]="testnetOptions"
+          [(ngModel)]="testnetMode"
+          placeholder="Összes"
+          [showClear]="true"
+          class="w-full"
+        ></p-dropdown>
+      </div>
     </div>
     
     <div class="flex gap-2 mt-4">
@@ -87,7 +113,7 @@
   <!-- Summary Statistics -->
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6" *ngIf="tradeHistory.length > 0">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Összegzés</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
       <div class="text-center">
         <div class="text-2xl font-bold text-blue-600">{{ getTotalStats().totalTrades }}</div>
         <div class="text-sm text-gray-600 dark:text-gray-400">Összes kereskedés</div>
@@ -101,16 +127,20 @@
         <div class="text-sm text-gray-600 dark:text-gray-400">Vesztes kereskedés</div>
       </div>
       <div class="text-center">
-        <div class="text-2xl font-bold text-green-600">+{{ getTotalStats().totalProfit | number:'1.2-2' }}%</div>
+        <div class="text-2xl font-bold text-orange-600">{{ getTotalStats().failedOrders }}</div>
+        <div class="text-sm text-gray-600 dark:text-gray-400">Sikertelen order</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-green-600">+${{ getTotalStats().totalProfitUsd | number:'1.2-2' }}</div>
         <div class="text-sm text-gray-600 dark:text-gray-400">Összes profit</div>
       </div>
       <div class="text-center">
-        <div class="text-2xl font-bold text-red-600">-{{ getTotalStats().totalLoss | number:'1.2-2' }}%</div>
+        <div class="text-2xl font-bold text-red-600">-${{ getTotalStats().totalLossUsd | number:'1.2-2' }}</div>
         <div class="text-sm text-gray-600 dark:text-gray-400">Összes veszteség</div>
       </div>
       <div class="text-center">
-        <div class="text-2xl font-bold" [class]="getTotalStats().netProfit >= 0 ? 'text-green-600' : 'text-red-600'">
-          {{ getTotalStats().netProfit >= 0 ? '+' : '' }}{{ getTotalStats().netProfit | number:'1.2-2' }}%
+        <div class="text-2xl font-bold" [class]="getTotalStats().netProfitUsd >= 0 ? 'text-green-600' : 'text-red-600'">
+          {{ getTotalStats().netProfitUsd >= 0 ? '+' : '' }}${{ getTotalStats().netProfitUsd | number:'1.2-2' }}
         </div>
         <div class="text-sm text-gray-600 dark:text-gray-400">Nettó eredmény</div>
       </div>
@@ -159,11 +189,11 @@
             <th pSortableColumn="signal">
               Típus <p-sortIcon field="signal"></p-sortIcon>
             </th>
-            <th pSortableColumn="timestamp">
-              Időpont <p-sortIcon field="timestamp"></p-sortIcon>
+            <th pSortableColumn="entry_time">
+              Belépés <p-sortIcon field="entry_time"></p-sortIcon>
             </th>
-            <th pSortableColumn="interval">
-              Intervallum <p-sortIcon field="interval"></p-sortIcon>
+            <th pSortableColumn="exit_time">
+              Kilépés <p-sortIcon field="exit_time"></p-sortIcon>
             </th>
             <th pSortableColumn="entry_price">
               Entry ár <p-sortIcon field="entry_price"></p-sortIcon>
@@ -171,24 +201,24 @@
             <th pSortableColumn="exit_price">
               Exit ár <p-sortIcon field="exit_price"></p-sortIcon>
             </th>
-            <th pSortableColumn="profit_percent">
-              Profit % <p-sortIcon field="profit_percent"></p-sortIcon>
+            <th pSortableColumn="position_size_usd">
+              Pozíció USD <p-sortIcon field="position_size_usd"></p-sortIcon>
             </th>
-            <th pSortableColumn="stop_loss">
-              SL <p-sortIcon field="stop_loss"></p-sortIcon>
+            <th pSortableColumn="profit_loss_usd">
+              P&L USD <p-sortIcon field="profit_loss_usd"></p-sortIcon>
             </th>
-            <th pSortableColumn="take_profit">
-              TP <p-sortIcon field="take_profit"></p-sortIcon>
+            <th pSortableColumn="profit_loss_percentage">
+              P&L % <p-sortIcon field="profit_loss_percentage"></p-sortIcon>
             </th>
-            <th pSortableColumn="pattern">
-              Pattern <p-sortIcon field="pattern"></p-sortIcon>
+            <th pSortableColumn="trade_result">
+              Eredmény <p-sortIcon field="trade_result"></p-sortIcon>
             </th>
-            <th pSortableColumn="score">
-              Score <p-sortIcon field="score"></p-sortIcon>
+            <th pSortableColumn="main_order_id">
+              Order ID <p-sortIcon field="main_order_id"></p-sortIcon>
             </th>
-            <th>Indoklás</th>
-            <th pSortableColumn="result">
-              Eredmény <p-sortIcon field="result"></p-sortIcon>
+            <th>Hiba oka</th>
+            <th pSortableColumn="testnet_mode">
+              Környezet <p-sortIcon field="testnet_mode"></p-sortIcon>
             </th>
           </tr>
         </ng-template>
@@ -204,8 +234,13 @@
                 [severity]="getSignalTypeSeverity(trade.signal)"
               ></p-tag>
             </td>
-            <td>{{ trade.timestamp | date:'MM.dd HH:mm' }}</td>
-            <td>{{ trade.interval }}</td>
+            <td>{{ (trade.entry_time || trade.timestamp) | date:'MM.dd HH:mm' }}</td>
+            <td>
+              <span *ngIf="trade.exit_time; else noExitTime">
+                {{ trade.exit_time | date:'MM.dd HH:mm' }}
+              </span>
+              <ng-template #noExitTime>-</ng-template>
+            </td>
             <td>${{ trade.entry_price | number:'1.2-6' }}</td>
             <td>
               <span *ngIf="trade.exit_price; else noExit">
@@ -214,38 +249,47 @@
               <ng-template #noExit>-</ng-template>
             </td>
             <td>
-              <span *ngIf="trade.profit_percent !== null && trade.profit_percent !== undefined; else noProfit"
-                    [class]="getProfitClass(trade.profit_percent)">
-                {{ trade.profit_percent | number:'1.2-2' }}%
+              <span *ngIf="trade.position_size_usd; else noPositionSize">
+                ${{ trade.position_size_usd | number:'1.2-2' }}
               </span>
-              <ng-template #noProfit>-</ng-template>
+              <ng-template #noPositionSize>-</ng-template>
             </td>
-            <td>${{ trade.stop_loss | number:'1.2-6' }}</td>
-            <td>${{ trade.take_profit | number:'1.2-6' }}</td>
             <td>
-              <span *ngIf="trade.pattern; else noPattern" class="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                {{ trade.pattern }}
+              <span *ngIf="trade.profit_loss_usd !== null && trade.profit_loss_usd !== undefined; else noProfitUsd"
+                    [class]="getProfitClass(trade.profit_loss_usd)">
+                {{ trade.profit_loss_usd >= 0 ? '+' : '' }}${{ trade.profit_loss_usd | number:'1.2-2' }}
               </span>
-              <ng-template #noPattern>-</ng-template>
+              <ng-template #noProfitUsd>-</ng-template>
+            </td>
+            <td>
+              <span *ngIf="trade.profit_loss_percentage !== null && trade.profit_loss_percentage !== undefined; else noProfitPercent"
+                    [class]="getProfitClass(trade.profit_loss_percentage)">
+                {{ trade.profit_loss_percentage >= 0 ? '+' : '' }}{{ trade.profit_loss_percentage | number:'1.2-2' }}%
+              </span>
+              <ng-template #noProfitPercent>-</ng-template>
             </td>
             <td>
               <p-tag
-                *ngIf="trade.score !== null && trade.score !== undefined; else noScore"
-                [value]="trade.score.toString()"
-                [severity]="getScoreSeverity(trade.score)"
+                [value]="getResultDisplayText(trade.trade_result || trade.result)"
+                [severity]="getResultSeverity(trade.trade_result || trade.result)"
               ></p-tag>
-              <ng-template #noScore>-</ng-template>
             </td>
             <td>
-              <span *ngIf="trade.reason; else noReason" class="text-sm" [title]="trade.reason">
-                {{ trade.reason | slice:0:50 }}{{ trade.reason.length > 50 ? '...' : '' }}
+              <span *ngIf="trade.main_order_id; else noOrderId" class="text-xs font-mono">
+                {{ trade.main_order_id | slice:0:8 }}...
               </span>
-              <ng-template #noReason>-</ng-template>
+              <ng-template #noOrderId>-</ng-template>
+            </td>
+            <td>
+              <span *ngIf="trade.failure_reason; else noFailureReason" class="text-sm text-red-600" [title]="trade.failure_reason">
+                {{ trade.failure_reason | slice:0:30 }}{{ trade.failure_reason.length > 30 ? '...' : '' }}
+              </span>
+              <ng-template #noFailureReason>-</ng-template>
             </td>
             <td>
               <p-tag
-                [value]="getResultDisplayText(trade.result)"
-                [severity]="getResultSeverity(trade.result)"
+                [value]="trade.testnet_mode ? 'Testnet' : 'Mainnet'"
+                [severity]="trade.testnet_mode ? 'warning' : 'success'"
               ></p-tag>
             </td>
           </tr>

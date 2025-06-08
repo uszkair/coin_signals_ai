@@ -3,7 +3,7 @@ Trading API Router
 Endpoints for automatic trading functionality
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -19,6 +19,9 @@ from app.services.binance_trading import (
 )
 from app.services.signal_engine import get_current_signal
 from app.services.trading_settings_service import trading_settings_service
+from app.services.database_service import DatabaseService
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
 
@@ -826,6 +829,165 @@ async def get_minimum_trading_requirements():
                 "current_position_size": initialize_global_trader().default_position_size_usd if initialize_global_trader().position_size_mode == 'fixed_usd' else None,
                 "current_wallet_balance": (await initialize_global_trader().get_account_info()).get('total_wallet_balance', 0),
                 "recommendation": "Use fixed position size of at least $15 USD to meet all minimum requirements"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/history")
+async def get_trading_history(
+    db: AsyncSession = Depends(get_db),
+    symbol: Optional[str] = Query(None, description="Filter by symbol"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    trade_result: Optional[str] = Query(None, description="Filter by result: profit, loss, failed_order, pending"),
+    testnet_mode: Optional[bool] = Query(None, description="Filter by testnet mode"),
+    limit: int = Query(100, description="Maximum number of records")
+):
+    """Get trading history with detailed order results"""
+    try:
+        # Parse dates if provided
+        start_datetime = None
+        end_datetime = None
+        
+        if start_date:
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+        if end_date:
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)  # Include full day
+        
+        # Get trading history from database (using signals + performance)
+        history_data = await DatabaseService.get_trading_history(
+            db=db,
+            symbol=symbol,
+            start_date=start_datetime,
+            end_date=end_datetime,
+            trade_result=trade_result,
+            testnet_mode=testnet_mode,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "trades": history_data,
+                "count": len(history_data),
+                "filters": {
+                    "symbol": symbol,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "trade_result": trade_result,
+                    "testnet_mode": testnet_mode,
+                    "limit": limit
+                }
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/history/statistics")
+async def get_trading_history_statistics(
+    db: AsyncSession = Depends(get_db),
+    symbol: Optional[str] = Query(None, description="Filter by symbol"),
+    days: int = Query(30, description="Number of days to analyze"),
+    testnet_mode: Optional[bool] = Query(None, description="Filter by testnet mode")
+):
+    """Get trading statistics from history"""
+    try:
+        stats = await DatabaseService.get_trading_statistics(
+            db=db,
+            symbol=symbol,
+            days=days,
+            testnet_mode=testnet_mode
+        )
+        
+        return {
+            "success": True,
+            "data": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/history/daily-summary")
+async def get_daily_trading_summary(
+    db: AsyncSession = Depends(get_db),
+    date: Optional[str] = Query(None, description="Date (YYYY-MM-DD), defaults to today"),
+    testnet_mode: Optional[bool] = Query(None, description="Filter by testnet mode")
+):
+    """Get daily trading summary"""
+    try:
+        # Parse date or use today
+        if date:
+            target_date = datetime.strptime(date, "%Y-%m-%d")
+        else:
+            target_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        start_of_day = target_date
+        end_of_day = target_date + timedelta(days=1)
+        
+        # Get trades for the day
+        daily_trades_data = await DatabaseService.get_trading_history(
+            db=db,
+            start_date=start_of_day,
+            end_date=end_of_day,
+            testnet_mode=testnet_mode,
+            limit=1000
+        )
+        
+        # Calculate summary
+        total_trades = len(daily_trades_data)
+        successful_trades = len([t for t in daily_trades_data if t.get('trade_result') == 'profit'])
+        failed_trades = len([t for t in daily_trades_data if t.get('trade_result') == 'loss'])
+        failed_orders = len([t for t in daily_trades_data if t.get('trade_result') == 'failed_order'])
+        pending_trades = len([t for t in daily_trades_data if t.get('trade_result') == 'pending'])
+        
+        total_pnl = sum([float(t.get('profit_loss_usd', 0)) for t in daily_trades_data if t.get('profit_loss_usd')])
+        win_rate = (successful_trades / total_trades * 100) if total_trades > 0 else 0
+        
+        # Group by symbol
+        symbol_summary = {}
+        for trade in daily_trades_data:
+            symbol = trade.get('symbol')
+            if symbol not in symbol_summary:
+                symbol_summary[symbol] = {
+                    'trades': 0,
+                    'profit_trades': 0,
+                    'loss_trades': 0,
+                    'failed_orders': 0,
+                    'total_pnl': 0
+                }
+            
+            symbol_summary[symbol]['trades'] += 1
+            if trade.get('trade_result') == 'profit':
+                symbol_summary[symbol]['profit_trades'] += 1
+            elif trade.get('trade_result') == 'loss':
+                symbol_summary[symbol]['loss_trades'] += 1
+            elif trade.get('trade_result') == 'failed_order':
+                symbol_summary[symbol]['failed_orders'] += 1
+            
+            if trade.get('profit_loss_usd'):
+                symbol_summary[symbol]['total_pnl'] += float(trade.get('profit_loss_usd', 0))
+        
+        return {
+            "success": True,
+            "data": {
+                "date": target_date.strftime("%Y-%m-%d"),
+                "summary": {
+                    "total_trades": total_trades,
+                    "successful_trades": successful_trades,
+                    "failed_trades": failed_trades,
+                    "failed_orders": failed_orders,
+                    "pending_trades": pending_trades,
+                    "win_rate": round(win_rate, 2),
+                    "total_pnl_usd": round(total_pnl, 2)
+                },
+                "by_symbol": symbol_summary,
+                "trades": daily_trades_data
             }
         }
         

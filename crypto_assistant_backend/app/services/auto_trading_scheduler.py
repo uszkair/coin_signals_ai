@@ -12,6 +12,8 @@ from app.services.signal_engine import get_current_signal
 from app.services.binance_trading import execute_automatic_trade, initialize_global_trader
 from app.services.ml_signal_generator import generate_ai_signal
 from app.services.trading_settings_service import trading_settings_service
+from app.services.database_service import DatabaseService
+from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +80,11 @@ class AutoTradingScheduler:
                 
                 if auto_settings['enabled']:
                     await self._check_and_execute_trades()
+                    await self._monitor_active_positions()
                 else:
                     logger.debug("Auto-trading disabled, skipping trade checks")
+                    # Still monitor positions even if auto-trading is disabled
+                    await self._monitor_active_positions()
                 
                 # Wait for next check (use interval from database)
                 await asyncio.sleep(auto_settings['interval'])
@@ -293,6 +298,78 @@ class AutoTradingScheduler:
         except Exception as e:
             logger.error(f"Error updating auto-trading settings: {e}")
             raise
+
+    async def _monitor_active_positions(self):
+        """Monitor active positions and update their status in signal performance"""
+        try:
+            trader = initialize_global_trader()
+            active_positions = await trader.get_active_positions()
+            
+            if not active_positions:
+                return
+            
+            logger.debug(f"Monitoring {len(active_positions)} active positions...")
+            
+            async for db in get_db():
+                for position_id, position in active_positions.items():
+                    try:
+                        # Check if position should be closed based on stop loss or take profit
+                        current_price = position.get('current_price', 0)
+                        entry_price = position.get('entry_price', 0)
+                        stop_loss = position.get('stop_loss', 0)
+                        take_profit = position.get('take_profit', 0)
+                        direction = position.get('direction', '')
+                        main_order_id = position.get('main_order_id')
+                        
+                        should_close = False
+                        close_reason = ""
+                        
+                        if direction == 'BUY':
+                            if current_price <= stop_loss:
+                                should_close = True
+                                close_reason = "stop_loss_hit"
+                            elif current_price >= take_profit:
+                                should_close = True
+                                close_reason = "take_profit_hit"
+                        elif direction == 'SELL':
+                            if current_price >= stop_loss:
+                                should_close = True
+                                close_reason = "stop_loss_hit"
+                            elif current_price <= take_profit:
+                                should_close = True
+                                close_reason = "take_profit_hit"
+                        
+                        if should_close:
+                            logger.info(f"Auto-closing position {position_id}: {close_reason}")
+                            
+                            # Close the position
+                            close_result = await trader.close_position(position_id, close_reason)
+                            
+                            if close_result.get('success'):
+                                logger.info(f"Position {position_id} closed successfully: P&L = ${close_result.get('pnl', 0):.2f}")
+                            else:
+                                logger.error(f"Failed to close position {position_id}: {close_result.get('error')}")
+                        
+                        # Update signal performance with current unrealized P&L
+                        if main_order_id:
+                            performance = await DatabaseService.find_performance_by_order_id(db, main_order_id)
+                            if performance and performance.result == 'pending':
+                                unrealized_pnl = position.get('unrealized_pnl', 0)
+                                unrealized_pnl_percentage = position.get('unrealized_pnl_percentage', 0)
+                                
+                                # Only update if there's a significant change
+                                if abs(unrealized_pnl) > 0.01:  # More than 1 cent change
+                                    update_data = {
+                                        'profit_loss': unrealized_pnl,
+                                        'profit_percentage': unrealized_pnl_percentage
+                                    }
+                                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                    
+                    except Exception as e:
+                        logger.error(f"Error monitoring position {position_id}: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Error in position monitoring: {e}")
 
 
 # Global scheduler instance

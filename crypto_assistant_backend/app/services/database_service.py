@@ -388,3 +388,230 @@ class DatabaseService:
         except Exception as e:
             print(f"Error getting historical signals: {str(e)}")
             return []
+
+    @staticmethod
+    async def save_trading_performance(db: AsyncSession, signal_id: int, trade_data: dict) -> SignalPerformance:
+        """Save trading performance entry"""
+        try:
+            performance = SignalPerformance(
+                signal_id=signal_id,
+                exit_price=float(trade_data["exit_price"]) if trade_data.get("exit_price") else None,
+                exit_time=trade_data.get("exit_time"),
+                profit_loss=float(trade_data["profit_loss"]) if trade_data.get("profit_loss") else None,
+                profit_percentage=float(trade_data["profit_percentage"]) if trade_data.get("profit_percentage") else None,
+                result=trade_data.get("result", "pending"),
+                main_order_id=trade_data.get("main_order_id"),
+                stop_loss_order_id=trade_data.get("stop_loss_order_id"),
+                take_profit_order_id=trade_data.get("take_profit_order_id"),
+                quantity=float(trade_data["quantity"]) if trade_data.get("quantity") else None,
+                position_size_usd=float(trade_data["position_size_usd"]) if trade_data.get("position_size_usd") else None,
+                failure_reason=trade_data.get("failure_reason"),
+                testnet_mode=trade_data.get("testnet_mode", True)
+            )
+            
+            db.add(performance)
+            await db.commit()
+            await db.refresh(performance)
+            
+            print(f"✅ Trading performance saved: Signal {signal_id} - {performance.result}")
+            return performance
+            
+        except Exception as e:
+            print(f"❌ Error saving trading performance: {str(e)}")
+            await db.rollback()
+            raise e
+
+    @staticmethod
+    async def update_trading_performance(db: AsyncSession, performance_id: int, update_data: dict) -> Optional[SignalPerformance]:
+        """Update existing trading performance entry"""
+        try:
+            query = select(SignalPerformance).where(SignalPerformance.id == performance_id)
+            result = await db.execute(query)
+            performance = result.scalar_one_or_none()
+            
+            if not performance:
+                return None
+            
+            # Update fields
+            for key, value in update_data.items():
+                if hasattr(performance, key) and value is not None:
+                    if key in ['exit_price', 'profit_loss', 'profit_percentage', 'quantity', 'position_size_usd']:
+                        setattr(performance, key, float(value))
+                    else:
+                        setattr(performance, key, value)
+            
+            await db.commit()
+            await db.refresh(performance)
+            
+            print(f"✅ Trading performance updated: Signal {performance.signal_id} - {performance.result}")
+            return performance
+            
+        except Exception as e:
+            print(f"❌ Error updating trading performance: {str(e)}")
+            await db.rollback()
+            raise e
+
+    @staticmethod
+    async def get_trading_history(
+        db: AsyncSession,
+        symbol: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        trade_result: Optional[str] = None,
+        testnet_mode: Optional[bool] = None,
+        limit: int = 100
+    ) -> List[dict]:
+        """Get trading history with filters using signals and performance"""
+        try:
+            # Join signals with performance to get complete trading history
+            query = select(Signal, SignalPerformance).join(
+                SignalPerformance, Signal.id == SignalPerformance.signal_id
+            )
+            
+            # Apply filters
+            if symbol:
+                query = query.where(Signal.symbol == symbol)
+            if start_date:
+                query = query.where(Signal.created_at >= start_date)
+            if end_date:
+                query = query.where(Signal.created_at <= end_date)
+            if trade_result:
+                query = query.where(SignalPerformance.result == trade_result)
+            if testnet_mode is not None:
+                query = query.where(SignalPerformance.testnet_mode == testnet_mode)
+            
+            # Order by creation time (newest first) and limit
+            query = query.order_by(desc(Signal.created_at)).limit(limit)
+            
+            result = await db.execute(query)
+            rows = result.all()
+            
+            # Convert to dict format
+            history_data = []
+            for signal, performance in rows:
+                trade_data = {
+                    "id": performance.id,
+                    "signal_id": signal.id,
+                    "symbol": signal.symbol,
+                    "signal": signal.signal_type,
+                    "entry_price": float(signal.price),
+                    "exit_price": float(performance.exit_price) if performance.exit_price else None,
+                    "quantity": float(performance.quantity) if performance.quantity else None,
+                    "position_size_usd": float(performance.position_size_usd) if performance.position_size_usd else None,
+                    "main_order_id": performance.main_order_id,
+                    "stop_loss_order_id": performance.stop_loss_order_id,
+                    "take_profit_order_id": performance.take_profit_order_id,
+                    "trade_result": performance.result,
+                    "profit_loss_usd": float(performance.profit_loss) if performance.profit_loss else None,
+                    "profit_loss_percentage": float(performance.profit_percentage) if performance.profit_percentage else None,
+                    "failure_reason": performance.failure_reason,
+                    "stop_loss": float(signal.support_level) if signal.support_level else None,
+                    "take_profit": float(signal.resistance_level) if signal.resistance_level else None,
+                    "entry_time": signal.created_at.isoformat() if signal.created_at else None,
+                    "exit_time": performance.exit_time.isoformat() if performance.exit_time else None,
+                    "testnet_mode": performance.testnet_mode,
+                    "confidence": float(signal.confidence) if signal.confidence else None,
+                    "pattern": signal.pattern,
+                    "created_at": performance.created_at.isoformat() if performance.created_at else None
+                }
+                history_data.append(trade_data)
+            
+            return history_data
+            
+        except Exception as e:
+            print(f"❌ Error getting trading history: {str(e)}")
+            return []
+
+    @staticmethod
+    async def get_trading_statistics(
+        db: AsyncSession,
+        symbol: Optional[str] = None,
+        days: int = 30,
+        testnet_mode: Optional[bool] = None
+    ) -> dict:
+        """Get trading statistics from signal performance"""
+        try:
+            # Join signals with performance for statistics
+            base_query = select(SignalPerformance).join(
+                Signal, Signal.id == SignalPerformance.signal_id
+            ).where(
+                Signal.created_at >= datetime.now() - timedelta(days=days)
+            )
+            
+            if symbol:
+                base_query = base_query.where(Signal.symbol == symbol)
+            if testnet_mode is not None:
+                base_query = base_query.where(SignalPerformance.testnet_mode == testnet_mode)
+            
+            # Total trades
+            total_result = await db.execute(
+                select(func.count(SignalPerformance.id)).select_from(base_query.subquery())
+            )
+            total_trades = total_result.scalar()
+            
+            # Successful trades
+            successful_query = base_query.where(SignalPerformance.result == 'profit')
+            successful_result = await db.execute(
+                select(func.count(SignalPerformance.id)).select_from(successful_query.subquery())
+            )
+            successful_trades = successful_result.scalar()
+            
+            # Failed trades
+            failed_query = base_query.where(SignalPerformance.result == 'loss')
+            failed_result = await db.execute(
+                select(func.count(SignalPerformance.id)).select_from(failed_query.subquery())
+            )
+            failed_trades = failed_result.scalar()
+            
+            # Failed orders
+            failed_orders_query = base_query.where(SignalPerformance.result == 'failed_order')
+            failed_orders_result = await db.execute(
+                select(func.count(SignalPerformance.id)).select_from(failed_orders_query.subquery())
+            )
+            failed_orders = failed_orders_result.scalar()
+            
+            # Total P&L
+            pnl_result = await db.execute(
+                select(func.sum(SignalPerformance.profit_loss)).select_from(base_query.subquery())
+            )
+            total_pnl = pnl_result.scalar() or 0
+            
+            # Win rate
+            win_rate = (successful_trades / total_trades * 100) if total_trades > 0 else 0
+            
+            return {
+                "total_trades": total_trades,
+                "successful_trades": successful_trades,
+                "failed_trades": failed_trades,
+                "failed_orders": failed_orders,
+                "win_rate": round(win_rate, 2),
+                "total_pnl_usd": float(total_pnl),
+                "period_days": days
+            }
+            
+        except Exception as e:
+            print(f"❌ Error getting trading statistics: {str(e)}")
+            return {
+                "total_trades": 0,
+                "successful_trades": 0,
+                "failed_trades": 0,
+                "failed_orders": 0,
+                "win_rate": 0,
+                "total_pnl_usd": 0,
+                "period_days": days
+            }
+
+    @staticmethod
+    async def find_performance_by_order_id(db: AsyncSession, order_id: str) -> Optional[SignalPerformance]:
+        """Find signal performance by order ID"""
+        try:
+            query = select(SignalPerformance).where(
+                (SignalPerformance.main_order_id == order_id) |
+                (SignalPerformance.stop_loss_order_id == order_id) |
+                (SignalPerformance.take_profit_order_id == order_id)
+            )
+            result = await db.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            print(f"❌ Error finding performance by order ID: {str(e)}")
+            return None

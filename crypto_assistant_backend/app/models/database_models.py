@@ -62,7 +62,21 @@ class SignalPerformance(Base):
     exit_time = Column(TIMESTAMP(timezone=True))
     profit_loss = Column(DECIMAL(20, 8))
     profit_percentage = Column(DECIMAL(10, 4))
-    result = Column(String(20))  # profit, loss, breakeven, pending
+    result = Column(String(20))  # profit, loss, breakeven, pending, failed_order
+    
+    # Order execution details
+    main_order_id = Column(String(50), nullable=True)
+    stop_loss_order_id = Column(String(50), nullable=True)
+    take_profit_order_id = Column(String(50), nullable=True)
+    quantity = Column(DECIMAL(20, 8), nullable=True)
+    position_size_usd = Column(DECIMAL(20, 8), nullable=True)
+    
+    # Order failure details
+    failure_reason = Column(Text, nullable=True)
+    
+    # Trading environment
+    testnet_mode = Column(Boolean, default=True)
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationship to signal
@@ -77,6 +91,13 @@ class SignalPerformance(Base):
             "profit_loss": float(self.profit_loss) if self.profit_loss else None,
             "profit_percentage": float(self.profit_percentage) if self.profit_percentage else None,
             "result": self.result,
+            "main_order_id": self.main_order_id,
+            "stop_loss_order_id": self.stop_loss_order_id,
+            "take_profit_order_id": self.take_profit_order_id,
+            "quantity": float(self.quantity) if self.quantity else None,
+            "position_size_usd": float(self.position_size_usd) if self.position_size_usd else None,
+            "failure_reason": self.failure_reason,
+            "testnet_mode": self.testnet_mode,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

@@ -47,6 +47,12 @@ export class HistoryComponent implements OnInit {
   startDate: Date | null = null;
   endDate: Date | null = null;
   selectedType: string | null = null;
+  selectedResult: string | null = null;
+  testnetMode: string | null = null;
+  
+  // Statistics
+  tradingStats: any = null;
+  dailySummary: any = null;
 
   coinOptions: FilterOptions[] = [
     { label: 'BTC/USDT', value: 'BTCUSDT' },
@@ -63,10 +69,25 @@ export class HistoryComponent implements OnInit {
     { label: 'HOLD', value: 'HOLD' }
   ];
 
+  resultOptions: FilterOptions[] = [
+    { label: 'Profit', value: 'profit' },
+    { label: 'Loss', value: 'loss' },
+    { label: 'Failed Order', value: 'failed_order' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Breakeven', value: 'breakeven' }
+  ];
+
+  testnetOptions: FilterOptions[] = [
+    { label: 'Testnet', value: 'true' },
+    { label: 'Mainnet', value: 'false' }
+  ];
+
   constructor(private historyService: HistoryService) {}
 
   ngOnInit(): void {
     this.loadTradeHistory();
+    this.loadTradingStatistics();
+    this.loadDailySummary();
   }
 
   applyFilters(): void {
@@ -78,35 +99,75 @@ export class HistoryComponent implements OnInit {
     this.startDate = null;
     this.endDate = null;
     this.selectedType = null;
+    this.selectedResult = null;
+    this.testnetMode = null;
     this.loadTradeHistory();
   }
 
   exportData(): void {
-    this.historyService.exportToCsv(this.tradeHistory);
+    this.historyService.exportTradingHistoryToCsv(this.tradeHistory);
   }
-
 
   private loadTradeHistory(): void {
     this.loading = true;
     
     const startDateStr = this.startDate ? this.startDate.toISOString().split('T')[0] : undefined;
     const endDateStr = this.endDate ? this.endDate.toISOString().split('T')[0] : undefined;
+    const testnetBool = this.testnetMode === 'true' ? true : this.testnetMode === 'false' ? false : undefined;
 
-    this.historyService.getTradeHistory(
+    this.historyService.getTradingHistory(
       this.selectedCoin || undefined,
       startDateStr,
       endDateStr,
-      this.selectedType || undefined
+      this.selectedResult || undefined,
+      testnetBool,
+      100
     )
     .pipe(take(1))
     .subscribe({
-      next: (history) => {
-        this.tradeHistory = history;
+      next: (response) => {
+        if (response.success) {
+          this.tradeHistory = response.data.trades;
+        } else {
+          this.tradeHistory = [];
+        }
         this.loading = false;
       },
       error: (error) => {
         console.error('Error loading trade history:', error);
+        this.tradeHistory = [];
         this.loading = false;
+      }
+    });
+  }
+
+  private loadTradingStatistics(): void {
+    this.historyService.getTradingStatistics(undefined, 30)
+    .pipe(take(1))
+    .subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.tradingStats = response.data;
+        }
+      },
+      error: (error) => {
+        console.error('Error loading trading statistics:', error);
+      }
+    });
+  }
+
+  private loadDailySummary(): void {
+    const today = new Date().toISOString().split('T')[0];
+    this.historyService.getDailySummary(today)
+    .pipe(take(1))
+    .subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.dailySummary = response.data;
+        }
+      },
+      error: (error) => {
+        console.error('Error loading daily summary:', error);
       }
     });
   }
@@ -116,26 +177,40 @@ export class HistoryComponent implements OnInit {
       totalTrades: this.tradeHistory.length,
       profitableTrades: 0,
       losingTrades: 0,
-      totalProfit: 0,
-      totalLoss: 0,
-      netProfit: 0,
+      failedOrders: 0,
+      pendingTrades: 0,
+      totalProfitUsd: 0,
+      totalLossUsd: 0,
+      netProfitUsd: 0,
       winRate: 0
     };
 
     this.tradeHistory.forEach(trade => {
-      if (trade.profit_percent !== null && trade.profit_percent !== undefined) {
-        if (trade.profit_percent > 0) {
+      const result = trade.trade_result || trade.result;
+      const profitUsd = trade.profit_loss_usd || 0;
+      
+      switch (result?.toLowerCase()) {
+        case 'profit':
           stats.profitableTrades++;
-          stats.totalProfit += trade.profit_percent;
-        } else if (trade.profit_percent < 0) {
+          stats.totalProfitUsd += profitUsd;
+          break;
+        case 'loss':
           stats.losingTrades++;
-          stats.totalLoss += Math.abs(trade.profit_percent);
-        }
-        stats.netProfit += trade.profit_percent;
+          stats.totalLossUsd += Math.abs(profitUsd);
+          break;
+        case 'failed_order':
+          stats.failedOrders++;
+          break;
+        case 'pending':
+          stats.pendingTrades++;
+          break;
       }
+      
+      stats.netProfitUsd += profitUsd;
     });
 
-    stats.winRate = stats.totalTrades > 0 ? (stats.profitableTrades / stats.totalTrades) * 100 : 0;
+    const completedTrades = stats.profitableTrades + stats.losingTrades;
+    stats.winRate = completedTrades > 0 ? (stats.profitableTrades / completedTrades) * 100 : 0;
 
     return stats;
   }
@@ -156,10 +231,14 @@ export class HistoryComponent implements OnInit {
   getResultSeverity(result: string | null | undefined): 'success' | 'warning' | 'danger' | 'info' {
     if (!result) return 'info';
     switch (result.toLowerCase()) {
+      case 'profit': return 'success';
       case 'take_profit_hit': return 'success';
+      case 'loss': return 'danger';
       case 'stop_loss_hit': return 'danger';
+      case 'failed_order': return 'danger';
       case 'pending':
       case 'open': return 'warning';
+      case 'breakeven': return 'info';
       default: return 'info';
     }
   }
@@ -167,8 +246,13 @@ export class HistoryComponent implements OnInit {
   getResultDisplayText(result: string | null | undefined): string {
     if (!result) return 'PENDING';
     switch (result.toLowerCase()) {
+      case 'profit': return 'PROFIT';
       case 'take_profit_hit': return 'PROFIT';
+      case 'loss': return 'LOSS';
       case 'stop_loss_hit': return 'LOSS';
+      case 'failed_order': return 'FAILED ORDER';
+      case 'pending': return 'PENDING';
+      case 'breakeven': return 'BREAKEVEN';
       default: return result.toUpperCase();
     }
   }

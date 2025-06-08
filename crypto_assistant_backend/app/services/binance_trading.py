@@ -248,7 +248,7 @@ class BinanceTrader:
             logger.error(f"Unexpected error getting account info: {e}")
             return {'error': str(e)}
     
-    async def execute_signal_trade(self, signal: Dict[str, Any], position_size_usd: float = None) -> Dict[str, Any]:
+    async def execute_signal_trade(self, signal: Dict[str, Any], position_size_usd: float = None, save_to_history: bool = True) -> Dict[str, Any]:
         """
         Execute a trade based on a trading signal
         
@@ -287,6 +287,9 @@ class BinanceTrader:
             # Execute main order
             main_order = await self._place_market_order(symbol, direction, quantity)
             if not main_order['success']:
+                # Save failed order to trading history
+                if save_to_history:
+                    await self._save_failed_trade_to_history(signal, position_size_usd, quantity, main_order.get('error', 'Unknown order error'))
                 return main_order
             
             # Place stop loss order
@@ -318,6 +321,12 @@ class BinanceTrader:
             # Update daily tracking
             self.daily_trades += 1
             
+            # Save successful trade to trading history
+            if save_to_history:
+                trade_history_id = await self._save_successful_trade_to_history(
+                    signal, position_size_usd, quantity, main_order, stop_loss_order, take_profit_order
+                )
+            
             return {
                 'success': True,
                 'position_id': position_id,
@@ -327,7 +336,8 @@ class BinanceTrader:
                 'position_size_usd': position_size_usd,
                 'quantity': quantity,
                 'expected_profit': self._calculate_expected_profit(quantity, entry_price, take_profit, direction),
-                'max_loss': self._calculate_max_loss(quantity, entry_price, stop_loss, direction)
+                'max_loss': self._calculate_max_loss(quantity, entry_price, stop_loss, direction),
+                'trade_history_id': trade_history_id if save_to_history else None
             }
             
         except Exception as e:
@@ -361,9 +371,19 @@ class BinanceTrader:
                 entry_price = position['entry_price']
                 exit_price = close_order.get('price', 0)
                 pnl = self._calculate_pnl(quantity, entry_price, exit_price, direction)
+                pnl_percentage = (pnl / (quantity * entry_price)) * 100
                 
                 # Update daily P&L
                 self.daily_pnl += pnl
+                
+                # Update trading history with exit data
+                await self._update_trade_history_on_exit(
+                    position.get('main_order_id'),
+                    exit_price,
+                    pnl,
+                    pnl_percentage,
+                    reason
+                )
                 
                 # Remove from active positions
                 del self.active_positions[position_id]
@@ -373,7 +393,7 @@ class BinanceTrader:
                     'position_id': position_id,
                     'close_order': close_order,
                     'pnl': pnl,
-                    'pnl_percentage': (pnl / (quantity * entry_price)) * 100,
+                    'pnl_percentage': pnl_percentage,
                     'reason': reason
                 }
             else:
@@ -773,6 +793,103 @@ class BinanceTrader:
             'status': 'FILLED',
             'type': order_type
         }
+    
+    async def _save_successful_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:
+        """Save successful trade to signal performance"""
+        try:
+            from app.database import get_db
+            from app.services.database_service import DatabaseService
+            
+            # First save the signal if it doesn't exist
+            signal_id = signal.get("id")
+            if not signal_id:
+                async for db in get_db():
+                    saved_signal = await DatabaseService.save_signal(db, signal)
+                    signal_id = saved_signal.id
+                    break
+            
+            async for db in get_db():
+                trade_data = {
+                    "quantity": quantity,
+                    "position_size_usd": position_size_usd,
+                    "main_order_id": main_order.get("order_id"),
+                    "stop_loss_order_id": stop_loss_order.get("order_id"),
+                    "take_profit_order_id": take_profit_order.get("order_id"),
+                    "result": "pending",
+                    "testnet_mode": self.testnet
+                }
+                
+                performance = await DatabaseService.save_trading_performance(db, signal_id, trade_data)
+                return performance.id
+                
+        except Exception as e:
+            logger.error(f"Error saving trade to performance: {e}")
+            return None
+    
+    async def _save_failed_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, failure_reason: str):
+        """Save failed trade to signal performance"""
+        try:
+            from app.database import get_db
+            from app.services.database_service import DatabaseService
+            
+            # First save the signal if it doesn't exist
+            signal_id = signal.get("id")
+            if not signal_id:
+                async for db in get_db():
+                    saved_signal = await DatabaseService.save_signal(db, signal)
+                    signal_id = saved_signal.id
+                    break
+            
+            async for db in get_db():
+                trade_data = {
+                    "quantity": quantity,
+                    "position_size_usd": position_size_usd,
+                    "result": "failed_order",
+                    "failure_reason": failure_reason,
+                    "testnet_mode": self.testnet
+                }
+                
+                await DatabaseService.save_trading_performance(db, signal_id, trade_data)
+                logger.info(f"Failed trade saved to performance: {signal['symbol']} - {failure_reason}")
+                
+        except Exception as e:
+            logger.error(f"Error saving failed trade to performance: {e}")
+    
+    async def _update_trade_history_on_exit(self, main_order_id: str, exit_price: float, pnl: float, pnl_percentage: float, reason: str):
+        """Update signal performance when position is closed"""
+        try:
+            from app.database import get_db
+            from app.services.database_service import DatabaseService
+            
+            async for db in get_db():
+                # Find the performance entry by order ID
+                performance = await DatabaseService.find_performance_by_order_id(db, main_order_id)
+                
+                if performance:
+                    # Determine trade result
+                    if pnl > 0:
+                        trade_result = "profit"
+                    elif pnl < 0:
+                        trade_result = "loss"
+                    else:
+                        trade_result = "breakeven"
+                    
+                    # Update the performance
+                    update_data = {
+                        "exit_price": exit_price,
+                        "exit_time": datetime.now(),
+                        "profit_loss": pnl,
+                        "profit_percentage": pnl_percentage,
+                        "result": trade_result
+                    }
+                    
+                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                    logger.info(f"Performance updated: Signal {performance.signal_id} - {trade_result} - ${pnl:.2f}")
+                else:
+                    logger.warning(f"Performance not found for order ID: {main_order_id}")
+                    
+        except Exception as e:
+            logger.error(f"Error updating performance on exit: {e}")
 
 
 # Global trader instance - will be initialized from database settings
