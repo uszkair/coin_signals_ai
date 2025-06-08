@@ -23,7 +23,7 @@
   <!-- Main Content -->
   <div class="flex-1 overflow-auto">
     <!-- 4 Panel Grid Layout -->
-    <div class="grid grid-cols-2 gap-4 p-4 min-h-screen">
+    <div class="grid grid-cols-2 gap-4 p-4 h-[calc(100vh-80px)]">
       
       <!-- Panel 1: Signals Table -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
@@ -60,12 +60,11 @@
         </div>
 
         <!-- Signals Table -->
-        <div class="flex-1 overflow-auto">
+        <div class="flex-1 overflow-hidden">
           <p-table
             [value]="filteredSignals"
             [loading]="loading"
-            [scrollable]="true"
-            scrollHeight="100%"
+            [scrollable]="false"
             styleClass="p-datatable-sm"
           >
             <ng-template pTemplate="header">
