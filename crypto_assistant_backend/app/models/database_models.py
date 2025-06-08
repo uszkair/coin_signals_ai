@@ -132,3 +132,49 @@ class UserSettings(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+class TradingSettings(Base):
+    __tablename__ = "trading_settings"
+    __table_args__ = {'schema': 'crypto'}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(50), nullable=False, index=True, default='default')
+    
+    # Auto-trading settings
+    auto_trading_enabled = Column(Boolean, default=False)
+    monitored_symbols = Column(ARRAY(Text), default=['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'])
+    check_interval = Column(Integer, default=300)  # seconds
+    min_signal_confidence = Column(Integer, default=70)
+    
+    # Position size settings
+    position_size_mode = Column(String(20), default='percentage')  # 'percentage' or 'fixed_usd'
+    max_position_size = Column(DECIMAL(5, 4), default=0.02)  # 2% default
+    default_position_size_usd = Column(DECIMAL(10, 2), nullable=True)
+    
+    # Risk management settings
+    max_daily_trades = Column(Integer, default=10)
+    daily_loss_limit = Column(DECIMAL(5, 4), default=0.05)  # 5% default
+    
+    # Trading environment
+    testnet_mode = Column(Boolean, default=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "auto_trading_enabled": self.auto_trading_enabled,
+            "monitored_symbols": self.monitored_symbols or [],
+            "check_interval": self.check_interval,
+            "min_signal_confidence": self.min_signal_confidence,
+            "position_size_mode": self.position_size_mode,
+            "max_position_size": float(self.max_position_size) if self.max_position_size else 0.02,
+            "default_position_size_usd": float(self.default_position_size_usd) if self.default_position_size_usd else None,
+            "max_daily_trades": self.max_daily_trades,
+            "daily_loss_limit": float(self.daily_loss_limit) if self.daily_loss_limit else 0.05,
+            "testnet_mode": self.testnet_mode,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }

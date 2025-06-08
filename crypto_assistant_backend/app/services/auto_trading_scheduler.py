@@ -7,12 +7,11 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-import json
-import os
 
 from app.services.signal_engine import get_current_signal
 from app.services.binance_trading import execute_automatic_trade, binance_trader
 from app.services.ml_signal_generator import generate_ai_signal
+from app.services.trading_settings_service import trading_settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,48 +21,46 @@ class AutoTradingScheduler:
     
     def __init__(self):
         self.is_running = False
-        self.auto_trading_enabled = False
-        self.monitored_symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT']
-        self.check_interval = 300  # 5 minutes
-        self.min_signal_confidence = 70
         self.last_signals = {}
-        self.settings_file = "auto_trading_settings.json"
         
-        # Position size settings
-        self.position_size_mode = 'percentage'  # 'percentage' or 'fixed_usd'
-        self.fixed_position_size_usd = None
-        
-        # Load settings
+        # Load settings from database
         self._load_settings()
     
     def _load_settings(self):
-        """Load auto-trading settings from file"""
+        """Load auto-trading settings from database"""
         try:
-            if os.path.exists(self.settings_file):
-                with open(self.settings_file, 'r') as f:
-                    settings = json.load(f)
-                    self.auto_trading_enabled = settings.get('enabled', False)
-                    self.monitored_symbols = settings.get('symbols', self.monitored_symbols)
-                    self.check_interval = settings.get('interval', 300)
-                    self.min_signal_confidence = settings.get('min_confidence', 70)
-                    logger.info(f"Auto-trading settings loaded: enabled={self.auto_trading_enabled}")
+            # Settings are now loaded dynamically from database via trading_settings_service
+            # No need to cache them in memory as the service handles caching
+            logger.info("Auto-trading scheduler initialized with database settings")
         except Exception as e:
-            logger.error(f"Error loading auto-trading settings: {e}")
+            logger.error(f"Error initializing auto-trading scheduler: {e}")
     
-    def _save_settings(self):
-        """Save auto-trading settings to file"""
+    async def _get_auto_trading_settings(self):
+        """Get current auto-trading settings from database"""
         try:
-            settings = {
-                'enabled': self.auto_trading_enabled,
-                'symbols': self.monitored_symbols,
-                'interval': self.check_interval,
-                'min_confidence': self.min_signal_confidence,
-                'last_updated': datetime.now().isoformat()
-            }
-            with open(self.settings_file, 'w') as f:
-                json.dump(settings, f, indent=2)
+            return await trading_settings_service.get_auto_trading_settings()
         except Exception as e:
-            logger.error(f"Error saving auto-trading settings: {e}")
+            logger.error(f"Error getting auto-trading settings: {e}")
+            # Return default settings if database fails
+            return {
+                'enabled': False,
+                'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+                'interval': 300,
+                'min_confidence': 70
+            }
+    
+    async def _get_position_size_settings(self):
+        """Get current position size settings from database"""
+        try:
+            return await trading_settings_service.get_position_size_settings()
+        except Exception as e:
+            logger.error(f"Error getting position size settings: {e}")
+            # Return default settings if database fails
+            return {
+                'mode': 'percentage',
+                'max_position_size': 2.0,
+                'default_position_size_usd': None
+            }
     
     async def start_monitoring(self):
         """Start continuous market monitoring"""
@@ -76,13 +73,16 @@ class AutoTradingScheduler:
         
         while self.is_running:
             try:
-                if self.auto_trading_enabled:
+                # Get current settings from database
+                auto_settings = await self._get_auto_trading_settings()
+                
+                if auto_settings['enabled']:
                     await self._check_and_execute_trades()
                 else:
                     logger.debug("Auto-trading disabled, skipping trade checks")
                 
-                # Wait for next check
-                await asyncio.sleep(self.check_interval)
+                # Wait for next check (use interval from database)
+                await asyncio.sleep(auto_settings['interval'])
                 
             except Exception as e:
                 logger.error(f"Error in auto-trading loop: {e}")
@@ -93,23 +93,25 @@ class AutoTradingScheduler:
         self.is_running = False
         logger.info("Auto-trading scheduler stopped")
     
-    def enable_auto_trading(self):
+    async def enable_auto_trading(self):
         """Enable automatic trading"""
-        self.auto_trading_enabled = True
-        self._save_settings()
+        await trading_settings_service.update_auto_trading_settings({'enabled': True})
         logger.info("Auto-trading ENABLED")
     
-    def disable_auto_trading(self):
+    async def disable_auto_trading(self):
         """Disable automatic trading"""
-        self.auto_trading_enabled = False
-        self._save_settings()
+        await trading_settings_service.update_auto_trading_settings({'enabled': False})
         logger.info("Auto-trading DISABLED")
     
     async def _check_and_execute_trades(self):
         """Check signals and execute trades for all monitored symbols"""
-        logger.info(f"Checking signals for {len(self.monitored_symbols)} symbols...")
+        # Get current monitored symbols from database
+        auto_settings = await self._get_auto_trading_settings()
+        monitored_symbols = auto_settings['symbols']
         
-        for symbol in self.monitored_symbols:
+        logger.info(f"Checking signals for {len(monitored_symbols)} symbols...")
+        
+        for symbol in monitored_symbols:
             try:
                 await self._process_symbol(symbol)
             except Exception as e:
@@ -124,7 +126,7 @@ class AutoTradingScheduler:
         ai_signal = await generate_ai_signal(symbol, "1h")
         
         # Check if signal is strong enough
-        if not self._is_signal_valid(signal, ai_signal):
+        if not await self._is_signal_valid(signal, ai_signal):
             logger.debug(f"{symbol}: Signal not strong enough for auto-trading")
             return
         
@@ -136,17 +138,20 @@ class AutoTradingScheduler:
         # Check risk management
         if not await self._check_risk_management():
             logger.warning("Risk management limits reached, stopping auto-trading")
-            self.disable_auto_trading()
+            await self.disable_auto_trading()
             return
         
         # Execute trade with position size
         try:
             logger.info(f"Executing auto-trade for {symbol}: {signal['signal']} (confidence: {signal['confidence']}%)")
             
+            # Get position size settings from database
+            position_settings = await self._get_position_size_settings()
+            
             # Determine position size based on settings
             position_size_usd = None
-            if self.position_size_mode == 'fixed_usd' and self.fixed_position_size_usd:
-                position_size_usd = self.fixed_position_size_usd
+            if position_settings['mode'] == 'fixed_usd' and position_settings['default_position_size_usd']:
+                position_size_usd = position_settings['default_position_size_usd']
                 logger.info(f"Using fixed position size: ${position_size_usd}")
             else:
                 logger.info("Using percentage-based position sizing from trader config")
@@ -168,10 +173,14 @@ class AutoTradingScheduler:
         except Exception as e:
             logger.error(f"Error executing auto-trade for {symbol}: {e}")
     
-    def _is_signal_valid(self, signal: Dict, ai_signal: Dict) -> bool:
+    async def _is_signal_valid(self, signal: Dict, ai_signal: Dict) -> bool:
         """Check if signal is valid for auto-trading"""
+        # Get current auto-trading settings
+        auto_settings = await self._get_auto_trading_settings()
+        min_confidence = auto_settings['min_confidence']
+        
         # Check confidence
-        if signal.get('confidence', 0) < self.min_signal_confidence:
+        if signal.get('confidence', 0) < min_confidence:
             return False
         
         # Check signal direction (not HOLD)
@@ -233,31 +242,56 @@ class AutoTradingScheduler:
             logger.error(f"Error checking risk management: {e}")
             return False
     
-    def get_status(self) -> Dict:
+    async def get_status(self) -> Dict:
         """Get current auto-trading status"""
-        return {
-            'is_running': self.is_running,
-            'auto_trading_enabled': self.auto_trading_enabled,
-            'monitored_symbols': self.monitored_symbols,
-            'check_interval': self.check_interval,
-            'min_signal_confidence': self.min_signal_confidence,
-            'last_signals_count': len(self.last_signals),
-            'last_check': datetime.now().isoformat()
-        }
+        try:
+            auto_settings = await self._get_auto_trading_settings()
+            return {
+                'is_running': self.is_running,
+                'auto_trading_enabled': auto_settings['enabled'],
+                'monitored_symbols': auto_settings['symbols'],
+                'check_interval': auto_settings['interval'],
+                'min_signal_confidence': auto_settings['min_confidence'],
+                'last_signals_count': len(self.last_signals),
+                'last_check': datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error getting auto-trading status: {e}")
+            return {
+                'is_running': self.is_running,
+                'auto_trading_enabled': False,
+                'monitored_symbols': [],
+                'check_interval': 300,
+                'min_signal_confidence': 70,
+                'last_signals_count': len(self.last_signals),
+                'last_check': datetime.now().isoformat(),
+                'error': str(e)
+            }
     
-    def update_settings(self, settings: Dict):
+    async def update_settings(self, settings: Dict):
         """Update auto-trading settings"""
-        if 'symbols' in settings:
-            self.monitored_symbols = settings['symbols']
-        
-        if 'interval' in settings:
-            self.check_interval = max(60, settings['interval'])  # Minimum 1 minute
-        
-        if 'min_confidence' in settings:
-            self.min_signal_confidence = max(50, min(95, settings['min_confidence']))
-        
-        self._save_settings()
-        logger.info("Auto-trading settings updated")
+        try:
+            # Validate and update settings in database
+            update_data = {}
+            
+            if 'symbols' in settings:
+                update_data['symbols'] = settings['symbols']
+            
+            if 'interval' in settings:
+                update_data['interval'] = max(60, settings['interval'])  # Minimum 1 minute
+            
+            if 'min_confidence' in settings:
+                update_data['min_confidence'] = max(50, min(95, settings['min_confidence']))
+            
+            if 'enabled' in settings:
+                update_data['enabled'] = settings['enabled']
+            
+            await trading_settings_service.update_auto_trading_settings(update_data)
+            logger.info("Auto-trading settings updated in database")
+            
+        except Exception as e:
+            logger.error(f"Error updating auto-trading settings: {e}")
+            raise
 
 
 # Global scheduler instance
@@ -274,21 +308,21 @@ def stop_auto_trading():
     auto_trading_scheduler.stop_monitoring()
 
 
-def enable_auto_trading():
+async def enable_auto_trading():
     """Enable automatic trading"""
-    auto_trading_scheduler.enable_auto_trading()
+    await auto_trading_scheduler.enable_auto_trading()
 
 
-def disable_auto_trading():
+async def disable_auto_trading():
     """Disable automatic trading"""
-    auto_trading_scheduler.disable_auto_trading()
+    await auto_trading_scheduler.disable_auto_trading()
 
 
-def get_auto_trading_status():
+async def get_auto_trading_status():
     """Get auto-trading status"""
-    return auto_trading_scheduler.get_status()
+    return await auto_trading_scheduler.get_status()
 
 
-def update_auto_trading_settings(settings: Dict):
+async def update_auto_trading_settings(settings: Dict):
     """Update auto-trading settings"""
-    auto_trading_scheduler.update_settings(settings)
+    await auto_trading_scheduler.update_settings(settings)

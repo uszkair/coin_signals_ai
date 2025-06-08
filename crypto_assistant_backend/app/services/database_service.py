@@ -247,6 +247,64 @@ class DatabaseService:
         return settings
 
     @staticmethod
+    async def get_trading_settings(db: AsyncSession, user_id: str = 'default') -> Optional['TradingSettings']:
+        """Get trading settings for user"""
+        from app.models.database_models import TradingSettings
+        query = select(TradingSettings).where(TradingSettings.user_id == user_id)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def save_trading_settings(db: AsyncSession, user_id: str = 'default', settings_data: dict = None) -> 'TradingSettings':
+        """Save or update trading settings"""
+        from app.models.database_models import TradingSettings
+        
+        # Try to get existing settings
+        existing = await DatabaseService.get_trading_settings(db, user_id)
+        
+        if existing:
+            # Update existing
+            if settings_data:
+                for key, value in settings_data.items():
+                    if hasattr(existing, key):
+                        setattr(existing, key, value)
+            settings = existing
+        else:
+            # Create new with defaults
+            default_settings = {
+                'user_id': user_id,
+                'auto_trading_enabled': False,
+                'monitored_symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+                'check_interval': 300,
+                'min_signal_confidence': 70,
+                'position_size_mode': 'percentage',
+                'max_position_size': 0.02,
+                'default_position_size_usd': None,
+                'max_daily_trades': 10,
+                'daily_loss_limit': 0.05,
+                'testnet_mode': True
+            }
+            
+            # Override with provided settings
+            if settings_data:
+                default_settings.update(settings_data)
+                
+            settings = TradingSettings(**default_settings)
+            db.add(settings)
+
+        await db.commit()
+        await db.refresh(settings)
+        return settings
+
+    @staticmethod
+    async def create_default_trading_settings(db: AsyncSession, user_id: str = 'default') -> 'TradingSettings':
+        """Create default trading settings if they don't exist"""
+        existing = await DatabaseService.get_trading_settings(db, user_id)
+        if not existing:
+            return await DatabaseService.save_trading_settings(db, user_id)
+        return existing
+
+    @staticmethod
     async def get_historical_signals(
         db: AsyncSession,
         symbol: Optional[str] = None,

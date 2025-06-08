@@ -18,6 +18,7 @@ from app.services.binance_trading import (
     get_trading_environment_info
 )
 from app.services.signal_engine import get_current_signal
+from app.services.trading_settings_service import trading_settings_service
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
 
@@ -203,31 +204,46 @@ async def get_trading_statistics():
 async def update_trading_config(config: TradingConfig):
     """Update trading configuration and risk management settings"""
     try:
-        updated_settings = {}
+        # Update settings in database
+        update_data = {}
         
         if config.max_position_size is not None:
+            update_data['max_position_size'] = config.max_position_size
+        
+        if config.max_daily_trades is not None:
+            update_data['max_daily_trades'] = config.max_daily_trades
+        
+        if config.daily_loss_limit is not None:
+            update_data['daily_loss_limit'] = config.daily_loss_limit
+        
+        if config.testnet is not None:
+            update_data['testnet_mode'] = config.testnet
+        
+        # Update risk management settings in database
+        await trading_settings_service.update_risk_management_settings(update_data)
+        
+        # Also update binance_trader for immediate effect
+        if config.max_position_size is not None:
             binance_trader.max_position_size = config.max_position_size
-            updated_settings['max_position_size'] = config.max_position_size
         
         if config.max_daily_trades is not None:
             binance_trader.max_daily_trades = config.max_daily_trades
-            updated_settings['max_daily_trades'] = config.max_daily_trades
         
         if config.daily_loss_limit is not None:
             binance_trader.daily_loss_limit = config.daily_loss_limit
-            updated_settings['daily_loss_limit'] = config.daily_loss_limit
         
-        # Note: testnet cannot be changed at runtime - requires restart
+        # Get current settings from database
+        current_settings = await trading_settings_service.get_risk_management_settings()
         
         return {
             "success": True,
             "data": {
-                "updated_settings": updated_settings,
+                "updated_settings": update_data,
                 "current_config": {
-                    "max_position_size": binance_trader.max_position_size,
-                    "max_daily_trades": binance_trader.max_daily_trades,
-                    "daily_loss_limit": binance_trader.daily_loss_limit,
-                    "testnet": binance_trader.testnet
+                    "max_position_size": current_settings['max_position_size'],
+                    "max_daily_trades": current_settings['max_daily_trades'],
+                    "daily_loss_limit": current_settings['daily_loss_limit'],
+                    "testnet": current_settings['testnet_mode']
                 }
             }
         }
@@ -240,18 +256,22 @@ async def update_trading_config(config: TradingConfig):
 async def get_trading_config():
     """Get current trading configuration"""
     try:
+        # Get settings from database
+        risk_settings = await trading_settings_service.get_risk_management_settings()
+        position_settings = await trading_settings_service.get_position_size_settings()
+        
         return {
             "success": True,
             "data": {
-                "max_position_size": binance_trader.max_position_size,
-                "max_daily_trades": binance_trader.max_daily_trades,
-                "daily_loss_limit": binance_trader.daily_loss_limit,
-                "testnet": binance_trader.testnet,
+                "max_position_size": position_settings['max_position_size'],
+                "max_daily_trades": risk_settings['max_daily_trades'],
+                "daily_loss_limit": risk_settings['daily_loss_limit'],
+                "testnet": risk_settings['testnet_mode'],
                 "api_connected": binance_trader.client is not None,
                 "position_size_config": {
-                    "mode": binance_trader.position_size_mode,
-                    "fixed_amount_usd": binance_trader.default_position_size_usd,
-                    "max_percentage": binance_trader.max_position_size * 100
+                    "mode": position_settings['mode'],
+                    "fixed_amount_usd": position_settings['default_position_size_usd'],
+                    "max_percentage": position_settings['max_position_size']
                 }
             }
         }
@@ -281,20 +301,32 @@ async def update_position_size_config(config: PositionSizeConfig):
         if config.max_percentage and (config.max_percentage < 0.1 or config.max_percentage > 10):
             raise HTTPException(status_code=400, detail="Percentage must be between 0.1% and 10%")
         
-        # Update configuration
+        # Update configuration in database
+        update_data = {
+            'mode': config.mode,
+            'max_position_size': config.max_percentage,
+            'default_position_size_usd': config.fixed_amount_usd
+        }
+        
+        await trading_settings_service.update_position_size_settings(update_data)
+        
+        # Also update binance_trader for immediate effect
         binance_trader.set_position_size_config(
             mode=config.mode,
             amount=config.fixed_amount_usd,
             max_percentage=config.max_percentage
         )
         
+        # Get updated settings from database
+        updated_settings = await trading_settings_service.get_position_size_settings()
+        
         return {
             "success": True,
             "message": "Position size configuration updated successfully",
             "data": {
-                "mode": binance_trader.position_size_mode,
-                "fixed_amount_usd": binance_trader.default_position_size_usd,
-                "max_percentage": binance_trader.max_position_size * 100
+                "mode": updated_settings['mode'],
+                "fixed_amount_usd": updated_settings['default_position_size_usd'],
+                "max_percentage": updated_settings['max_position_size']
             }
         }
         
@@ -308,12 +340,15 @@ async def update_position_size_config(config: PositionSizeConfig):
 async def get_position_size_config():
     """Get current position size configuration"""
     try:
+        # Get settings from database
+        position_settings = await trading_settings_service.get_position_size_settings()
+        
         return {
             "success": True,
             "data": {
-                "mode": binance_trader.position_size_mode,
-                "fixed_amount_usd": binance_trader.default_position_size_usd,
-                "max_percentage": binance_trader.max_position_size * 100,
+                "mode": position_settings['mode'],
+                "fixed_amount_usd": position_settings['default_position_size_usd'],
+                "max_percentage": position_settings['max_position_size'],
                 "description": {
                     "percentage": "Position size calculated as percentage of total portfolio",
                     "fixed_usd": "Fixed USD amount per trade regardless of portfolio size"
@@ -562,9 +597,14 @@ async def get_real_order_history(symbol: Optional[str] = None, limit: int = 100)
 
 @router.get("/wallet-balance")
 async def get_wallet_balance():
-    """Get real wallet balance from Binance API"""
+    """Get wallet balance from Binance API or simulated data"""
     try:
+        # Debug logging
+        print(f"DEBUG: binance_trader.testnet = {binance_trader.testnet}")
+        print(f"DEBUG: binance_trader.client = {binance_trader.client}")
+        
         account_info = await binance_trader.get_account_info()
+        print(f"DEBUG: account_info testnet flag = {account_info.get('testnet', 'NOT_SET')}")
         
         if 'error' in account_info:
             # Check if it's an API key error
@@ -586,7 +626,46 @@ async def get_wallet_balance():
                     "testnet": binance_trader.testnet
                 }
         
-        # Calculate total balance in USDT
+        # If in testnet mode, use the simulated data directly
+        if binance_trader.testnet:
+            # Use the total_wallet_balance from simulated account info
+            total_balance = account_info.get('total_wallet_balance', 10000.0)
+            balances = account_info.get('balances', {})
+            
+            # Convert balances format for frontend
+            significant_balances = []
+            for asset, balance_info in balances.items():
+                if balance_info['total'] > 0:
+                    # For simulated data, calculate USDT value
+                    if asset in ['USDT', 'BUSD', 'USDC']:
+                        usdt_value = balance_info['total']
+                    elif asset == 'BTC':
+                        usdt_value = balance_info['total'] * 50000  # Simulated BTC price
+                    elif asset == 'ETH':
+                        usdt_value = balance_info['total'] * 3000   # Simulated ETH price
+                    else:
+                        usdt_value = balance_info['total'] * 100    # Default simulated price
+                    
+                    significant_balances.append({
+                        'asset': asset,
+                        'free': balance_info['free'],
+                        'locked': balance_info['locked'],
+                        'total': balance_info['total'],
+                        'usdt_value': usdt_value
+                    })
+            
+            return {
+                "success": True,
+                "data": {
+                    "total_balance_usdt": total_balance,
+                    "balances": significant_balances,
+                    "account_type": account_info.get('account_type'),
+                    "can_trade": account_info.get('can_trade'),
+                    "testnet": account_info.get('testnet', True)
+                }
+            }
+        
+        # Mainnet mode - calculate real balance with live prices
         balances = account_info.get('balances', {})
         total_balance_usdt = 0
         
@@ -637,7 +716,7 @@ async def get_wallet_balance():
                 "balances": significant_balances,
                 "account_type": account_info.get('account_type'),
                 "can_trade": account_info.get('can_trade'),
-                "testnet": binance_trader.testnet
+                "testnet": account_info.get('testnet', False)
             }
         }
         

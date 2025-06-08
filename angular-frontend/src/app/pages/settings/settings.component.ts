@@ -414,6 +414,9 @@ export class SettingsComponent implements OnInit {
           );
           // Reload wallet balance after environment change
           this.loadWalletBalance();
+          
+          // Trigger a global wallet refresh event for dashboard
+          window.dispatchEvent(new CustomEvent('walletEnvironmentChanged'));
         } else {
           this.showError('Váltási hiba', response.error || 'Ismeretlen hiba történt');
         }

@@ -143,6 +143,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.autoTradingEnabled = enabled;
       console.log('Auto-trading state updated:', enabled);
     });
+    
+    // Set up wallet refresh interval to catch environment changes
+    this.setupWalletRefresh();
+    
+    // Listen for environment changes from settings
+    this.setupEnvironmentListener();
   }
 
   loadAutoTradingStatus(): void {
@@ -195,6 +201,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   refreshWallet(): void {
     this.loadWalletBalance();
+  }
+
+  private setupWalletRefresh(): void {
+    // Refresh wallet balance every 10 seconds to catch environment changes
+    interval(10000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.loadWalletBalance();
+      });
+  }
+
+  private setupEnvironmentListener(): void {
+    // Listen for environment changes from settings page
+    window.addEventListener('walletEnvironmentChanged', () => {
+      console.log('Environment changed detected, refreshing wallet...');
+      // Force immediate wallet refresh
+      this.loadWalletBalance();
+    });
   }
 
   toggleAutoTrading(): void {

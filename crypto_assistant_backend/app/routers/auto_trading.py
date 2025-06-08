@@ -28,7 +28,7 @@ class AutoTradingSettings(BaseModel):
 async def get_status():
     """Get current auto-trading status"""
     try:
-        status = get_auto_trading_status()
+        status = await get_auto_trading_status()
         return {
             "success": True,
             "data": status
@@ -41,11 +41,11 @@ async def get_status():
 async def enable():
     """Enable automatic trading"""
     try:
-        enable_auto_trading()
+        await enable_auto_trading()
         return {
             "success": True,
             "message": "Auto-trading enabled",
-            "data": get_auto_trading_status()
+            "data": await get_auto_trading_status()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,11 +55,11 @@ async def enable():
 async def disable():
     """Disable automatic trading"""
     try:
-        disable_auto_trading()
+        await disable_auto_trading()
         return {
             "success": True,
             "message": "Auto-trading disabled",
-            "data": get_auto_trading_status()
+            "data": await get_auto_trading_status()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -80,12 +80,12 @@ async def update_settings(settings: AutoTradingSettings):
         if settings.min_confidence is not None:
             settings_dict['min_confidence'] = settings.min_confidence
         
-        update_auto_trading_settings(settings_dict)
+        await update_auto_trading_settings(settings_dict)
         
         return {
             "success": True,
             "message": "Auto-trading settings updated",
-            "data": get_auto_trading_status()
+            "data": await get_auto_trading_status()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -95,7 +95,7 @@ async def update_settings(settings: AutoTradingSettings):
 async def get_settings():
     """Get current auto-trading settings"""
     try:
-        status = get_auto_trading_status()
+        status = await get_auto_trading_status()
         return {
             "success": True,
             "data": {
@@ -146,7 +146,7 @@ async def emergency_stop():
     """Emergency stop - disable auto-trading and close all positions"""
     try:
         # Disable auto-trading
-        disable_auto_trading()
+        await disable_auto_trading()
         
         # Close all positions (import from trading router)
         from app.services.binance_trading import binance_trader, close_trading_position
@@ -164,7 +164,7 @@ async def emergency_stop():
             "data": {
                 "auto_trading_disabled": True,
                 "closed_positions": len(closed_positions),
-                "status": get_auto_trading_status()
+                "status": await get_auto_trading_status()
             }
         }
     except Exception as e:
@@ -181,7 +181,7 @@ async def get_performance_metrics():
         stats = await binance_trader.get_trading_statistics()
         
         # Get auto-trading specific metrics
-        status = get_auto_trading_status()
+        status = await get_auto_trading_status()
         
         return {
             "success": True,

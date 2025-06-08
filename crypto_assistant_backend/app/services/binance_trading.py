@@ -35,7 +35,11 @@ class BinanceTrader:
         self.api_secret = api_secret or os.environ.get("BINANCE_API_SECRET")
         self.testnet = testnet
         
-        if not self.api_key or not self.api_secret:
+        # Force simulation mode when testnet is True
+        if self.testnet:
+            logger.info(f"Testnet mode enabled - using simulated trading data")
+            self.client = None
+        elif not self.api_key or not self.api_secret:
             logger.warning("Binance API credentials not found. Trading will be simulated.")
             self.client = None
         else:
@@ -43,9 +47,9 @@ class BinanceTrader:
                 self.client = Client(
                     api_key=self.api_key,
                     api_secret=self.api_secret,
-                    testnet=self.testnet
+                    testnet=False  # Always use mainnet API when client is created
                 )
-                logger.info(f"Binance client initialized (testnet: {self.testnet})")
+                logger.info(f"Binance client initialized (mainnet mode)")
             except Exception as e:
                 logger.error(f"Failed to initialize Binance client: {e}")
                 self.client = None
@@ -68,7 +72,7 @@ class BinanceTrader:
     
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information and balances"""
-        if not self.client:
+        if not self.client or self.testnet:
             return self._simulate_account_info()
         
         try:
@@ -91,7 +95,8 @@ class BinanceTrader:
                 'balances': balances,
                 'total_wallet_balance': self._calculate_total_balance(balances),
                 'maker_commission': account.get('makerCommission', 10),
-                'taker_commission': account.get('takerCommission', 10)
+                'taker_commission': account.get('takerCommission', 10),
+                'testnet': self.testnet
             }
         except BinanceAPIException as e:
             logger.error(f"Binance API error: {e}")
@@ -584,7 +589,8 @@ class BinanceTrader:
             },
             'total_wallet_balance': 10000.0,
             'maker_commission': 10,
-            'taker_commission': 10
+            'taker_commission': 10,
+            'testnet': self.testnet
         }
     
     def _simulate_symbol_info(self, symbol: str) -> Dict[str, Any]:
