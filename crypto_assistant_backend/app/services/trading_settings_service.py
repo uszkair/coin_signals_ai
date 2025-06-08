@@ -103,6 +103,7 @@ class TradingSettingsService:
         return {
             'max_daily_trades': settings.get('max_daily_trades', 10),
             'daily_loss_limit': settings.get('daily_loss_limit', 0.05),
+            'max_position_size': settings.get('max_position_size', 0.02),
             'testnet_mode': settings.get('testnet_mode', True),  # Default to testnet for safety
             'use_futures': settings.get('use_futures', True)   # Default to Futures for testnet
         }
@@ -115,6 +116,8 @@ class TradingSettingsService:
             update_data['max_daily_trades'] = settings_data['max_daily_trades']
         if 'daily_loss_limit' in settings_data:
             update_data['daily_loss_limit'] = settings_data['daily_loss_limit']
+        if 'max_position_size' in settings_data:
+            update_data['max_position_size'] = settings_data['max_position_size']
         if 'testnet_mode' in settings_data:
             update_data['testnet_mode'] = settings_data['testnet_mode']
         if 'use_futures' in settings_data:
