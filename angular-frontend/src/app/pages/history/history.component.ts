@@ -85,6 +85,7 @@ export class HistoryComponent implements OnInit {
     this.historyService.exportToCsv(this.tradeHistory);
   }
 
+
   private loadTradeHistory(): void {
     this.loading = true;
     

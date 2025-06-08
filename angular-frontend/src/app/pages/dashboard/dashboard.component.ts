@@ -14,9 +14,11 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { ProgressBarModule } from 'primeng/progressbar';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AccordionModule } from 'primeng/accordion';
 import { DividerModule } from 'primeng/divider';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
 
@@ -26,6 +28,7 @@ import { AIService, AIInsight } from '../../services/ai.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
 import { TradingService } from '../../services/trading.service';
 import { AiMlService, AISignal } from '../../services/ai-ml.service';
+import { HistoryService } from '../../services/history.service';
 
 interface FilterOption {
   label: string;
@@ -48,9 +51,11 @@ interface FilterOption {
     ConfirmDialogModule,
     DialogModule,
     ProgressBarModule,
+    ProgressSpinnerModule,
     SkeletonModule,
     AccordionModule,
     DividerModule,
+    TooltipModule,
     TradingViewWidgetComponent,
   ],
   providers: [MessageService, ConfirmationService],
@@ -74,6 +79,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedSignalAIML: AISignal | null = null;
   loadingAIAnalysis = false;
   loadingAIML = false;
+  
+  // Auto trading and wallet
+  autoTradingEnabled = false;
+  walletBalance: any = null;
+  loadingWallet = false;
+  lastWalletUpdate: Date | null = null;
   
   // Chart modal
   showChartModal = false;
@@ -113,7 +124,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private webSocketService: WebSocketService,
     private aiService: AIService,
     private tradingService: TradingService,
-    private aiMlService: AiMlService
+    private aiMlService: AiMlService,
+    private historyService: HistoryService
   ) {}
 
   ngOnInit(): void {
@@ -121,6 +133,66 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.startAutoRefresh();
     this.setupWebSocketConnection();
     this.selectedSignal = this.filteredSignals[0];
+    this.loadWalletBalance();
+    
+    // Subscribe to auto trading state
+    this.tradingService.autoTrading$.subscribe(enabled => {
+      this.autoTradingEnabled = enabled;
+    });
+  }
+
+  loadWalletBalance(): void {
+    this.loadingWallet = true;
+    this.tradingService.getWalletBalance().subscribe({
+      next: (response) => {
+        this.loadingWallet = false;
+        if (response.success) {
+          this.walletBalance = response.data;
+          this.lastWalletUpdate = new Date();
+        }
+      },
+      error: (error) => {
+        this.loadingWallet = false;
+        console.error('Error loading wallet balance:', error);
+      }
+    });
+  }
+
+  refreshWallet(): void {
+    this.loadWalletBalance();
+  }
+
+  toggleAutoTrading(): void {
+    const newState = !this.autoTradingEnabled;
+    this.tradingService.setAutoTrading(newState);
+    
+    this.messageService.add({
+      severity: newState ? 'success' : 'info',
+      summary: 'Automata Kereskedés',
+      detail: newState ? 'Bekapcsolva - Minden új szignál automatikusan végrehajtódik' : 'Kikapcsolva - Csak manuális kereskedés',
+      life: 5000
+    });
+  }
+
+  executeManualTrade(signal: Signal): void {
+    if (this.autoTradingEnabled) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Automata Mód Aktív',
+        detail: 'Kapcsold ki az automata kereskedést a manuális végrehajtáshoz',
+        life: 5000
+      });
+      return;
+    }
+
+    this.confirmationService.confirm({
+      message: `Manuális kereskedés végrehajtása: ${signal.signal} ${signal.symbol} @ $${signal.entry_price}?`,
+      header: 'Manuális Kereskedés Megerősítése',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.executeAutomaticTrade(signal);
+      }
+    });
   }
 
   ngOnDestroy(): void {

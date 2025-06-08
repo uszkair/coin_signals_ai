@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, BehaviorSubject } from 'rxjs';
 
 export interface TradingAccount {
   account_info: any;
@@ -27,8 +27,28 @@ export interface TradeResult {
 })
 export class TradingService {
   private baseUrl = 'http://localhost:8000/api/trading';
+  
+  // Auto trading state
+  private autoTradingSubject = new BehaviorSubject<boolean>(false);
+  public autoTrading$ = this.autoTradingSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    // Load auto trading state from localStorage
+    const savedState = localStorage.getItem('autoTrading');
+    if (savedState !== null) {
+      this.autoTradingSubject.next(JSON.parse(savedState));
+    }
+  }
+
+  // Auto trading methods
+  setAutoTrading(enabled: boolean): void {
+    this.autoTradingSubject.next(enabled);
+    localStorage.setItem('autoTrading', JSON.stringify(enabled));
+  }
+
+  getAutoTrading(): boolean {
+    return this.autoTradingSubject.value;
+  }
 
   // Account Management
   getAccountStatus(): Observable<{ success: boolean; data: TradingAccount }> {
@@ -88,5 +108,9 @@ export class TradingService {
   // Emergency
   emergencyStop(): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/emergency-stop`, {});
+  }
+
+  getWalletBalance(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.baseUrl}/wallet-balance`);
   }
 }

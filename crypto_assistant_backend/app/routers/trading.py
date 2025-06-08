@@ -11,7 +11,9 @@ from app.services.binance_trading import (
     execute_automatic_trade,
     get_trading_account_status,
     close_trading_position,
-    binance_trader
+    binance_trader,
+    get_binance_trade_history,
+    get_binance_order_history
 )
 from app.services.signal_engine import get_current_signal
 
@@ -344,6 +346,119 @@ async def emergency_stop():
                 "message": "Emergency stop executed",
                 "closed_positions": len(closed_positions),
                 "trading_disabled": True
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/trade-history")
+async def get_real_trade_history(symbol: Optional[str] = None, limit: int = 100):
+    """Get real trading history from Binance API"""
+    try:
+        result = await get_binance_trade_history(symbol, limit)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "data": result['data']
+            }
+        else:
+            return {
+                "success": False,
+                "error": result['error']
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/order-history")
+async def get_real_order_history(symbol: Optional[str] = None, limit: int = 100):
+    """Get real order history from Binance API"""
+    try:
+        result = await get_binance_order_history(symbol, limit)
+        
+        if result['success']:
+            return {
+                "success": True,
+                "data": result['data']
+            }
+        else:
+            return {
+                "success": False,
+                "error": result['error']
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/wallet-balance")
+async def get_wallet_balance():
+    """Get real wallet balance from Binance API"""
+    try:
+        account_info = await binance_trader.get_account_info()
+        
+        if 'error' in account_info:
+            return {
+                "success": False,
+                "error": account_info['error']
+            }
+        
+        # Calculate total balance in USDT
+        balances = account_info.get('balances', {})
+        total_balance_usdt = 0
+        
+        # Get current prices for conversion
+        significant_balances = []
+        for asset, balance_info in balances.items():
+            if balance_info['total'] > 0:
+                if asset in ['USDT', 'BUSD', 'USDC']:
+                    # Stablecoins
+                    usdt_value = balance_info['total']
+                elif asset == 'BTC':
+                    # Get BTC price
+                    try:
+                        btc_price = await binance_trader._get_current_price('BTCUSDT')
+                        usdt_value = balance_info['total'] * btc_price
+                    except:
+                        usdt_value = balance_info['total'] * 50000  # Fallback price
+                elif asset == 'ETH':
+                    # Get ETH price
+                    try:
+                        eth_price = await binance_trader._get_current_price('ETHUSDT')
+                        usdt_value = balance_info['total'] * eth_price
+                    except:
+                        usdt_value = balance_info['total'] * 3000  # Fallback price
+                else:
+                    # Try to get price for other assets
+                    try:
+                        price = await binance_trader._get_current_price(f'{asset}USDT')
+                        usdt_value = balance_info['total'] * price
+                    except:
+                        usdt_value = 0  # Skip if can't get price
+                
+                total_balance_usdt += usdt_value
+                
+                if usdt_value > 1:  # Only show balances worth more than $1
+                    significant_balances.append({
+                        'asset': asset,
+                        'free': balance_info['free'],
+                        'locked': balance_info['locked'],
+                        'total': balance_info['total'],
+                        'usdt_value': usdt_value
+                    })
+        
+        return {
+            "success": True,
+            "data": {
+                "total_balance_usdt": total_balance_usdt,
+                "balances": significant_balances,
+                "account_type": account_info.get('account_type'),
+                "can_trade": account_info.get('can_trade'),
+                "testnet": binance_trader.testnet
             }
         }
         

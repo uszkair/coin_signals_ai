@@ -4,6 +4,11 @@
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Trading Signals Dashboard</h1>
       <div class="flex items-center space-x-4">
+        <!-- Auto-trading toggle -->
+        <div class="flex items-center">
+          <p-inputSwitch [(ngModel)]="autoTradingEnabled" (onChange)="toggleAutoTrading()"></p-inputSwitch>
+          <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">Auto-kereskedés</span>
+        </div>
         <!-- Auto-refresh toggle -->
         <div class="flex items-center">
           <p-inputSwitch [(ngModel)]="autoRefresh" (onChange)="toggleAutoRefresh()"></p-inputSwitch>
@@ -15,6 +20,61 @@
           <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">
             {{ connectionStatus === 'connected' ? 'Kapcsolódva' : 'Kapcsolat megszakadt' }}
           </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wallet Panel -->
+  <div class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-6">
+        <div class="flex items-center">
+          <i class="pi pi-wallet text-green-600 mr-2"></i>
+          <span class="text-sm font-medium text-gray-900 dark:text-white">Binance Wallet</span>
+        </div>
+        <div *ngIf="walletBalance" class="flex items-center space-x-4">
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Összes Egyenleg</div>
+            <div class="text-sm font-bold text-green-600">${{ walletBalance.total_balance_usdt | number:'1.2-2' }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Kereskedési Típus</div>
+            <div class="text-sm font-bold text-blue-600">{{ walletBalance.account_type || 'N/A' }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Kereskedés</div>
+            <div class="text-sm font-bold" [class]="walletBalance.can_trade ? 'text-green-600' : 'text-red-600'">
+              {{ walletBalance.can_trade ? 'Engedélyezett' : 'Letiltva' }}
+            </div>
+          </div>
+          <div class="text-center">
+            <div class="text-xs text-gray-500 dark:text-gray-400">Hálózat</div>
+            <div class="text-sm font-bold" [class]="walletBalance.testnet ? 'text-yellow-600' : 'text-green-600'">
+              {{ walletBalance.testnet ? 'Testnet' : 'Mainnet' }}
+            </div>
+          </div>
+        </div>
+        <div *ngIf="!walletBalance && loadingWallet" class="flex items-center">
+          <p-progressSpinner [style]="{width: '20px', height: '20px'}" strokeWidth="4"></p-progressSpinner>
+          <span class="ml-2 text-sm text-gray-500">Wallet betöltése...</span>
+        </div>
+        <div *ngIf="!walletBalance && !loadingWallet" class="text-sm text-red-500">
+          Wallet adatok nem elérhetők
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <p-button
+          icon="pi pi-refresh"
+          size="small"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="refreshWallet()"
+          [loading]="loadingWallet"
+          pTooltip="Wallet frissítése"
+        ></p-button>
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          Utolsó frissítés: {{ lastWalletUpdate | date:'HH:mm:ss' }}
         </div>
       </div>
     </div>

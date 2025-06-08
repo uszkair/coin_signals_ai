@@ -576,3 +576,107 @@ async def get_trading_account_status() -> Dict[str, Any]:
 async def close_trading_position(position_id: str, reason: str = "manual") -> Dict[str, Any]:
     """Close a specific trading position"""
     return await binance_trader.close_position(position_id, reason)
+
+
+async def get_binance_trade_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
+    """Get real trading history from Binance API"""
+    if not binance_trader.client:
+        return {'success': False, 'error': 'Binance client not connected'}
+    
+    try:
+        # Get account trades from Binance
+        if symbol:
+            trades = binance_trader.client.get_my_trades(symbol=symbol, limit=limit)
+        else:
+            # Get trades for multiple symbols
+            symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT']
+            all_trades = []
+            for sym in symbols:
+                try:
+                    sym_trades = binance_trader.client.get_my_trades(symbol=sym, limit=20)
+                    all_trades.extend(sym_trades)
+                except:
+                    continue
+            trades = sorted(all_trades, key=lambda x: x['time'], reverse=True)[:limit]
+        
+        # Convert to our format
+        formatted_trades = []
+        for trade in trades:
+            formatted_trade = {
+                'timestamp': datetime.fromtimestamp(trade['time'] / 1000),
+                'symbol': trade['symbol'],
+                'signal': 'BUY' if trade['isBuyer'] else 'SELL',
+                'entry_price': float(trade['price']),
+                'quantity': float(trade['qty']),
+                'commission': float(trade['commission']),
+                'commission_asset': trade['commissionAsset'],
+                'trade_id': trade['id'],
+                'order_id': trade['orderId'],
+                'is_maker': trade['isMaker'],
+                'quote_qty': float(trade['quoteQty'])
+            }
+            formatted_trades.append(formatted_trade)
+        
+        return {
+            'success': True,
+            'data': {
+                'trades': formatted_trades,
+                'count': len(formatted_trades)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting trade history: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+async def get_binance_order_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
+    """Get real order history from Binance API"""
+    if not binance_trader.client:
+        return {'success': False, 'error': 'Binance client not connected'}
+    
+    try:
+        if symbol:
+            orders = binance_trader.client.get_all_orders(symbol=symbol, limit=limit)
+        else:
+            # Get orders for multiple symbols
+            symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT']
+            all_orders = []
+            for sym in symbols:
+                try:
+                    sym_orders = binance_trader.client.get_all_orders(symbol=sym, limit=20)
+                    all_orders.extend(sym_orders)
+                except:
+                    continue
+            orders = sorted(all_orders, key=lambda x: x['time'], reverse=True)[:limit]
+        
+        # Convert to our format
+        formatted_orders = []
+        for order in orders:
+            formatted_order = {
+                'timestamp': datetime.fromtimestamp(order['time'] / 1000),
+                'symbol': order['symbol'],
+                'order_id': order['orderId'],
+                'side': order['side'],
+                'type': order['type'],
+                'status': order['status'],
+                'price': float(order['price']) if order['price'] != '0.00000000' else None,
+                'original_qty': float(order['origQty']),
+                'executed_qty': float(order['executedQty']),
+                'cumulative_quote_qty': float(order['cummulativeQuoteQty']),
+                'time_in_force': order['timeInForce'],
+                'update_time': datetime.fromtimestamp(order['updateTime'] / 1000) if order['updateTime'] else None
+            }
+            formatted_orders.append(formatted_order)
+        
+        return {
+            'success': True,
+            'data': {
+                'orders': formatted_orders,
+                'count': len(formatted_orders)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting order history: {e}")
+        return {'success': False, 'error': str(e)}
