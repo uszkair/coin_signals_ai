@@ -33,18 +33,24 @@ async def get_trade_stats(
         else:
             start_date = end_date - timedelta(days=30)  # Default to 30 days
 
-        # Get overall portfolio statistics
+        # Get overall portfolio statistics from actual trading performance
         stats_query = text("""
             SELECT
                 COUNT(*) as total_trades,
-                COUNT(CASE WHEN signal_type = 'BUY' THEN 1 END) as buy_trades,
-                COUNT(CASE WHEN signal_type = 'SELL' THEN 1 END) as sell_trades,
-                AVG(confidence) as avg_confidence,
-                COUNT(CASE WHEN confidence >= 80 THEN 1 END) as high_confidence_trades,
-                COUNT(CASE WHEN confidence >= 60 AND confidence < 80 THEN 1 END) as medium_confidence_trades,
-                COUNT(CASE WHEN confidence < 60 THEN 1 END) as low_confidence_trades
-            FROM crypto.signals
-            WHERE created_at >= :start_date AND created_at <= :end_date
+                COUNT(CASE WHEN s.signal_type = 'BUY' THEN 1 END) as buy_trades,
+                COUNT(CASE WHEN s.signal_type = 'SELL' THEN 1 END) as sell_trades,
+                AVG(s.confidence) as avg_confidence,
+                COUNT(CASE WHEN s.confidence >= 80 THEN 1 END) as high_confidence_trades,
+                COUNT(CASE WHEN s.confidence >= 60 AND s.confidence < 80 THEN 1 END) as medium_confidence_trades,
+                COUNT(CASE WHEN s.confidence < 60 THEN 1 END) as low_confidence_trades,
+                COUNT(CASE WHEN sp.result = 'profit' THEN 1 END) as profitable_trades,
+                COUNT(CASE WHEN sp.result = 'loss' THEN 1 END) as loss_trades,
+                COUNT(CASE WHEN sp.result = 'failed_order' THEN 1 END) as failed_orders,
+                SUM(COALESCE(sp.profit_loss, 0)) as total_pnl_usd
+            FROM crypto.signals s
+            LEFT JOIN crypto.signal_performance sp ON s.id = sp.signal_id
+            WHERE s.created_at >= :start_date AND s.created_at <= :end_date
+            AND sp.id IS NOT NULL
         """)
         
         stats_result = await db.execute(stats_query, {
@@ -53,33 +59,25 @@ async def get_trade_stats(
         })
         stats_row = stats_result.fetchone()
 
-        # Calculate simulated profit based on signal performance
-        # This is a simplified calculation - in real scenario you'd track actual trades
+        # Get actual trading performance data
         profit_query = text("""
             SELECT
-                symbol,
-                signal_type,
-                price,
-                confidence,
-                created_at,
-                CASE
-                    WHEN signal_type = 'BUY' THEN
-                        CASE
-                            WHEN confidence >= 80 THEN RANDOM() * 8 - 2
-                            WHEN confidence >= 60 THEN RANDOM() * 6 - 1
-                            ELSE RANDOM() * 4 - 2
-                        END
-                    WHEN signal_type = 'SELL' THEN
-                        CASE
-                            WHEN confidence >= 80 THEN RANDOM() * 8 - 2
-                            WHEN confidence >= 60 THEN RANDOM() * 6 - 1
-                            ELSE RANDOM() * 4 - 2
-                        END
-                    ELSE 0
-                END as simulated_profit_percent
-            FROM crypto.signals
-            WHERE created_at >= :start_date AND created_at <= :end_date
-            ORDER BY created_at
+                s.symbol,
+                s.signal_type,
+                s.price,
+                s.confidence,
+                s.created_at,
+                sp.result,
+                COALESCE(sp.profit_loss, 0) as profit_loss_usd,
+                COALESCE(sp.profit_percentage, 0) as profit_percentage,
+                sp.position_size_usd,
+                sp.main_order_id,
+                sp.testnet_mode
+            FROM crypto.signals s
+            LEFT JOIN crypto.signal_performance sp ON s.id = sp.signal_id
+            WHERE s.created_at >= :start_date AND s.created_at <= :end_date
+            AND sp.id IS NOT NULL
+            ORDER BY s.created_at
         """)
         
         profit_result = await db.execute(profit_query, {
@@ -88,11 +86,13 @@ async def get_trade_stats(
         })
         profit_results = profit_result.fetchall()
 
-        # Calculate portfolio statistics
+        # Calculate portfolio statistics from actual trading data
         total_trades = stats_row.total_trades if stats_row else 0
-        profitable_trades = 0
-        loss_trades = 0
-        total_profit = 0.0
+        profitable_trades = stats_row.profitable_trades if stats_row else 0
+        loss_trades = stats_row.loss_trades if stats_row else 0
+        failed_orders = stats_row.failed_orders if stats_row else 0
+        total_profit_usd = float(stats_row.total_pnl_usd or 0) if stats_row else 0.0
+        
         best_coin = "N/A"
         worst_coin = "N/A"
         best_profit = float('-inf')
@@ -102,45 +102,50 @@ async def get_trade_stats(
         daily_profits = {}
         
         for row in profit_results:
-            profit = float(row.simulated_profit_percent or 0)
-            total_profit += profit
+            # Use actual profit data
+            profit_usd = float(row.profit_loss_usd or 0)
+            profit_percent = float(row.profit_percentage or 0)
             
-            if profit > 0:
-                profitable_trades += 1
-            elif profit < 0:
-                loss_trades += 1
-            
-            # Track best and worst coins
-            if profit > best_profit:
-                best_profit = profit
+            # Track best and worst coins by USD profit
+            if profit_usd > best_profit:
+                best_profit = profit_usd
                 best_coin = row.symbol
-            if profit < worst_profit:
-                worst_profit = profit
+            if profit_usd < worst_profit:
+                worst_profit = profit_usd
                 worst_coin = row.symbol
             
             # Aggregate by coin
             if row.symbol not in coin_profits:
                 coin_profits[row.symbol] = {
                     'symbol': row.symbol,
+                    'profit_usd': 0.0,
                     'profit_percent': 0.0,
                     'trade_count': 0,
-                    'profitable_count': 0
+                    'profitable_count': 0,
+                    'pending_count': 0,
+                    'failed_count': 0
                 }
             
-            coin_profits[row.symbol]['profit_percent'] += profit
+            coin_profits[row.symbol]['profit_usd'] += profit_usd
+            coin_profits[row.symbol]['profit_percent'] += profit_percent
             coin_profits[row.symbol]['trade_count'] += 1
-            if profit > 0:
-                coin_profits[row.symbol]['profitable_count'] += 1
             
-            # Aggregate by day for timeline
+            if row.result == 'profit':
+                coin_profits[row.symbol]['profitable_count'] += 1
+            elif row.result == 'pending':
+                coin_profits[row.symbol]['pending_count'] += 1
+            elif row.result == 'failed_order':
+                coin_profits[row.symbol]['failed_count'] += 1
+            
+            # Aggregate by day for timeline (use USD profit)
             day_key = row.created_at.strftime('%Y-%m-%d')
             if day_key not in daily_profits:
                 daily_profits[day_key] = 0.0
-            daily_profits[day_key] += profit
+            daily_profits[day_key] += profit_usd
 
         # Calculate win rate
         win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
-        avg_profit_per_trade = total_profit / total_trades if total_trades > 0 else 0
+        avg_profit_per_trade_usd = total_profit_usd / total_trades if total_trades > 0 else 0
 
         # Prepare coin profits with win rates
         coin_profits_list = []
@@ -148,13 +153,17 @@ async def get_trade_stats(
             win_rate_coin = (coin_data['profitable_count'] / coin_data['trade_count'] * 100) if coin_data['trade_count'] > 0 else 0
             coin_profits_list.append({
                 'symbol': coin_data['symbol'],
+                'profit_usd': round(coin_data['profit_usd'], 2),
                 'profit_percent': round(coin_data['profit_percent'], 2),
                 'trade_count': coin_data['trade_count'],
+                'profitable_count': coin_data['profitable_count'],
+                'pending_count': coin_data['pending_count'],
+                'failed_count': coin_data['failed_count'],
                 'win_rate': round(win_rate_coin, 1)
             })
         
-        # Sort by profit descending
-        coin_profits_list.sort(key=lambda x: x['profit_percent'], reverse=True)
+        # Sort by USD profit descending
+        coin_profits_list.sort(key=lambda x: x['profit_usd'], reverse=True)
 
         # Prepare profit timeline
         profit_timeline = []
@@ -171,20 +180,25 @@ async def get_trade_stats(
                 'cumulative_profit': round(cumulative_profit, 2)
             })
 
-        # Prepare response
+        # Prepare response with real trading data
         response = {
             "stats": {
-                "total_profit_percent": round(total_profit, 2),
+                "total_profit_usd": round(total_profit_usd, 2),
                 "profitable_trades": profitable_trades,
                 "total_trades": total_trades,
                 "loss_trades": loss_trades,
-                "best_coin": best_coin,
-                "worst_coin": worst_coin,
+                "failed_orders": failed_orders,
+                "pending_trades": total_trades - profitable_trades - loss_trades - failed_orders,
+                "best_coin": best_coin if best_profit != float('-inf') else "N/A",
+                "worst_coin": worst_coin if worst_profit != float('inf') else "N/A",
+                "best_profit_usd": round(best_profit, 2) if best_profit != float('-inf') else 0,
+                "worst_profit_usd": round(worst_profit, 2) if worst_profit != float('inf') else 0,
                 "win_rate": round(win_rate, 1),
-                "avg_profit_per_trade": round(avg_profit_per_trade, 2)
+                "avg_profit_per_trade_usd": round(avg_profit_per_trade_usd, 2)
             },
             "profit_timeline": profit_timeline,
-            "coin_profits": coin_profits_list
+            "coin_profits": coin_profits_list,
+            "data_source": "real_trading_performance"
         }
 
         return response
