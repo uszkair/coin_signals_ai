@@ -402,10 +402,24 @@ async def get_wallet_balance():
         account_info = await binance_trader.get_account_info()
         
         if 'error' in account_info:
-            return {
-                "success": False,
-                "error": account_info['error']
-            }
+            # Check if it's an API key error
+            error_msg = account_info['error']
+            if 'Invalid API-key' in error_msg or 'code=-2015' in error_msg:
+                return {
+                    "success": False,
+                    "error": "Binance API kulcsok érvénytelenek vagy nincs megfelelő jogosultság. Ellenőrizd a .env fájlban a BINANCE_API_KEY és BINANCE_API_SECRET értékeket.",
+                    "details": {
+                        "error_code": "-2015",
+                        "solution": "1. Ellenőrizd hogy a Binance API kulcsok helyesek-e\n2. Győződj meg róla hogy az IP cím engedélyezett a Binance fiókban\n3. Ellenőrizd hogy az API kulcsoknak van-e 'Spot & Margin Trading' jogosultsága",
+                        "testnet": binance_trader.testnet
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Binance API hiba: {error_msg}",
+                    "testnet": binance_trader.testnet
+                }
         
         # Calculate total balance in USDT
         balances = account_info.get('balances', {})

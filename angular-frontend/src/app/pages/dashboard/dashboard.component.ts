@@ -85,6 +85,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   walletBalance: any = null;
   loadingWallet = false;
   lastWalletUpdate: Date | null = null;
+  walletError: string | null = null;
+  walletErrorDetails: string | null = null;
   
   // Chart modal
   showChartModal = false;
@@ -143,16 +145,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadWalletBalance(): void {
     this.loadingWallet = true;
+    this.walletError = null;
+    this.walletErrorDetails = null;
+    
     this.tradingService.getWalletBalance().subscribe({
       next: (response) => {
         this.loadingWallet = false;
         if (response.success) {
           this.walletBalance = response.data;
           this.lastWalletUpdate = new Date();
+          this.walletError = null;
+          this.walletErrorDetails = null;
+        } else {
+          this.walletBalance = null;
+          this.walletError = response.error || 'Ismeretlen hiba történt';
+          
+          // Check if there are additional details
+          if ((response as any).details && (response as any).details.solution) {
+            this.walletErrorDetails = (response as any).details.solution;
+          }
         }
       },
       error: (error) => {
         this.loadingWallet = false;
+        this.walletBalance = null;
+        this.walletError = 'Hálózati hiba történt a wallet adatok betöltésekor';
+        this.walletErrorDetails = error.message || 'Ellenőrizd a hálózati kapcsolatot';
         console.error('Error loading wallet balance:', error);
       }
     });
