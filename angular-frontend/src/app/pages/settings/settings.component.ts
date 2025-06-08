@@ -127,6 +127,13 @@ export class SettingsComponent implements OnInit {
       error: (error) => {
         this.loadingRisk = false;
         this.showError('Risk management beállítások betöltése sikertelen', error.message);
+        
+        // Set default values on error
+        this.riskConfig = {
+          max_daily_trades: 10,
+          daily_loss_limit: 5.0,
+          max_position_size: 2.0
+        };
       }
     });
   }
@@ -191,8 +198,11 @@ export class SettingsComponent implements OnInit {
   }
 
   savePositionSizeConfig(): void {
-    if (!this.isPositionConfigValid()) {
-      this.showWarning('Érvénytelen beállítás', 'Kérlek töltsd ki az összes kötelező mezőt');
+    // Validate and show detailed error messages
+    const validationErrors = this.getPositionConfigValidationErrors();
+    if (validationErrors.length > 0) {
+      const errorMessage = 'Kérlek javítsd ki a következő hibákat:\n\n' + validationErrors.join('\n');
+      this.showError('Érvénytelen beállítások', errorMessage);
       return;
     }
 
@@ -262,8 +272,11 @@ export class SettingsComponent implements OnInit {
   }
 
   saveRiskManagementConfig(): void {
-    if (!this.isRiskConfigValid()) {
-      this.showWarning('Érvénytelen beállítás', 'Kérlek ellenőrizd a megadott értékeket');
+    // Validate and show detailed error messages
+    const validationErrors = this.getRiskConfigValidationErrors();
+    if (validationErrors.length > 0) {
+      const errorMessage = 'Kérlek javítsd ki a következő hibákat:\n\n' + validationErrors.join('\n');
+      this.showError('Érvénytelen beállítások', errorMessage);
       return;
     }
 
@@ -320,12 +333,58 @@ export class SettingsComponent implements OnInit {
   }
 
   isRiskConfigValid(): boolean {
-    return this.riskConfig.max_daily_trades >= 1 && 
-           this.riskConfig.max_daily_trades <= 100 &&
-           this.riskConfig.daily_loss_limit >= 0.1 && 
-           this.riskConfig.daily_loss_limit <= 50 &&
-           this.riskConfig.max_position_size >= 0.1 && 
-           this.riskConfig.max_position_size <= 20;
+    // Check if all required fields have valid values
+    const maxDailyTrades = this.riskConfig.max_daily_trades;
+    const dailyLossLimit = this.riskConfig.daily_loss_limit;
+    const maxPositionSize = this.riskConfig.max_position_size;
+    
+    return !!(maxDailyTrades && maxDailyTrades >= 1 && maxDailyTrades <= 100) &&
+           !!(dailyLossLimit && dailyLossLimit >= 0.1 && dailyLossLimit <= 50) &&
+           !!(maxPositionSize && maxPositionSize >= 0.1 && maxPositionSize <= 20);
+  }
+
+  getRiskConfigValidationErrors(): string[] {
+    const errors: string[] = [];
+    
+    // Check max daily trades
+    const maxDailyTrades = this.riskConfig.max_daily_trades;
+    if (!maxDailyTrades || maxDailyTrades < 1 || maxDailyTrades > 100) {
+      errors.push('• Napi Trade Limit: 1 és 100 között kell lennie (jelenleg: ' + (maxDailyTrades || 'nincs megadva') + ')');
+    }
+    
+    // Check daily loss limit
+    const dailyLossLimit = this.riskConfig.daily_loss_limit;
+    if (!dailyLossLimit || dailyLossLimit < 0.1 || dailyLossLimit > 50) {
+      errors.push('• Napi Veszteség Limit: 0.1% és 50% között kell lennie (jelenleg: ' + (dailyLossLimit || 'nincs megadva') + '%)');
+    }
+    
+    // Check max position size
+    const maxPositionSize = this.riskConfig.max_position_size;
+    if (!maxPositionSize || maxPositionSize < 0.1 || maxPositionSize > 20) {
+      errors.push('• Maximum Pozíció Méret: 0.1% és 20% között kell lennie (jelenleg: ' + (maxPositionSize || 'nincs megadva') + '%)');
+    }
+    
+    return errors;
+  }
+
+  getPositionConfigValidationErrors(): string[] {
+    const errors: string[] = [];
+    
+    if (this.positionSizeConfig.mode === 'percentage') {
+      const maxPercentage = this.positionSizeConfig.max_percentage;
+      if (!maxPercentage || maxPercentage < 0.1 || maxPercentage > 10) {
+        errors.push('• Maximum Százalék: 0.1% és 10% között kell lennie (jelenleg: ' + (maxPercentage || 'nincs megadva') + '%)');
+      }
+    } else if (this.positionSizeConfig.mode === 'fixed_usd') {
+      const fixedAmount = this.positionSizeConfig.fixed_amount_usd;
+      if (!fixedAmount || fixedAmount < 1 || fixedAmount > 10000) {
+        errors.push('• Fix USD Összeg: $1 és $10,000 között kell lennie (jelenleg: $' + (fixedAmount || 'nincs megadva') + ')');
+      }
+    } else {
+      errors.push('• Pozíció méret mód: Válassz egy érvényes módot (százalékos vagy fix USD)');
+    }
+    
+    return errors;
   }
 
   calculateExampleAmount(): number {
