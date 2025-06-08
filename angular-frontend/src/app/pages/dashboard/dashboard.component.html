@@ -337,6 +337,53 @@
                 </div>
               </div>
             </div>
+
+            <!-- Manual Trading Actions (only when auto-trading is disabled) -->
+            <div *ngIf="!autoTradingEnabled" class="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+              <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-2">🎯 Manuális Kereskedés</h4>
+              <div class="flex space-x-1">
+                <!-- Manual Trading Button -->
+                <p-button
+                  *ngIf="selectedSignal.signal === 'BUY'"
+                  label="🚀 BUY"
+                  icon="pi pi-arrow-up"
+                  severity="success"
+                  size="small"
+                  (onClick)="executeManualTrade(selectedSignal)"
+                  class="flex-1"
+                  [loading]="loading"
+                ></p-button>
+                <p-button
+                  *ngIf="selectedSignal.signal === 'SELL'"
+                  label="📉 SELL"
+                  icon="pi pi-arrow-down"
+                  severity="danger"
+                  size="small"
+                  (onClick)="executeManualTrade(selectedSignal)"
+                  class="flex-1"
+                  [loading]="loading"
+                ></p-button>
+                
+                <!-- Chart Button -->
+                <p-button
+                  label="📊"
+                  icon="pi pi-chart-line"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="showChart(selectedSignal)"
+                  [outlined]="true"
+                  pTooltip="Chart megjelenítése"
+                ></p-button>
+              </div>
+            </div>
+
+            <!-- Auto Trading Info (when auto-trading is enabled) -->
+            <div *ngIf="autoTradingEnabled" class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-700">
+              <div class="flex items-center text-green-800 dark:text-green-200 text-xs">
+                <i class="pi pi-check-circle mr-1"></i>
+                <span>Automatikus kereskedés aktív</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -545,63 +592,6 @@
               </div>
             </div>
 
-            <!-- Trading Actions -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-              <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-2">🤖 Automatikus Kereskedés</h4>
-              <div class="space-y-1">
-                <!-- Main Trading Button -->
-                <p-button
-                  *ngIf="selectedSignal.signal === 'BUY'"
-                  label="🚀 AUTO BUY"
-                  icon="pi pi-arrow-up"
-                  severity="success"
-                  size="small"
-                  (onClick)="executeTrade('BUY', selectedSignal)"
-                  class="w-full"
-                  [loading]="loading"
-                ></p-button>
-                <p-button
-                  *ngIf="selectedSignal.signal === 'SELL'"
-                  label="📉 AUTO SELL"
-                  icon="pi pi-arrow-down"
-                  severity="danger"
-                  size="small"
-                  (onClick)="executeTrade('SELL', selectedSignal)"
-                  class="w-full"
-                  [loading]="loading"
-                ></p-button>
-                
-                <!-- Quick Trade Button -->
-                <p-button
-                  label="⚡ Gyors Kereskedés"
-                  icon="pi pi-bolt"
-                  severity="secondary"
-                  size="small"
-                  (onClick)="quickTrade(selectedSignal)"
-                  class="w-full"
-                  [outlined]="true"
-                ></p-button>
-                
-                <!-- Chart Button -->
-                <p-button
-                  label="📊 Chart Megjelenítése"
-                  icon="pi pi-chart-line"
-                  severity="secondary"
-                  size="small"
-                  (onClick)="showChart(selectedSignal)"
-                  class="w-full"
-                  [outlined]="true"
-                ></p-button>
-              </div>
-              
-              <!-- Trading Info -->
-              <div class="mt-2 p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
-                <div class="flex items-center text-yellow-800 dark:text-yellow-200">
-                  <i class="pi pi-info-circle mr-1"></i>
-                  <span>Testnet mód: Valós pénz nem kerül felhasználásra</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
