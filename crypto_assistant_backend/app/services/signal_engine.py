@@ -226,6 +226,9 @@ async def get_current_signal(symbol: str, interval: str):
         decision_factors["volume_analysis"]["reasoning"] = f"Professional volume analysis: {volume_trend.lower()} volume ({current_volume/1000000:.1f}M)"
     
     # Support/Resistance analysis
+    close = latest["close"]
+    high = latest["high"]
+    low = latest["low"]
     price_position = (close - low) / (high - low) if high != low else 0.5
     if price_position > 0.8:
         signal_score += 1

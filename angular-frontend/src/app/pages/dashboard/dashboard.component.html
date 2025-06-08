@@ -345,14 +345,77 @@
           <!-- AI Analysis Content -->
           <div class="flex-1 p-2 overflow-auto">
             <!-- Loading State -->
-            <div *ngIf="loadingAIAnalysis" class="space-y-3">
+            <div *ngIf="loadingAIAnalysis || loadingAIML" class="space-y-3">
               <p-skeleton height="3rem"></p-skeleton>
               <p-skeleton height="4rem"></p-skeleton>
               <p-skeleton height="3rem"></p-skeleton>
             </div>
 
-            <!-- AI Analysis Content -->
-            <div *ngIf="!loadingAIAnalysis && selectedSignalAIAnalysis" class="space-y-2">
+            <!-- AI/ML Analysis Content -->
+            <div *ngIf="!loadingAIML && selectedSignalAIML" class="space-y-2">
+              <!-- AI Signal Overview -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-1 flex items-center">
+                  🤖 AI Signal
+                </h4>
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 dark:text-gray-400">AI Jel:</span>
+                    <p-tag
+                      [value]="selectedSignalAIML.ai_signal"
+                      [severity]="getAISignalSeverity(selectedSignalAIML.ai_signal)"
+                      class="text-xs">
+                    </p-tag>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 dark:text-gray-400">AI Bizalom:</span>
+                    <span class="font-medium" [class]="getAIConfidenceClass(selectedSignalAIML.ai_confidence)">
+                      {{ selectedSignalAIML.ai_confidence.toFixed(1) }}%
+                    </span>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 dark:text-gray-400">Piaci Rezsim:</span>
+                    <span class="font-medium flex items-center">
+                      <i [class]="getMarketRegimeIcon(selectedSignalAIML.market_regime)" class="mr-1"></i>
+                      {{ selectedSignalAIML.market_regime }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Risk Assessment -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-1">⚠️ Kockázat Értékelés</h4>
+                <div class="space-y-1">
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 dark:text-gray-400">Kockázati Pontszám:</span>
+                    <span class="font-medium" [class]="getRiskScoreClass(selectedSignalAIML.risk_score)">
+                      {{ selectedSignalAIML.risk_score.toFixed(0) }}/100
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-600 dark:text-gray-400">
+                    {{ formatProbabilities(selectedSignalAIML.probabilities) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Model Predictions -->
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-1">🧠 ML Modellek</h4>
+                <div class="space-y-1">
+                  <div *ngFor="let prediction of selectedSignalAIML.model_predictions | keyvalue" class="flex justify-between text-xs">
+                    <span class="text-gray-600 dark:text-gray-400">{{ prediction.key }}:</span>
+                    <span class="font-medium">{{ prediction.value }}</span>
+                  </div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    ML Elérhető: {{ selectedSignalAIML.ml_available ? 'Igen' : 'Nem' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Traditional AI Analysis Content -->
+            <div *ngIf="!loadingAIAnalysis && selectedSignalAIAnalysis && !selectedSignalAIML" class="space-y-2">
               <!-- Sentiment Analysis -->
               <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
                 <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-1">🧠 Sentiment</h4>
@@ -410,46 +473,73 @@
             </div>
 
             <!-- No AI Analysis Available -->
-            <div *ngIf="!loadingAIAnalysis && !selectedSignalAIAnalysis" class="text-center py-8">
+            <div *ngIf="!loadingAIAnalysis && !loadingAIML && !selectedSignalAIAnalysis && !selectedSignalAIML" class="text-center py-8">
               <i class="pi pi-exclamation-triangle text-3xl text-gray-400 mb-2"></i>
-              <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">AI elemzés nem elérhető</p>
+              <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">AI/ML elemzés betöltése...</p>
               <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                <p>• Technikai indikátorok: RSI, MACD, Bollinger Bands</p>
-                <p>• Gyertyaminta elemzés</p>
-                <p>• Trend és momentum analízis</p>
+                <p>🤖 Machine Learning modellek</p>
+                <p>📊 Technikai indikátorok: RSI, MACD, Bollinger Bands</p>
+                <p>🕯️ Gyertyaminta elemzés</p>
+                <p>📈 Trend és momentum analízis</p>
+                <p>⚠️ Kockázat értékelés</p>
               </div>
             </div>
 
             <!-- Trading Actions -->
             <div class="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-              <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-2">Kereskedési Műveletek</h4>
+              <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-2">🤖 Automatikus Kereskedés</h4>
               <div class="space-y-1">
+                <!-- Main Trading Button -->
                 <p-button
                   *ngIf="selectedSignal.signal === 'BUY'"
-                  label="Vásárlás"
+                  label="🚀 AUTO BUY"
                   icon="pi pi-arrow-up"
                   severity="success"
                   size="small"
                   (onClick)="executeTrade('BUY', selectedSignal)"
                   class="w-full"
+                  [loading]="loading"
                 ></p-button>
                 <p-button
                   *ngIf="selectedSignal.signal === 'SELL'"
-                  label="Eladás"
+                  label="📉 AUTO SELL"
                   icon="pi pi-arrow-down"
                   severity="danger"
                   size="small"
                   (onClick)="executeTrade('SELL', selectedSignal)"
                   class="w-full"
+                  [loading]="loading"
                 ></p-button>
+                
+                <!-- Quick Trade Button -->
                 <p-button
-                  label="Chart megjelenítése"
+                  label="⚡ Gyors Kereskedés"
+                  icon="pi pi-bolt"
+                  severity="secondary"
+                  size="small"
+                  (onClick)="quickTrade(selectedSignal)"
+                  class="w-full"
+                  [outlined]="true"
+                ></p-button>
+                
+                <!-- Chart Button -->
+                <p-button
+                  label="📊 Chart Megjelenítése"
                   icon="pi pi-chart-line"
                   severity="secondary"
                   size="small"
                   (onClick)="showChart(selectedSignal)"
                   class="w-full"
+                  [outlined]="true"
                 ></p-button>
+              </div>
+              
+              <!-- Trading Info -->
+              <div class="mt-2 p-1 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
+                <div class="flex items-center text-yellow-800 dark:text-yellow-200">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  <span>Testnet mód: Valós pénz nem kerül felhasználásra</span>
+                </div>
               </div>
             </div>
           </div>

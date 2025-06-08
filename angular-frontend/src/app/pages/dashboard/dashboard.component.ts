@@ -25,6 +25,8 @@ import { WebSocketService } from '../../services/websocket.service';
 import { AIService, AIInsight } from '../../services/ai.service';
 import { TradingViewWidgetComponent } from '../../components/trading-view-widget/trading-view-widget.component';
 import { AiInsightsPanelComponent } from '../../components/ai-insights-panel/ai-insights-panel.component';
+import { TradingService } from '../../services/trading.service';
+import { AiMlService, AISignal } from '../../services/ai-ml.service';
 
 interface FilterOption {
   label: string;
@@ -70,7 +72,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   filteredSignals: Signal[] = [];
   selectedSignal: Signal | null = null;
   selectedSignalAIAnalysis: AIInsight | null = null;
+  selectedSignalAIML: AISignal | null = null;
   loadingAIAnalysis = false;
+  loadingAIML = false;
   
   // Chart modal
   showChartModal = false;
@@ -108,7 +112,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
     private webSocketService: WebSocketService,
-    private aiService: AIService
+    private aiService: AIService,
+    private tradingService: TradingService,
+    private aiMlService: AiMlService
   ) {}
 
   ngOnInit(): void {
@@ -230,6 +236,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Don't load AI analysis separately since decision factors are already in the signal
     this.loadingAIAnalysis = false;
     this.selectedSignalAIAnalysis = null;
+    
+    // Load AI/ML analysis for the selected signal
+    this.loadAIMLAnalysis(signal);
+  }
+
+  loadAIMLAnalysis(signal: Signal): void {
+    this.loadingAIML = true;
+    this.selectedSignalAIML = null;
+    
+    this.aiMlService.getAISignal(signal.symbol, '1h').subscribe({
+      next: (response) => {
+        this.loadingAIML = false;
+        if (response.success) {
+          this.selectedSignalAIML = response.data;
+        }
+      },
+      error: (error) => {
+        this.loadingAIML = false;
+        console.error('Error loading AI/ML analysis:', error);
+      }
+    });
   }
 
   // UI helper methods
@@ -295,17 +322,140 @@ export class DashboardComponent implements OnInit, OnDestroy {
   executeTrade(action: 'BUY' | 'SELL', signal: Signal): void {
     this.confirmationService.confirm({
       message: `Biztosan ${action === 'BUY' ? 'vásárolni' : 'eladni'} szeretnéd a ${signal.symbol}-t ${signal.entry_price} áron?`,
-      header: 'Kereskedés megerősítése',
+      header: 'Automatikus Kereskedés Megerősítése',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        // Here you would implement the actual trading logic
+        this.executeAutomaticTrade(signal);
+      }
+    });
+  }
+
+  executeAutomaticTrade(signal: Signal): void {
+    this.loading = true;
+    
+    this.tradingService.executeSignalTrade(signal).subscribe({
+      next: (result) => {
+        this.loading = false;
+        
+        if (result.success) {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Kereskedés Végrehajtva',
+            detail: `${signal.signal} pozíció megnyitva: ${signal.symbol} @ $${signal.entry_price}`,
+            life: 10000
+          });
+          
+          // Show trade details
+          if (result.data?.position_id) {
+            this.messageService.add({
+              severity: 'info',
+              summary: 'Pozíció Részletek',
+              detail: `Pozíció ID: ${result.data.position_id}, Várható profit: $${result.data.expected_profit?.toFixed(2) || 'N/A'}`,
+              life: 15000
+            });
+          }
+        } else {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'Kereskedés Sikertelen',
+            detail: result.data?.error || 'Ismeretlen hiba történt',
+            life: 10000
+          });
+        }
+      },
+      error: (error) => {
+        this.loading = false;
         this.messageService.add({
-          severity: 'success',
-          summary: 'Kereskedés végrehajtva',
-          detail: `${action} parancs elküldve: ${signal.symbol} @ $${signal.entry_price}`
+          severity: 'error',
+          summary: 'Kereskedési Hiba',
+          detail: 'Nem sikerült végrehajtani a kereskedést: ' + error.message,
+          life: 10000
         });
       }
     });
+  }
+
+  // Quick trade with current signal
+  quickTrade(signal: Signal): void {
+    this.confirmationService.confirm({
+      message: `Gyors kereskedés: ${signal.signal} ${signal.symbol} @ $${signal.entry_price}?\n\nEz azonnal végrehajtja a kereskedést a jelenlegi piaci áron.`,
+      header: 'Gyors Kereskedés',
+      icon: 'pi pi-bolt',
+      acceptLabel: 'Végrehajtás',
+      rejectLabel: 'Mégse',
+      accept: () => {
+        this.tradingService.executeTrade({
+          symbol: signal.symbol,
+          interval: '1h',
+          force_execute: true
+        }).subscribe({
+          next: (result) => {
+            if (result.success) {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Gyors Kereskedés Sikeres',
+                detail: `${result.data?.signal_used?.signal} pozíció megnyitva`,
+                life: 8000
+              });
+            } else {
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Gyors Kereskedés Sikertelen',
+                detail: result.data?.trade_result?.error || 'Hiba történt',
+                life: 8000
+              });
+            }
+          },
+          error: (error) => {
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Kereskedési Hiba',
+              detail: error.message,
+              life: 8000
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // AI/ML Helper Methods
+  getAISignalSeverity(aiSignal: string): 'success' | 'warning' | 'danger' | 'info' {
+    switch (aiSignal) {
+      case 'BUY': return 'success';
+      case 'SELL': return 'danger';
+      case 'HOLD': return 'warning';
+      default: return 'info';
+    }
+  }
+
+  getAIConfidenceClass(confidence: number): string {
+    if (confidence > 80) return 'text-green-600 dark:text-green-400';
+    if (confidence > 60) return 'text-blue-600 dark:text-blue-400';
+    if (confidence > 40) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
+  }
+
+  getRiskScoreClass(riskScore: number): string {
+    if (riskScore > 80) return 'text-red-600 dark:text-red-400';
+    if (riskScore > 60) return 'text-orange-600 dark:text-orange-400';
+    if (riskScore > 40) return 'text-yellow-600 dark:text-yellow-400';
+    if (riskScore > 20) return 'text-green-600 dark:text-green-400';
+    return 'text-blue-600 dark:text-blue-400';
+  }
+
+  getMarketRegimeIcon(regime: string): string {
+    switch (regime) {
+      case 'TRENDING': return 'pi pi-arrow-up-right';
+      case 'RANGING': return 'pi pi-arrows-h';
+      case 'VOLATILE': return 'pi pi-exclamation-triangle';
+      default: return 'pi pi-question-circle';
+    }
+  }
+
+  formatProbabilities(probabilities: any): string {
+    if (!probabilities) return 'N/A';
+    return `BUY: ${(probabilities.buy * 100).toFixed(1)}%, SELL: ${(probabilities.sell * 100).toFixed(1)}%, HOLD: ${(probabilities.hold * 100).toFixed(1)}%`;
   }
 
 

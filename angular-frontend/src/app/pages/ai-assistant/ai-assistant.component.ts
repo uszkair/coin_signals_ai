@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AiChatComponent } from '../../components/ai-chat/ai-chat.component';
-import { AiInsightsPanelComponent } from '../../components/ai-insights-panel/ai-insights-panel.component';
 import { SmartNotificationsComponent } from '../../components/smart-notifications/smart-notifications.component';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
@@ -18,7 +17,6 @@ import { DividerModule } from 'primeng/divider';
     RouterModule,
     FormsModule,
     AiChatComponent,
-    AiInsightsPanelComponent,
     SmartNotificationsComponent,
     CardModule,
     ButtonModule,
