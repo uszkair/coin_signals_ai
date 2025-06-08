@@ -308,8 +308,8 @@ async def update_position_size_config(config: PositionSizeConfig):
         # Update configuration in database
         update_data = {
             'mode': config.mode,
-            'max_position_size': config.max_percentage,
-            'default_position_size_usd': config.fixed_amount_usd
+            'max_percentage': config.max_percentage,  # Use the correct key for the service
+            'fixed_amount_usd': config.fixed_amount_usd
         }
         
         await trading_settings_service.update_position_size_settings(update_data)
