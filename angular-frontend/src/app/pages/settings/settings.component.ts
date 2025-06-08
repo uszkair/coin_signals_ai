@@ -31,8 +31,7 @@ import { TradingService, PositionSizeConfig } from '../../services/trading.servi
     TabViewModule
   ],
   providers: [MessageService],
-  templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+  templateUrl: './settings.component.html'
 })
 export class SettingsComponent implements OnInit {
   // Position Size Configuration

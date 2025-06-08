@@ -4,11 +4,6 @@
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Trading Signals Dashboard</h1>
       <div class="flex items-center space-x-4">
-        <!-- Auto-trading toggle -->
-        <div class="flex items-center">
-          <p-inputSwitch [(ngModel)]="autoTradingEnabled" (onChange)="toggleAutoTrading()"></p-inputSwitch>
-          <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">Auto-kereskedés</span>
-        </div>
         <!-- Auto-refresh toggle -->
         <div class="flex items-center">
           <p-inputSwitch [(ngModel)]="autoRefresh" (onChange)="toggleAutoRefresh()"></p-inputSwitch>
