@@ -409,6 +409,196 @@
       </p-card>
     </p-tabPanel>
 
+    <!-- Trading Environment Tab -->
+    <p-tabPanel header="Kereskedési Környezet" leftIcon="pi pi-globe">
+      <p-card header="Testnet vs Éles Kereskedés" styleClass="mb-4">
+        <div class="grid">
+          <div class="col-12">
+            <div class="field">
+              <label class="text-lg font-semibold mb-3 block">Kereskedési Környezet</label>
+              
+              <div class="flex flex-column gap-4">
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="environment"
+                    [value]="true"
+                    [(ngModel)]="useTestnet"
+                    inputId="testnet"
+                    (onClick)="onEnvironmentChange()">
+                  </p-radioButton>
+                  <label for="testnet" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">🧪 Testnet (Teszt Környezet)</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Fake pénzzel történő kereskedés teszteléshez. Biztonságos, nincs valós pénzügyi kockázat.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="environment"
+                    [value]="false"
+                    [(ngModel)]="useTestnet"
+                    inputId="mainnet"
+                    (onClick)="onEnvironmentChange()">
+                  </p-radioButton>
+                  <label for="mainnet" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">💰 Mainnet (Éles Környezet)</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Valós pénzzel történő kereskedés az éles Binance számládon. Valós pénzügyi kockázat!
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Environment Status -->
+          <div class="col-12">
+            <div class="bg-gray-50 border-round p-4">
+              <h4 class="text-900 font-semibold mb-3">
+                <i class="pi pi-info-circle mr-2"></i>Jelenlegi Környezet
+              </h4>
+              <div class="grid">
+                <div class="col-12 md:col-6">
+                  <div class="text-center p-3 border-round"
+                       [class]="useTestnet ? 'bg-blue-100 border-blue-200' : 'bg-red-100 border-red-200'">
+                    <div class="text-2xl mb-2">
+                      {{ useTestnet ? '🧪' : '💰' }}
+                    </div>
+                    <div class="font-bold text-lg"
+                         [class]="useTestnet ? 'text-blue-700' : 'text-red-700'">
+                      {{ useTestnet ? 'TESTNET' : 'MAINNET' }}
+                    </div>
+                    <div class="text-sm text-600 mt-1">
+                      {{ useTestnet ? 'Fake pénz - Biztonságos teszt' : 'Valós pénz - Éles kereskedés' }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-6">
+                  <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">Pénz típusa:</span>
+                      <span class="font-medium" [class]="useTestnet ? 'text-blue-600' : 'text-red-600'">
+                        {{ useTestnet ? 'Fake (teszt)' : 'Valós' }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">Kockázat:</span>
+                      <span class="font-medium" [class]="useTestnet ? 'text-green-600' : 'text-red-600'">
+                        {{ useTestnet ? 'Nincs' : 'Magas' }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">API kapcsolat:</span>
+                      <span class="font-medium" [class]="currentEnvironment?.api_connected ? 'text-green-600' : 'text-red-600'">
+                        {{ currentEnvironment?.api_connected ? 'Kapcsolódva' : 'Nincs kapcsolat' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Environment Warning -->
+          <div class="col-12" *ngIf="!useTestnet">
+            <div class="bg-red-50 border-left-3 border-red-500 p-3">
+              <div class="text-red-900">
+                <i class="pi pi-exclamation-triangle mr-2"></i>
+                <strong>FIGYELMEZTETÉS - ÉLES KERESKEDÉS:</strong>
+              </div>
+              <div class="text-red-800 mt-2 text-sm">
+                Az éles környezetben valós pénzzel kereskedsz!<br>
+                Győződj meg róla, hogy:
+                <ul class="mt-2 ml-4">
+                  <li>• A Binance API kulcsok helyesen vannak beállítva</li>
+                  <li>• A pozíció méret és kockázatkezelési beállítások megfelelőek</li>
+                  <li>• Elegendő egyenleg van a számlán a minimum kereskedési értékekhez</li>
+                  <li>• Rendszeresen ellenőrzöd a kereskedési eredményeket</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testnet Info -->
+          <div class="col-12" *ngIf="useTestnet">
+            <div class="bg-blue-50 border-left-3 border-blue-500 p-3">
+              <div class="text-blue-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>TESTNET MÓD:</strong>
+              </div>
+              <div class="text-blue-800 mt-2 text-sm">
+                Teszt környezetben vagy, fake pénzzel kereskedsz.<br>
+                Előnyök:
+                <ul class="mt-2 ml-4">
+                  <li>• Nincs valós pénzügyi kockázat</li>
+                  <li>• Tesztelheted a stratégiákat és beállításokat</li>
+                  <li>• Gyakorolhatod a rendszer használatát</li>
+                  <li>• Unlimited fake egyenleg a teszteléshez</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Minimum Requirements Info -->
+          <div class="col-12" *ngIf="minimumRequirements">
+            <div class="bg-yellow-50 border-left-3 border-yellow-500 p-3">
+              <div class="text-yellow-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>BINANCE MINIMUM KÖVETELMÉNYEK:</strong>
+              </div>
+              <div class="text-yellow-800 mt-2 text-sm">
+                <div class="grid">
+                  <div class="col-12 md:col-6">
+                    <strong>Minimum kereskedési értékek:</strong>
+                    <ul class="mt-1 ml-4">
+                      <li>• BTCUSDT, ETHUSDT, BNBUSDT: $10</li>
+                      <li>• ADAUSDT: $5</li>
+                      <li>• SOLUSDT, DOTUSDT: $10</li>
+                    </ul>
+                  </div>
+                  <div class="col-12 md:col-6">
+                    <strong>Jelenlegi beállítás:</strong>
+                    <div class="mt-1">
+                      Position size: <strong>${{ minimumRequirements.current_position_size || 'Nincs beállítva' }}</strong><br>
+                      Wallet egyenleg: <strong>${{ minimumRequirements.current_wallet_balance | number:'1.2-2' }}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end gap-2">
+              <p-button
+                label="Minimum Követelmények"
+                icon="pi pi-info-circle"
+                severity="secondary"
+                [loading]="loadingMinimumReqs"
+                (onClick)="loadMinimumRequirements()">
+              </p-button>
+              <p-button
+                label="Környezet Váltása"
+                icon="pi pi-refresh"
+                [loading]="savingEnvironment"
+                (onClick)="saveEnvironmentChange()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
     <!-- Current Settings Tab -->
     <p-tabPanel header="Jelenlegi Beállítások" leftIcon="pi pi-eye">
       <div class="grid">

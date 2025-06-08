@@ -28,6 +28,13 @@ export interface PositionSizeConfig {
   max_percentage?: number;
 }
 
+export interface TradingEnvironment {
+  testnet: boolean;
+  environment: string;
+  description: string;
+  api_connected: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -173,5 +180,25 @@ export class TradingService {
 
   updatePositionSizeConfig(config: PositionSizeConfig): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/position-size-config`, config);
+  }
+
+  // Trading Environment (Testnet/Mainnet)
+  getTradingEnvironment(): Observable<{ success: boolean; data: TradingEnvironment }> {
+    return this.http.get<{ success: boolean; data: TradingEnvironment }>(`${this.baseUrl}/environment`);
+  }
+
+  switchTradingEnvironment(useTestnet: boolean): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.baseUrl}/switch-environment`, {
+      use_testnet: useTestnet
+    });
+  }
+
+  getMinimumRequirements(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.baseUrl}/minimum-requirements`);
+  }
+
+  // Position Size Validation
+  validatePositionSizeConfig(config: PositionSizeConfig): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.baseUrl}/validate-position-size`, config);
   }
 }

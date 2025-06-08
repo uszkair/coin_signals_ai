@@ -13,7 +13,9 @@ from app.services.binance_trading import (
     close_trading_position,
     binance_trader,
     get_binance_trade_history,
-    get_binance_order_history
+    get_binance_order_history,
+    switch_trading_environment,
+    get_trading_environment_info
 )
 from app.services.signal_engine import get_current_signal
 
@@ -323,6 +325,60 @@ async def get_position_size_config():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/validate-position-size")
+async def validate_position_size_config(config: PositionSizeConfig):
+    """Validate position size configuration before saving"""
+    try:
+        # Get current wallet balance
+        account_info = await binance_trader.get_account_info()
+        total_balance = account_info.get('total_wallet_balance', 0)
+        
+        # Calculate what the position size would be
+        if config.mode == 'percentage' and config.max_percentage:
+            calculated_size = total_balance * (config.max_percentage / 100)
+            
+            # Check if we're in mainnet mode and if position size is too small
+            if not binance_trader.testnet:  # Only validate in mainnet mode
+                # Get minimum requirements for common symbols
+                symbols_to_check = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
+                validation_errors = []
+                
+                for symbol in symbols_to_check:
+                    min_required = binance_trader._get_minimum_position_size(symbol)
+                    if calculated_size < min_required:
+                        validation_errors.append({
+                            'symbol': symbol,
+                            'calculated_size': calculated_size,
+                            'minimum_required': min_required
+                        })
+                
+                if validation_errors:
+                    return {
+                        "success": False,
+                        "error": "Position size too small for mainnet trading",
+                        "details": {
+                            "wallet_balance": total_balance,
+                            "calculated_position_size": calculated_size,
+                            "percentage": config.max_percentage,
+                            "validation_errors": validation_errors,
+                            "recommendation": f"Increase wallet balance to at least ${max(err['minimum_required'] for err in validation_errors) / (config.max_percentage / 100):.2f} or use fixed USD mode with at least ${max(err['minimum_required'] for err in validation_errors):.2f}"
+                        }
+                    }
+        
+        return {
+            "success": True,
+            "message": "Position size configuration is valid",
+            "data": {
+                "wallet_balance": total_balance,
+                "calculated_position_size": calculated_size if config.mode == 'percentage' else config.fixed_amount_usd,
+                "testnet": binance_trader.testnet
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/test-connection")
 async def test_binance_connection():
     """Test Binance API connection"""
@@ -554,6 +610,103 @@ async def get_wallet_balance():
                 "account_type": account_info.get('account_type'),
                 "can_trade": account_info.get('can_trade'),
                 "testnet": binance_trader.testnet
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class TradingEnvironmentRequest(BaseModel):
+    use_testnet: bool
+
+
+@router.post("/switch-environment")
+async def switch_trading_environment_endpoint(request: TradingEnvironmentRequest):
+    """
+    Switch between testnet (fake money) and mainnet (real money) trading environments
+    
+    Args:
+        use_testnet: True for testnet (fake money), False for mainnet (real money)
+    """
+    try:
+        result = switch_trading_environment(request.use_testnet)
+        
+        return {
+            "success": True,
+            "data": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/environment")
+async def get_trading_environment():
+    """Get current trading environment information (testnet vs mainnet)"""
+    try:
+        environment_info = get_trading_environment_info()
+        
+        return {
+            "success": True,
+            "data": environment_info
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/minimum-requirements")
+async def get_minimum_trading_requirements():
+    """Get Binance minimum trading requirements for each symbol"""
+    try:
+        # Binance minimum trading requirements (approximate values)
+        requirements = {
+            "BTCUSDT": {
+                "min_notional": 10.0,
+                "min_qty": 0.00001,
+                "step_size": 0.00001,
+                "description": "Minimum $10 trade value"
+            },
+            "ETHUSDT": {
+                "min_notional": 10.0,
+                "min_qty": 0.0001,
+                "step_size": 0.0001,
+                "description": "Minimum $10 trade value"
+            },
+            "BNBUSDT": {
+                "min_notional": 10.0,
+                "min_qty": 0.001,
+                "step_size": 0.001,
+                "description": "Minimum $10 trade value"
+            },
+            "ADAUSDT": {
+                "min_notional": 5.0,
+                "min_qty": 0.1,
+                "step_size": 0.1,
+                "description": "Minimum $5 trade value"
+            },
+            "SOLUSDT": {
+                "min_notional": 10.0,
+                "min_qty": 0.001,
+                "step_size": 0.001,
+                "description": "Minimum $10 trade value"
+            },
+            "DOTUSDT": {
+                "min_notional": 10.0,
+                "min_qty": 0.01,
+                "step_size": 0.01,
+                "description": "Minimum $10 trade value"
+            }
+        }
+        
+        return {
+            "success": True,
+            "data": {
+                "requirements": requirements,
+                "current_position_size": binance_trader.default_position_size_usd if binance_trader.position_size_mode == 'fixed_usd' else None,
+                "current_wallet_balance": (await binance_trader.get_account_info()).get('total_wallet_balance', 0),
+                "recommendation": "Use fixed position size of at least $15 USD to meet all minimum requirements"
             }
         }
         

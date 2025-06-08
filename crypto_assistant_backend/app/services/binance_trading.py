@@ -323,10 +323,35 @@ class BinanceTrader:
         # Adjust based on confidence (optional)
         if self.position_size_mode == 'percentage':
             confidence_multiplier = min(confidence / 100, 1.0)
-            return base_size * confidence_multiplier
+            calculated_size = base_size * confidence_multiplier
+            
+            # VALIDATION: Check minimum requirements in mainnet mode
+            if not self.testnet:  # Mainnet mode - enforce Binance minimums
+                min_required = self._get_minimum_position_size(symbol)
+                if calculated_size < min_required:
+                    error_msg = f"Position size ${calculated_size:.2f} is below Binance minimum ${min_required:.2f} for {symbol}. Please increase wallet balance or use fixed USD mode with at least ${min_required:.2f}."
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+            
+            return calculated_size
         else:
             # For fixed USD mode, don't adjust by confidence
             return base_size
+    
+    def _get_minimum_position_size(self, symbol: str) -> float:
+        """Get minimum position size for symbol based on Binance requirements"""
+        # Binance minimum trading requirements
+        minimums = {
+            'BTCUSDT': 10.0,
+            'ETHUSDT': 10.0,
+            'BNBUSDT': 10.0,
+            'ADAUSDT': 5.0,
+            'SOLUSDT': 10.0,
+            'DOTUSDT': 10.0
+        }
+        
+        # Default to $15 for unknown symbols to be safe
+        return minimums.get(symbol, 15.0)
     
     def set_position_size_config(self, mode: str, amount: float = None, max_percentage: float = None):
         """
@@ -590,8 +615,56 @@ class BinanceTrader:
         }
 
 
-# Global trader instance
+# Global trader instance - default to mainnet
 binance_trader = BinanceTrader(testnet=False)  # Use mainnet for real wallet data
+
+# Function to switch between testnet and mainnet
+def switch_trading_environment(use_testnet: bool = True):
+    """
+    Switch between testnet and mainnet trading environments
+    
+    Args:
+        use_testnet: True for testnet (fake money), False for mainnet (real money)
+    """
+    global binance_trader
+    
+    # Get current configuration
+    current_config = {
+        'max_position_size': binance_trader.max_position_size,
+        'max_daily_trades': binance_trader.max_daily_trades,
+        'daily_loss_limit': binance_trader.daily_loss_limit,
+        'position_size_mode': binance_trader.position_size_mode,
+        'default_position_size_usd': binance_trader.default_position_size_usd
+    }
+    
+    # Create new trader instance with new environment
+    binance_trader = BinanceTrader(testnet=use_testnet)
+    
+    # Restore configuration
+    binance_trader.max_position_size = current_config['max_position_size']
+    binance_trader.max_daily_trades = current_config['max_daily_trades']
+    binance_trader.daily_loss_limit = current_config['daily_loss_limit']
+    binance_trader.position_size_mode = current_config['position_size_mode']
+    binance_trader.default_position_size_usd = current_config['default_position_size_usd']
+    
+    logger.info(f"Switched to {'testnet' if use_testnet else 'mainnet'} trading environment")
+    
+    return {
+        'success': True,
+        'environment': 'testnet' if use_testnet else 'mainnet',
+        'testnet': use_testnet,
+        'message': f"Trading environment switched to {'testnet (fake money)' if use_testnet else 'mainnet (real money)'}"
+    }
+
+
+def get_trading_environment_info():
+    """Get current trading environment information"""
+    return {
+        'testnet': binance_trader.testnet,
+        'environment': 'testnet' if binance_trader.testnet else 'mainnet',
+        'description': 'Fake money for testing' if binance_trader.testnet else 'Real money trading',
+        'api_connected': binance_trader.client is not None
+    }
 
 
 async def execute_automatic_trade(signal: Dict[str, Any], position_size_usd: float = None) -> Dict[str, Any]:

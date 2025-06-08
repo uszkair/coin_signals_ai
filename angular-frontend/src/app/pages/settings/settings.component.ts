@@ -13,7 +13,7 @@ import { DividerModule } from 'primeng/divider';
 import { TabViewModule } from 'primeng/tabview';
 import { MessageService } from 'primeng/api';
 
-import { TradingService, PositionSizeConfig } from '../../services/trading.service';
+import { TradingService, PositionSizeConfig, TradingEnvironment } from '../../services/trading.service';
 
 @Component({
   selector: 'app-settings',
@@ -56,12 +56,19 @@ export class SettingsComponent implements OnInit {
   currentTradingConfig: any = null;
   walletBalance: number = 0;
 
+  // Trading Environment Configuration
+  useTestnet: boolean = false;
+  currentEnvironment: TradingEnvironment | null = null;
+  minimumRequirements: any = null;
+
   // Loading states
   loadingPosition = false;
   loadingRisk = false;
   savingPosition = false;
   savingRisk = false;
   savingTradingMode = false;
+  savingEnvironment = false;
+  loadingMinimumReqs = false;
 
   constructor(
     private tradingService: TradingService,
@@ -72,6 +79,7 @@ export class SettingsComponent implements OnInit {
     this.loadAllConfigs();
     this.loadWalletBalance();
     this.loadTradingMode();
+    this.loadTradingEnvironment();
   }
 
   loadAllConfigs(): void {
@@ -190,19 +198,58 @@ export class SettingsComponent implements OnInit {
 
     this.savingPosition = true;
 
-    this.tradingService.updatePositionSizeConfig(this.positionSizeConfig).subscribe({
-      next: (response) => {
-        this.savingPosition = false;
-        if (response.success) {
-          this.currentPositionConfig = response.data;
-          this.showSuccess('Pozíció méret beállítások mentve', 'A beállítások sikeresen frissítve');
-        } else {
-          this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
+    // First validate the configuration
+    this.tradingService.validatePositionSizeConfig(this.positionSizeConfig).subscribe({
+      next: (validationResponse) => {
+        if (!validationResponse.success) {
+          this.savingPosition = false;
+          
+          // Show detailed validation error
+          const details = (validationResponse as any).details;
+          let errorMessage = validationResponse.error || 'Position size konfiguráció érvénytelen';
+          
+          if (details) {
+            errorMessage += `\n\nRészletek:`;
+            errorMessage += `\nWallet egyenleg: $${details.wallet_balance?.toFixed(2)}`;
+            errorMessage += `\nSzámított position size: $${details.calculated_position_size?.toFixed(2)}`;
+            errorMessage += `\nSzázalék: ${details.percentage}%`;
+            
+            if (details.validation_errors?.length > 0) {
+              errorMessage += `\n\nMinimum követelmények:`;
+              details.validation_errors.forEach((err: any) => {
+                errorMessage += `\n• ${err.symbol}: minimum $${err.minimum_required}`;
+              });
+            }
+            
+            if (details.recommendation) {
+              errorMessage += `\n\nJavaslat: ${details.recommendation}`;
+            }
+          }
+          
+          this.showError('Érvénytelen konfiguráció', errorMessage);
+          return;
         }
+        
+        // If validation passes, save the configuration
+        this.tradingService.updatePositionSizeConfig(this.positionSizeConfig).subscribe({
+          next: (response) => {
+            this.savingPosition = false;
+            if (response.success) {
+              this.currentPositionConfig = response.data;
+              this.showSuccess('Pozíció méret beállítások mentve', 'A beállítások sikeresen frissítve');
+            } else {
+              this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
+            }
+          },
+          error: (error) => {
+            this.savingPosition = false;
+            this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+          }
+        });
       },
       error: (error) => {
         this.savingPosition = false;
-        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+        this.showError('Validációs hiba', 'Nem sikerült ellenőrizni a beállításokat: ' + error.message);
       }
     });
   }
@@ -320,6 +367,77 @@ export class SettingsComponent implements OnInit {
       summary,
       detail,
       life: 5000
+    });
+  }
+
+  // Trading Environment Methods
+  loadTradingEnvironment(): void {
+    this.tradingService.getTradingEnvironment().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.currentEnvironment = response.data;
+          this.useTestnet = response.data.testnet;
+        }
+      },
+      error: (error) => {
+        console.warn('Could not load trading environment:', error);
+        // Default to mainnet if loading fails
+        this.useTestnet = false;
+      }
+    });
+  }
+
+  onEnvironmentChange(): void {
+    // This method is called when the radio button selection changes
+    // The actual saving happens when the user clicks the save button
+    console.log('Environment changed to:', this.useTestnet ? 'testnet' : 'mainnet');
+  }
+
+  saveEnvironmentChange(): void {
+    this.savingEnvironment = true;
+
+    this.tradingService.switchTradingEnvironment(this.useTestnet).subscribe({
+      next: (response) => {
+        this.savingEnvironment = false;
+        if (response.success) {
+          this.currentEnvironment = response.data;
+          this.showSuccess(
+            'Kereskedési környezet váltva',
+            `${this.useTestnet ? 'Testnet (fake pénz)' : 'Mainnet (valós pénz)'} környezet beállítva`
+          );
+          // Reload wallet balance after environment change
+          this.loadWalletBalance();
+        } else {
+          this.showError('Váltási hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.savingEnvironment = false;
+        this.showError('Hálózati hiba', 'Nem sikerült váltani a környezetet: ' + error.message);
+      }
+    });
+  }
+
+  loadMinimumRequirements(): void {
+    this.loadingMinimumReqs = true;
+
+    this.tradingService.getMinimumRequirements().subscribe({
+      next: (response) => {
+        this.loadingMinimumReqs = false;
+        if (response.success) {
+          this.minimumRequirements = response.data;
+          this.showSuccess(
+            'Minimum követelmények betöltve',
+            'A Binance minimum kereskedési követelmények frissítve'
+          );
+        } else {
+          this.showError('Betöltési hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.loadingMinimumReqs = false;
+        this.showError('Hálózati hiba', 'Nem sikerült betölteni a követelményeket: ' + error.message);
+      }
     });
   }
 }
