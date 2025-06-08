@@ -40,11 +40,8 @@ class BinanceTrader:
             testnet: Use testnet for safe testing (default: from database)
             use_futures: Use Futures API instead of Spot (default: True for trading)
         """
-        self.api_key = api_key or os.environ.get("BINANCE_API_KEY")
-        self.api_secret = api_secret or os.environ.get("BINANCE_API_SECRET")
-        
         # Get settings from database if not explicitly provided
-        if testnet is None or use_futures is None:
+        if testnet is None:
             try:
                 # Import here to avoid circular imports
                 import asyncio
@@ -53,24 +50,53 @@ class BinanceTrader:
                 # Get settings from database
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # If we're already in an async context, we can't use asyncio.run
-                    # Use default values and let the settings be updated later
+                    # If we're already in an async context, use default
                     db_testnet = True
-                    db_use_futures = True
                 else:
                     risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
                     db_testnet = risk_settings.get('testnet_mode', True)
-                    db_use_futures = True  # Always use futures for trading
                 
-                self.testnet = testnet if testnet is not None else db_testnet
-                self.use_futures = use_futures if use_futures is not None else db_use_futures
+                testnet = db_testnet
                 
             except Exception as e:
-                logger.warning(f"Could not get database settings, using defaults: {e}")
-                self.testnet = testnet if testnet is not None else True
-                self.use_futures = use_futures if use_futures is not None else True
+                logger.warning(f"Could not get database settings, using testnet=True: {e}")
+                testnet = True
+        
+        # Set API credentials based on testnet mode
+        if testnet:
+            self.api_key = api_key or os.environ.get("BINANCE_TESTNET_API_KEY")
+            self.api_secret = api_secret or os.environ.get("BINANCE_TESTNET_API_SECRET")
         else:
-            self.testnet = testnet
+            self.api_key = api_key or os.environ.get("BINANCE_API_KEY")
+            self.api_secret = api_secret or os.environ.get("BINANCE_API_SECRET")
+        
+        # Set testnet and use_futures
+        self.testnet = testnet
+        if use_futures is None:
+            # For testnet, always use futures since spot testnet keys often don't work
+            if self.testnet:
+                self.use_futures = True
+                logger.info("Testnet mode: automatically using Futures API")
+            else:
+                try:
+                    # Import here to avoid circular imports
+                    import asyncio
+                    from app.services.trading_settings_service import trading_settings_service
+                    
+                    # Get settings from database
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        db_use_futures = True
+                    else:
+                        risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
+                        db_use_futures = True  # Always use futures for trading
+                    
+                    self.use_futures = db_use_futures
+                    
+                except Exception as e:
+                    logger.warning(f"Could not get database settings for futures, using default: {e}")
+                    self.use_futures = True
+        else:
             self.use_futures = use_futures
         
         # Get URLs from environment
@@ -138,15 +164,17 @@ class BinanceTrader:
             if self.use_futures:
                 # Futures account info
                 account = self.client.futures_account()
-                balances = {
-                    balance['asset']: {
-                        'free': float(balance['availableBalance']),
-                        'locked': float(balance['balance']) - float(balance['availableBalance']),
-                        'total': float(balance['balance'])
-                    }
-                    for balance in account['assets']
-                    if float(balance['balance']) > 0
-                }
+                balances = {}
+                
+                # Handle futures account assets properly
+                if 'assets' in account:
+                    for balance in account['assets']:
+                        if float(balance.get('walletBalance', 0)) > 0:
+                            balances[balance['asset']] = {
+                                'free': float(balance.get('availableBalance', 0)),
+                                'locked': float(balance.get('walletBalance', 0)) - float(balance.get('availableBalance', 0)),
+                                'total': float(balance.get('walletBalance', 0))
+                            }
                 
                 return {
                     'account_type': 'FUTURES',

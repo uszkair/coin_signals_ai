@@ -48,12 +48,18 @@ async def get_binance_config():
             'use_futures': False
         }
 
-# Környezeti változók betöltése
-BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY")
-BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET")
-
-# Default URL (will be updated by get_binance_config)
-BINANCE_BASE_URL = os.environ.get("BINANCE_SPOT_URL", "https://api.binance.com")
+def get_api_credentials(use_testnet=False):
+    """Get appropriate API credentials based on testnet mode"""
+    if use_testnet:
+        return {
+            'api_key': os.environ.get("BINANCE_TESTNET_API_KEY"),
+            'api_secret': os.environ.get("BINANCE_TESTNET_API_SECRET")
+        }
+    else:
+        return {
+            'api_key': os.environ.get("BINANCE_API_KEY"),
+            'api_secret': os.environ.get("BINANCE_API_SECRET")
+        }
 
 async def get_historical_data(symbol: str, interval: str, days: int):
     """
@@ -106,9 +112,11 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         "endTime": end_time
     }
 
+    # Get appropriate API credentials
+    credentials = get_api_credentials(config['use_testnet'])
     headers = {}
-    if BINANCE_API_KEY:
-        headers["X-MBX-APIKEY"] = BINANCE_API_KEY
+    if credentials['api_key']:
+        headers["X-MBX-APIKEY"] = credentials['api_key']
 
     try:
         async with httpx.AsyncClient() as client:
@@ -175,9 +183,11 @@ async def get_current_price(symbol: str):
         "symbol": symbol
     }
     
+    # Get appropriate API credentials
+    credentials = get_api_credentials(config['use_testnet'])
     headers = {}
-    if BINANCE_API_KEY:
-        headers["X-MBX-APIKEY"] = BINANCE_API_KEY
+    if credentials['api_key']:
+        headers["X-MBX-APIKEY"] = credentials['api_key']
     
     try:
         async with httpx.AsyncClient() as client:
