@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "ADAUSDT",
+    "SOLUSDT"
+  ],
+  "interval": 300,
+  "min_confidence": 70,
+  "last_updated": "2025-06-08T08:04:01.149276"
+}

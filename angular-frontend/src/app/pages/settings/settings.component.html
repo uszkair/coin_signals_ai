@@ -6,6 +6,137 @@
   </div>
 
   <p-tabView>
+    <!-- Auto Trading Tab -->
+    <p-tabPanel header="Auto-Trading" leftIcon="pi pi-cog">
+      <p-card header="Automatikus Kereskedés Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <div class="col-12">
+            <div class="field">
+              <label class="text-lg font-semibold mb-3 block">Kereskedési Mód</label>
+              
+              <div class="flex flex-column gap-4">
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="tradingMode"
+                    value="manual"
+                    [(ngModel)]="tradingMode"
+                    inputId="manual"
+                    (onClick)="onTradingModeChange()">
+                  </p-radioButton>
+                  <label for="manual" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">🎯 Manuális Kereskedés</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Minden kereskedést manuálisan kell jóváhagyni. Teljes kontroll a döntések felett.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="tradingMode"
+                    value="automatic"
+                    [(ngModel)]="tradingMode"
+                    inputId="automatic"
+                    (onClick)="onTradingModeChange()">
+                  </p-radioButton>
+                  <label for="automatic" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">🤖 Automatikus Kereskedés</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      A rendszer automatikusan végrehajtja a kereskedéseket a beállított paraméterek alapján.
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Auto Trading Status -->
+          <div class="col-12">
+            <div class="bg-gray-50 border-round p-4">
+              <h4 class="text-900 font-semibold mb-3">
+                <i class="pi pi-info-circle mr-2"></i>Jelenlegi Állapot
+              </h4>
+              <div class="grid">
+                <div class="col-12 md:col-6">
+                  <div class="text-center p-3 border-round"
+                       [class]="tradingMode === 'automatic' ? 'bg-green-100 border-green-200' : 'bg-orange-100 border-orange-200'">
+                    <div class="text-2xl mb-2">
+                      {{ tradingMode === 'automatic' ? '🤖' : '🎯' }}
+                    </div>
+                    <div class="font-bold text-lg"
+                         [class]="tradingMode === 'automatic' ? 'text-green-700' : 'text-orange-700'">
+                      {{ tradingMode === 'automatic' ? 'AUTOMATIKUS' : 'MANUÁLIS' }}
+                    </div>
+                    <div class="text-sm text-600 mt-1">
+                      {{ tradingMode === 'automatic' ? 'Kereskedés aktív' : 'Manuális jóváhagyás szükséges' }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-6">
+                  <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">Monitoring:</span>
+                      <span class="font-medium" [class]="tradingMode === 'automatic' ? 'text-green-600' : 'text-gray-600'">
+                        {{ tradingMode === 'automatic' ? '5 percenként' : 'Kikapcsolva' }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">Szignál végrehajtás:</span>
+                      <span class="font-medium" [class]="tradingMode === 'automatic' ? 'text-green-600' : 'text-orange-600'">
+                        {{ tradingMode === 'automatic' ? 'Automatikus' : 'Manuális' }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">Risk management:</span>
+                      <span class="font-medium text-blue-600">Mindig aktív</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Auto Trading Warning -->
+          <div class="col-12" *ngIf="tradingMode === 'automatic'">
+            <div class="bg-red-50 border-left-3 border-red-500 p-3">
+              <div class="text-red-900">
+                <i class="pi pi-exclamation-triangle mr-2"></i>
+                <strong>Figyelmeztetés:</strong>
+              </div>
+              <div class="text-red-800 mt-2 text-sm">
+                Az automatikus kereskedés valós pénzzel történik az éles Binance számládon!<br>
+                Győződj meg róla, hogy:
+                <ul class="mt-2 ml-4">
+                  <li>• A pozíció méret és kockázatkezelési beállítások megfelelőek</li>
+                  <li>• A Binance API kulcsok helyesen vannak beállítva</li>
+                  <li>• Rendszeresen ellenőrzöd a kereskedési eredményeket</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingTradingMode"
+                (onClick)="saveTradingMode()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
     <!-- Position Size Tab -->
     <p-tabPanel header="Pozíció Méret" leftIcon="pi pi-dollar">
       <p-card header="Pozíció Méret Beállítások" styleClass="mb-4">
@@ -16,12 +147,12 @@
               
               <div class="flex flex-column gap-3">
                 <div class="flex align-items-center">
-                  <p-radioButton 
-                    name="mode" 
-                    value="percentage" 
+                  <p-radioButton
+                    name="mode"
+                    value="percentage"
                     [(ngModel)]="positionSizeConfig.mode"
                     inputId="percentage"
-                    (onChange)="onPositionModeChange()">
+                    (onClick)="onPositionModeChange()">
                   </p-radioButton>
                   <label for="percentage" class="ml-2 cursor-pointer">
                     <strong>Százalékos</strong> - A portfólió százaléka alapján
@@ -29,12 +160,12 @@
                 </div>
                 
                 <div class="flex align-items-center">
-                  <p-radioButton 
-                    name="mode" 
-                    value="fixed_usd" 
+                  <p-radioButton
+                    name="mode"
+                    value="fixed_usd"
                     [(ngModel)]="positionSizeConfig.mode"
                     inputId="fixed_usd"
-                    (onChange)="onPositionModeChange()">
+                    (onClick)="onPositionModeChange()">
                   </p-radioButton>
                   <label for="fixed_usd" class="ml-2 cursor-pointer">
                     <strong>Fix USD összeg</strong> - Minden kereskedéshez ugyanaz az összeg

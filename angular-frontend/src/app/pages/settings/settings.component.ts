@@ -49,6 +49,9 @@ export class SettingsComponent implements OnInit {
     max_position_size: 2.0  // percentage
   };
 
+  // Trading mode configuration
+  tradingMode: 'manual' | 'automatic' = 'manual';
+
   // Current configurations from backend
   currentPositionConfig: any = null;
   currentTradingConfig: any = null;
@@ -59,6 +62,7 @@ export class SettingsComponent implements OnInit {
   loadingRisk = false;
   savingPosition = false;
   savingRisk = false;
+  savingTradingMode = false;
 
   constructor(
     private tradingService: TradingService,
@@ -68,6 +72,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     this.loadAllConfigs();
     this.loadWalletBalance();
+    this.loadTradingMode();
   }
 
   loadAllConfigs(): void {
@@ -128,6 +133,52 @@ export class SettingsComponent implements OnInit {
       },
       error: (error) => {
         console.warn('Could not load wallet balance:', error);
+      }
+    });
+  }
+
+  loadTradingMode(): void {
+    this.tradingService.getAutoTradingStatus().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.tradingMode = response.data.auto_trading_enabled ? 'automatic' : 'manual';
+        }
+      },
+      error: (error) => {
+        console.warn('Could not load trading mode:', error);
+        // Default to manual mode if loading fails
+        this.tradingMode = 'manual';
+      }
+    });
+  }
+
+  onTradingModeChange(): void {
+    // This method is called when the radio button selection changes
+    // The actual saving happens when the user clicks the save button
+    console.log('Trading mode changed to:', this.tradingMode);
+  }
+
+  saveTradingMode(): void {
+    this.savingTradingMode = true;
+    const enableAutoTrading = this.tradingMode === 'automatic';
+
+    this.tradingService.setAutoTrading(enableAutoTrading).subscribe({
+      next: (response: any) => {
+        this.savingTradingMode = false;
+        if (response.success) {
+          // Update the local state
+          this.tradingService.updateAutoTradingState(enableAutoTrading);
+          this.showSuccess(
+            'Kereskedési mód mentve',
+            `${this.tradingMode === 'automatic' ? 'Automatikus' : 'Manuális'} kereskedés beállítva`
+          );
+        } else {
+          this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error: any) => {
+        this.savingTradingMode = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a kereskedési módot: ' + error.message);
       }
     });
   }
