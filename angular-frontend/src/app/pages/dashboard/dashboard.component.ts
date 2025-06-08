@@ -51,7 +51,6 @@ interface FilterOption {
     AccordionModule,
     DividerModule,
     TradingViewWidgetComponent,
-    AiInsightsPanelComponent
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './dashboard.component.html',
