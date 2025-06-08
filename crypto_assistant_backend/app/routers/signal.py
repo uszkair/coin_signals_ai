@@ -10,7 +10,7 @@ try:
     from sqlalchemy.ext.asyncio import AsyncSession
     from app.services.database_service import DatabaseService
     from app.database import get_db
-    DATABASE_AVAILABLE = False  # Use fallback for better UX demonstration
+    DATABASE_AVAILABLE = True  # Use database instead of fallback
 except ImportError:
     DATABASE_AVAILABLE = False
     AsyncSession = None
