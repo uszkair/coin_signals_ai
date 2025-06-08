@@ -149,9 +149,10 @@ async def emergency_stop():
         await disable_auto_trading()
         
         # Close all positions (import from trading router)
-        from app.services.binance_trading import binance_trader, close_trading_position
+        from app.services.binance_trading import initialize_global_trader, close_trading_position
         
-        positions = await binance_trader.get_active_positions()
+        trader = initialize_global_trader()
+        positions = await trader.get_active_positions()
         closed_positions = []
         
         for position_id in positions.keys():
@@ -175,10 +176,11 @@ async def emergency_stop():
 async def get_performance_metrics():
     """Get auto-trading performance metrics"""
     try:
-        from app.services.binance_trading import binance_trader
+        from app.services.binance_trading import initialize_global_trader
         
         # Get trading statistics
-        stats = await binance_trader.get_trading_statistics()
+        trader = initialize_global_trader()
+        stats = await trader.get_trading_statistics()
         
         # Get auto-trading specific metrics
         status = await get_auto_trading_status()

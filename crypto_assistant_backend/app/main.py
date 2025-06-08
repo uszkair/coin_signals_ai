@@ -38,6 +38,33 @@ async def startup_event():
     """Start background services on application startup"""
     logger.info("Starting Crypto Trading Assistant API...")
     
+    # Initialize global trader with database settings
+    try:
+        from app.services.binance_trading import initialize_global_trader
+        trader = initialize_global_trader()
+        logger.info(f"Global trader initialized: {'Testnet' if trader.testnet else 'Mainnet'} mode")
+    except Exception as e:
+        logger.error(f"Failed to initialize global trader: {e}")
+    
+    # Run startup tests
+    try:
+        from app.startup_tests import run_startup_tests
+        test_results = await run_startup_tests()
+        
+        # Store test results for health check endpoint
+        app.state.startup_tests = test_results
+        
+        # Log summary
+        summary = test_results["startup_tests"]
+        if summary["failed"] == 0:
+            logger.info(f"✅ All startup tests passed ({summary['passed']}/{summary['total']})")
+        else:
+            logger.warning(f"⚠️ {summary['failed']} startup tests failed ({summary['passed']}/{summary['total']} passed)")
+            
+    except Exception as e:
+        logger.error(f"Failed to run startup tests: {e}")
+        app.state.startup_tests = {"error": str(e)}
+    
     # Start auto-trading scheduler in background
     asyncio.create_task(start_auto_trading())
     logger.info("Auto-trading scheduler started in background")
@@ -65,4 +92,40 @@ def root():
             "Risk Management",
             "Real Binance Integration"
         ]
+    }
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint with startup test results"""
+    startup_tests = getattr(app.state, 'startup_tests', None)
+    
+    if startup_tests is None:
+        return {
+            "status": "unknown",
+            "message": "Startup tests not yet completed",
+            "startup_tests": None
+        }
+    
+    if "error" in startup_tests:
+        return {
+            "status": "error",
+            "message": "Startup tests failed to run",
+            "error": startup_tests["error"]
+        }
+    
+    summary = startup_tests.get("startup_tests", {})
+    failed_count = summary.get("failed", 0)
+    
+    if failed_count == 0:
+        status = "healthy"
+        message = f"All systems operational ({summary.get('passed', 0)}/{summary.get('total', 0)} tests passed)"
+    else:
+        status = "degraded"
+        message = f"Some systems have issues ({failed_count} tests failed)"
+    
+    return {
+        "status": status,
+        "message": message,
+        "startup_tests": startup_tests
     }

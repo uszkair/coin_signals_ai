@@ -11,7 +11,7 @@ from app.services.binance_trading import (
     execute_automatic_trade,
     get_trading_account_status,
     close_trading_position,
-    binance_trader,
+    initialize_global_trader,
     get_binance_trade_history,
     get_binance_order_history,
     switch_trading_environment,
@@ -130,7 +130,8 @@ async def execute_signal_trade(request: ExecuteSignalRequest):
 async def get_active_positions():
     """Get all active trading positions"""
     try:
-        positions = await binance_trader.get_active_positions()
+        trader = initialize_global_trader()
+        positions = await trader.get_active_positions()
         
         return {
             "success": True,
@@ -163,7 +164,8 @@ async def close_position(close_request: ClosePositionRequest):
 async def close_all_positions(reason: str = "manual_close_all"):
     """Close all active trading positions"""
     try:
-        positions = await binance_trader.get_active_positions()
+        trader = initialize_global_trader()
+        positions = await trader.get_active_positions()
         results = []
         
         for position_id in positions.keys():
@@ -189,7 +191,8 @@ async def close_all_positions(reason: str = "manual_close_all"):
 async def get_trading_statistics():
     """Get detailed trading statistics and performance metrics"""
     try:
-        stats = await binance_trader.get_trading_statistics()
+        trader = initialize_global_trader()
+        stats = await trader.get_trading_statistics()
         
         return {
             "success": True,
@@ -222,15 +225,16 @@ async def update_trading_config(config: TradingConfig):
         # Update risk management settings in database
         await trading_settings_service.update_risk_management_settings(update_data)
         
-        # Also update binance_trader for immediate effect
+        # Also update trader for immediate effect
+        trader = initialize_global_trader()
         if config.max_position_size is not None:
-            binance_trader.max_position_size = config.max_position_size
+            trader.max_position_size = config.max_position_size
         
         if config.max_daily_trades is not None:
-            binance_trader.max_daily_trades = config.max_daily_trades
+            trader.max_daily_trades = config.max_daily_trades
         
         if config.daily_loss_limit is not None:
-            binance_trader.daily_loss_limit = config.daily_loss_limit
+            trader.daily_loss_limit = config.daily_loss_limit
         
         # Get current settings from database
         current_settings = await trading_settings_service.get_risk_management_settings()
@@ -267,7 +271,7 @@ async def get_trading_config():
                 "max_daily_trades": risk_settings['max_daily_trades'],
                 "daily_loss_limit": risk_settings['daily_loss_limit'],
                 "testnet": risk_settings['testnet_mode'],
-                "api_connected": binance_trader.client is not None,
+                "api_connected": initialize_global_trader().client is not None,
                 "position_size_config": {
                     "mode": position_settings['mode'],
                     "fixed_amount_usd": position_settings['default_position_size_usd'],
@@ -310,8 +314,9 @@ async def update_position_size_config(config: PositionSizeConfig):
         
         await trading_settings_service.update_position_size_settings(update_data)
         
-        # Also update binance_trader for immediate effect
-        binance_trader.set_position_size_config(
+        # Also update trader for immediate effect
+        trader = initialize_global_trader()
+        trader.set_position_size_config(
             mode=config.mode,
             amount=config.fixed_amount_usd,
             max_percentage=config.max_percentage
@@ -365,7 +370,8 @@ async def validate_position_size_config(config: PositionSizeConfig):
     """Validate position size configuration before saving"""
     try:
         # Get current wallet balance
-        account_info = await binance_trader.get_account_info()
+        trader = initialize_global_trader()
+        account_info = await trader.get_account_info()
         total_balance = account_info.get('total_wallet_balance', 0)
         
         # Calculate what the position size would be
@@ -383,13 +389,13 @@ async def validate_position_size_config(config: PositionSizeConfig):
             }
             
         # Check if we're in mainnet mode and validate requirements
-        if not binance_trader.testnet:  # Only validate in mainnet mode
+        if not trader.testnet:  # Only validate in mainnet mode
             # Get minimum requirements for common symbols
             symbols_to_check = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
             validation_errors = []
             
             for symbol in symbols_to_check:
-                min_required = binance_trader._get_minimum_position_size(symbol)
+                min_required = trader._get_minimum_position_size(symbol)
                 if calculated_size < min_required:
                     validation_errors.append({
                         'symbol': symbol,
@@ -434,7 +440,7 @@ async def validate_position_size_config(config: PositionSizeConfig):
             "data": {
                 "wallet_balance": total_balance,
                 "calculated_position_size": calculated_size if config.mode == 'percentage' else config.fixed_amount_usd,
-                "testnet": binance_trader.testnet
+                "testnet": trader.testnet
             }
         }
         
@@ -446,7 +452,8 @@ async def validate_position_size_config(config: PositionSizeConfig):
 async def test_binance_connection():
     """Test Binance API connection"""
     try:
-        account_info = await binance_trader.get_account_info()
+        trader = initialize_global_trader()
+        account_info = await trader.get_account_info()
         
         if 'error' in account_info:
             return {
@@ -464,7 +471,7 @@ async def test_binance_connection():
                     "connected": True,
                     "account_type": account_info.get('account_type'),
                     "can_trade": account_info.get('can_trade'),
-                    "testnet": binance_trader.testnet,
+                    "testnet": trader.testnet,
                     "total_balance": account_info.get('total_wallet_balance')
                 }
             }
@@ -477,8 +484,9 @@ async def test_binance_connection():
 async def get_risk_assessment():
     """Get current risk assessment and recommendations"""
     try:
-        stats = await binance_trader.get_trading_statistics()
-        positions = await binance_trader.get_active_positions()
+        trader = initialize_global_trader()
+        stats = await trader.get_trading_statistics()
+        positions = await trader.get_active_positions()
         
         # Calculate risk metrics
         total_exposure = sum(
@@ -530,7 +538,8 @@ async def emergency_stop():
     """Emergency stop - close all positions and disable trading"""
     try:
         # Close all positions
-        positions = await binance_trader.get_active_positions()
+        trader = initialize_global_trader()
+        positions = await trader.get_active_positions()
         closed_positions = []
         
         for position_id in positions.keys():
@@ -538,7 +547,7 @@ async def emergency_stop():
             closed_positions.append(result)
         
         # Set daily trades to maximum to prevent new trades
-        binance_trader.daily_trades = binance_trader.max_daily_trades
+        trader.daily_trades = trader.max_daily_trades
         
         return {
             "success": True,
@@ -600,10 +609,11 @@ async def get_wallet_balance():
     """Get wallet balance from Binance API or simulated data"""
     try:
         # Debug logging
-        print(f"DEBUG: binance_trader.testnet = {binance_trader.testnet}")
-        print(f"DEBUG: binance_trader.client = {binance_trader.client}")
+        trader = initialize_global_trader()
+        print(f"DEBUG: binance_trader.testnet = {trader.testnet}")
+        print(f"DEBUG: binance_trader.client = {trader.client}")
         
-        account_info = await binance_trader.get_account_info()
+        account_info = await trader.get_account_info()
         print(f"DEBUG: account_info testnet flag = {account_info.get('testnet', 'NOT_SET')}")
         
         if 'error' in account_info:
@@ -616,18 +626,18 @@ async def get_wallet_balance():
                     "details": {
                         "error_code": "-2015",
                         "solution": "1. Ellenőrizd hogy a Binance API kulcsok helyesek-e\n2. Győződj meg róla hogy az IP cím engedélyezett a Binance fiókban\n3. Ellenőrizd hogy az API kulcsoknak van-e 'Spot & Margin Trading' jogosultsága",
-                        "testnet": binance_trader.testnet
+                        "testnet": trader.testnet
                     }
                 }
             else:
                 return {
                     "success": False,
                     "error": f"Binance API hiba: {error_msg}",
-                    "testnet": binance_trader.testnet
+                    "testnet": trader.testnet
                 }
         
         # If in testnet mode, use the simulated data directly
-        if binance_trader.testnet:
+        if trader.testnet:
             # Use the total_wallet_balance from simulated account info
             total_balance = account_info.get('total_wallet_balance', 10000.0)
             balances = account_info.get('balances', {})
@@ -679,21 +689,21 @@ async def get_wallet_balance():
                 elif asset == 'BTC':
                     # Get BTC price
                     try:
-                        btc_price = await binance_trader._get_current_price('BTCUSDT')
+                        btc_price = await trader._get_current_price('BTCUSDT')
                         usdt_value = balance_info['total'] * btc_price
                     except:
                         usdt_value = balance_info['total'] * 50000  # Fallback price
                 elif asset == 'ETH':
                     # Get ETH price
                     try:
-                        eth_price = await binance_trader._get_current_price('ETHUSDT')
+                        eth_price = await trader._get_current_price('ETHUSDT')
                         usdt_value = balance_info['total'] * eth_price
                     except:
                         usdt_value = balance_info['total'] * 3000  # Fallback price
                 else:
                     # Try to get price for other assets
                     try:
-                        price = await binance_trader._get_current_price(f'{asset}USDT')
+                        price = await trader._get_current_price(f'{asset}USDT')
                         usdt_value = balance_info['total'] * price
                     except:
                         usdt_value = 0  # Skip if can't get price
@@ -726,18 +736,20 @@ async def get_wallet_balance():
 
 class TradingEnvironmentRequest(BaseModel):
     use_testnet: bool
+    use_futures: bool = False
 
 
 @router.post("/switch-environment")
 async def switch_trading_environment_endpoint(request: TradingEnvironmentRequest):
     """
-    Switch between testnet (fake money) and mainnet (real money) trading environments
+    Switch between different trading environments
     
     Args:
-        use_testnet: True for testnet (fake money), False for mainnet (real money)
+        use_testnet: True for testnet, False for mainnet
+        use_futures: True for Futures API, False for Spot API
     """
     try:
-        result = switch_trading_environment(request.use_testnet)
+        result = await switch_trading_environment(request.use_testnet, request.use_futures)
         
         return {
             "success": True,
@@ -811,8 +823,8 @@ async def get_minimum_trading_requirements():
             "success": True,
             "data": {
                 "requirements": requirements,
-                "current_position_size": binance_trader.default_position_size_usd if binance_trader.position_size_mode == 'fixed_usd' else None,
-                "current_wallet_balance": (await binance_trader.get_account_info()).get('total_wallet_balance', 0),
+                "current_position_size": initialize_global_trader().default_position_size_usd if initialize_global_trader().position_size_mode == 'fixed_usd' else None,
+                "current_wallet_balance": (await initialize_global_trader().get_account_info()).get('total_wallet_balance', 0),
                 "recommendation": "Use fixed position size of at least $15 USD to meet all minimum requirements"
             }
         }

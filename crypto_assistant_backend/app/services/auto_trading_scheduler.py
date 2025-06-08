@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from app.services.signal_engine import get_current_signal
-from app.services.binance_trading import execute_automatic_trade, binance_trader
+from app.services.binance_trading import execute_automatic_trade, initialize_global_trader
 from app.services.ml_signal_generator import generate_ai_signal
 from app.services.trading_settings_service import trading_settings_service
 
@@ -219,7 +219,8 @@ class AutoTradingScheduler:
     async def _check_risk_management(self) -> bool:
         """Check risk management limits"""
         try:
-            stats = await binance_trader.get_trading_statistics()
+            trader = initialize_global_trader()
+            stats = await trader.get_trading_statistics()
             
             # Check daily trade limit
             if stats['daily_trades'] >= stats['max_daily_trades']:

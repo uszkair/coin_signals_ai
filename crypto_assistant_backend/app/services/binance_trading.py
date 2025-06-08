@@ -10,6 +10,14 @@ from decimal import Decimal, ROUND_DOWN
 from datetime import datetime
 import logging
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available, use environment variables directly
+    pass
+
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceOrderException
 from binance.enums import *
@@ -22,34 +30,85 @@ logger = logging.getLogger(__name__)
 class BinanceTrader:
     """Professional Binance trading automation"""
     
-    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = True):
+    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = None, use_futures: bool = None):
         """
         Initialize Binance trader
         
         Args:
             api_key: Binance API key
             api_secret: Binance API secret
-            testnet: Use testnet for safe testing (default: True)
+            testnet: Use testnet for safe testing (default: from database)
+            use_futures: Use Futures API instead of Spot (default: True for trading)
         """
         self.api_key = api_key or os.environ.get("BINANCE_API_KEY")
         self.api_secret = api_secret or os.environ.get("BINANCE_API_SECRET")
-        self.testnet = testnet
         
-        # Force simulation mode when testnet is True
+        # Get settings from database if not explicitly provided
+        if testnet is None or use_futures is None:
+            try:
+                # Import here to avoid circular imports
+                import asyncio
+                from app.services.trading_settings_service import trading_settings_service
+                
+                # Get settings from database
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If we're already in an async context, we can't use asyncio.run
+                    # Use default values and let the settings be updated later
+                    db_testnet = True
+                    db_use_futures = True
+                else:
+                    risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
+                    db_testnet = risk_settings.get('testnet_mode', True)
+                    db_use_futures = True  # Always use futures for trading
+                
+                self.testnet = testnet if testnet is not None else db_testnet
+                self.use_futures = use_futures if use_futures is not None else db_use_futures
+                
+            except Exception as e:
+                logger.warning(f"Could not get database settings, using defaults: {e}")
+                self.testnet = testnet if testnet is not None else True
+                self.use_futures = use_futures if use_futures is not None else True
+        else:
+            self.testnet = testnet
+            self.use_futures = use_futures
+        
+        # Get URLs from environment
         if self.testnet:
-            logger.info(f"Testnet mode enabled - using simulated trading data")
-            self.client = None
-        elif not self.api_key or not self.api_secret:
+            if self.use_futures:
+                self.base_url = os.environ.get("BINANCE_FUTURES_TESTNET_URL", "https://testnet.binancefuture.com")
+            else:
+                self.base_url = os.environ.get("BINANCE_SPOT_TESTNET_URL", "https://testnet.binance.vision")
+        else:
+            if self.use_futures:
+                self.base_url = os.environ.get("BINANCE_FUTURES_URL", "https://fapi.binance.com")
+            else:
+                self.base_url = os.environ.get("BINANCE_SPOT_URL", "https://api.binance.com")
+        
+        # Initialize client based on mode
+        if not self.api_key or not self.api_secret:
             logger.warning("Binance API credentials not found. Trading will be simulated.")
             self.client = None
         else:
             try:
+                # Initialize client with testnet flag
                 self.client = Client(
                     api_key=self.api_key,
                     api_secret=self.api_secret,
-                    testnet=False  # Always use mainnet API when client is created
+                    testnet=self.testnet
                 )
-                logger.info(f"Binance client initialized (mainnet mode)")
+                
+                # Set custom base URL from environment
+                if self.use_futures and self.testnet:
+                    # For futures testnet, we need to set the API_URL manually
+                    self.client.API_URL = self.base_url
+                
+                # Log initialization
+                env_type = "Futures" if self.use_futures else "Spot"
+                net_type = "Testnet" if self.testnet else "Mainnet"
+                logger.info(f"Binance {env_type} {net_type} client initialized")
+                logger.info(f"Base URL: {self.base_url}")
+                        
             except Exception as e:
                 logger.error(f"Failed to initialize Binance client: {e}")
                 self.client = None
@@ -72,32 +131,63 @@ class BinanceTrader:
     
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information and balances"""
-        if not self.client or self.testnet:
+        if not self.client:
             return self._simulate_account_info()
         
         try:
-            account = self.client.get_account()
-            balances = {
-                balance['asset']: {
-                    'free': float(balance['free']),
-                    'locked': float(balance['locked']),
-                    'total': float(balance['free']) + float(balance['locked'])
+            if self.use_futures:
+                # Futures account info
+                account = self.client.futures_account()
+                balances = {
+                    balance['asset']: {
+                        'free': float(balance['availableBalance']),
+                        'locked': float(balance['balance']) - float(balance['availableBalance']),
+                        'total': float(balance['balance'])
+                    }
+                    for balance in account['assets']
+                    if float(balance['balance']) > 0
                 }
-                for balance in account['balances']
-                if float(balance['free']) > 0 or float(balance['locked']) > 0
-            }
-            
-            return {
-                'account_type': account.get('accountType', 'SPOT'),
-                'can_trade': account.get('canTrade', False),
-                'can_withdraw': account.get('canWithdraw', False),
-                'can_deposit': account.get('canDeposit', False),
-                'balances': balances,
-                'total_wallet_balance': self._calculate_total_balance(balances),
-                'maker_commission': account.get('makerCommission', 10),
-                'taker_commission': account.get('takerCommission', 10),
-                'testnet': self.testnet
-            }
+                
+                return {
+                    'account_type': 'FUTURES',
+                    'can_trade': account.get('canTrade', False),
+                    'can_withdraw': account.get('canWithdraw', False),
+                    'can_deposit': account.get('canDeposit', False),
+                    'balances': balances,
+                    'total_wallet_balance': float(account.get('totalWalletBalance', 0)),
+                    'total_unrealized_pnl': float(account.get('totalUnrealizedProfit', 0)),
+                    'total_margin_balance': float(account.get('totalMarginBalance', 0)),
+                    'maker_commission': 0.02,  # 0.02% for futures
+                    'taker_commission': 0.04,  # 0.04% for futures
+                    'testnet': self.testnet,
+                    'futures': True
+                }
+            else:
+                # Spot account info
+                account = self.client.get_account()
+                balances = {
+                    balance['asset']: {
+                        'free': float(balance['free']),
+                        'locked': float(balance['locked']),
+                        'total': float(balance['free']) + float(balance['locked'])
+                    }
+                    for balance in account['balances']
+                    if float(balance['free']) > 0 or float(balance['locked']) > 0
+                }
+                
+                return {
+                    'account_type': 'SPOT',
+                    'can_trade': account.get('canTrade', False),
+                    'can_withdraw': account.get('canWithdraw', False),
+                    'can_deposit': account.get('canDeposit', False),
+                    'balances': balances,
+                    'total_wallet_balance': self._calculate_total_balance(balances),
+                    'maker_commission': account.get('makerCommission', 10),
+                    'taker_commission': account.get('takerCommission', 10),
+                    'testnet': self.testnet,
+                    'futures': False
+                }
+                
         except BinanceAPIException as e:
             logger.error(f"Binance API error: {e}")
             return {'error': str(e)}
@@ -384,7 +474,13 @@ class BinanceTrader:
             return self._simulate_symbol_info(symbol)
         
         try:
-            exchange_info = self.client.get_exchange_info()
+            if self.use_futures:
+                # Futures exchange info
+                exchange_info = self.client.futures_exchange_info()
+            else:
+                # Spot exchange info
+                exchange_info = self.client.get_exchange_info()
+                
             for symbol_info in exchange_info['symbols']:
                 if symbol_info['symbol'] == symbol:
                     return symbol_info
@@ -512,7 +608,12 @@ class BinanceTrader:
             return 50000.0  # Simulate price
         
         try:
-            ticker = self.client.get_symbol_ticker(symbol=symbol)
+            if self.use_futures:
+                # Futures price
+                ticker = self.client.futures_symbol_ticker(symbol=symbol)
+            else:
+                # Spot price
+                ticker = self.client.get_symbol_ticker(symbol=symbol)
             return float(ticker['price'])
         except Exception as e:
             logger.error(f"Error getting current price for {symbol}: {e}")
@@ -621,55 +722,86 @@ class BinanceTrader:
         }
 
 
-# Global trader instance - default to mainnet
-binance_trader = BinanceTrader(testnet=False)  # Use mainnet for real wallet data
+# Global trader instance - will be initialized from database settings
+binance_trader = None
 
-# Function to switch between testnet and mainnet
-def switch_trading_environment(use_testnet: bool = True):
+def initialize_global_trader():
+    """Initialize global trader with database settings"""
+    global binance_trader
+    if binance_trader is None:
+        # Initialize with database settings (None means read from DB)
+        binance_trader = BinanceTrader(testnet=None, use_futures=True)
+    return binance_trader
+
+# Function to switch between different trading environments
+async def switch_trading_environment(use_testnet: bool = True, use_futures: bool = False):
     """
-    Switch between testnet and mainnet trading environments
+    Switch between different trading environments
     
     Args:
-        use_testnet: True for testnet (fake money), False for mainnet (real money)
+        use_testnet: True for testnet, False for mainnet
+        use_futures: True for Futures API, False for Spot API
     """
     global binance_trader
     
-    # Get current configuration
-    current_config = {
-        'max_position_size': binance_trader.max_position_size,
-        'max_daily_trades': binance_trader.max_daily_trades,
-        'daily_loss_limit': binance_trader.daily_loss_limit,
-        'position_size_mode': binance_trader.position_size_mode,
-        'default_position_size_usd': binance_trader.default_position_size_usd
-    }
+    # Get current configuration if trader exists
+    current_config = {}
+    if binance_trader is not None:
+        current_config = {
+            'max_position_size': binance_trader.max_position_size,
+            'max_daily_trades': binance_trader.max_daily_trades,
+            'daily_loss_limit': binance_trader.daily_loss_limit,
+            'position_size_mode': binance_trader.position_size_mode,
+            'default_position_size_usd': binance_trader.default_position_size_usd
+        }
+    
+    # Update database settings FIRST
+    try:
+        from app.services.trading_settings_service import trading_settings_service
+        await trading_settings_service.update_risk_management_settings({
+            'testnet_mode': use_testnet
+        })
+        logger.info(f"Database updated: testnet_mode = {use_testnet}")
+    except Exception as e:
+        logger.error(f"Failed to update database settings: {e}")
     
     # Create new trader instance with new environment
-    binance_trader = BinanceTrader(testnet=use_testnet)
+    binance_trader = BinanceTrader(testnet=use_testnet, use_futures=use_futures)
     
-    # Restore configuration
-    binance_trader.max_position_size = current_config['max_position_size']
-    binance_trader.max_daily_trades = current_config['max_daily_trades']
-    binance_trader.daily_loss_limit = current_config['daily_loss_limit']
-    binance_trader.position_size_mode = current_config['position_size_mode']
-    binance_trader.default_position_size_usd = current_config['default_position_size_usd']
+    # Restore configuration if we had previous settings
+    if current_config:
+        binance_trader.max_position_size = current_config['max_position_size']
+        binance_trader.max_daily_trades = current_config['max_daily_trades']
+        binance_trader.daily_loss_limit = current_config['daily_loss_limit']
+        binance_trader.position_size_mode = current_config['position_size_mode']
+        binance_trader.default_position_size_usd = current_config['default_position_size_usd']
     
-    logger.info(f"Switched to {'testnet' if use_testnet else 'mainnet'} trading environment")
+    env_type = "Futures" if use_futures else "Spot"
+    net_type = "Testnet" if use_testnet else "Mainnet"
+    logger.info(f"Switched to {env_type} {net_type} trading environment")
     
     return {
         'success': True,
-        'environment': 'testnet' if use_testnet else 'mainnet',
+        'environment': f"{env_type.lower()}_{net_type.lower()}",
         'testnet': use_testnet,
-        'message': f"Trading environment switched to {'testnet (fake money)' if use_testnet else 'mainnet (real money)'}"
+        'futures': use_futures,
+        'message': f"Trading environment switched to {env_type} {net_type}"
     }
 
 
 def get_trading_environment_info():
     """Get current trading environment information"""
+    trader = initialize_global_trader()
+    env_type = "Futures" if trader.use_futures else "Spot"
+    net_type = "Testnet" if trader.testnet else "Mainnet"
+    
     return {
-        'testnet': binance_trader.testnet,
-        'environment': 'testnet' if binance_trader.testnet else 'mainnet',
-        'description': 'Fake money for testing' if binance_trader.testnet else 'Real money trading',
-        'api_connected': binance_trader.client is not None
+        'testnet': trader.testnet,
+        'futures': trader.use_futures,
+        'environment': f"{env_type} {net_type}",
+        'description': f"{env_type} API on {net_type}",
+        'api_connected': trader.client is not None,
+        'safe_mode': trader.testnet
     }
 
 
@@ -684,49 +816,53 @@ async def execute_automatic_trade(signal: Dict[str, Any], position_size_usd: flo
     Returns:
         Trade execution result
     """
-    return await binance_trader.execute_signal_trade(signal, position_size_usd)
+    trader = initialize_global_trader()
+    return await trader.execute_signal_trade(signal, position_size_usd)
 
 
 async def get_trading_account_status() -> Dict[str, Any]:
     """Get current trading account status"""
-    account_info = await binance_trader.get_account_info()
-    trading_stats = await binance_trader.get_trading_statistics()
-    active_positions = await binance_trader.get_active_positions()
+    trader = initialize_global_trader()
+    account_info = await trader.get_account_info()
+    trading_stats = await trader.get_trading_statistics()
+    active_positions = await trader.get_active_positions()
     
     return {
         'account_info': account_info,
         'trading_statistics': trading_stats,
         'active_positions': active_positions,
         'trader_config': {
-            'testnet': binance_trader.testnet,
-            'max_position_size': binance_trader.max_position_size,
-            'max_daily_trades': binance_trader.max_daily_trades,
-            'daily_loss_limit': binance_trader.daily_loss_limit
+            'testnet': trader.testnet,
+            'max_position_size': trader.max_position_size,
+            'max_daily_trades': trader.max_daily_trades,
+            'daily_loss_limit': trader.daily_loss_limit
         }
     }
 
 
 async def close_trading_position(position_id: str, reason: str = "manual") -> Dict[str, Any]:
     """Close a specific trading position"""
-    return await binance_trader.close_position(position_id, reason)
+    trader = initialize_global_trader()
+    return await trader.close_position(position_id, reason)
 
 
 async def get_binance_trade_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
     """Get real trading history from Binance API"""
-    if not binance_trader.client:
+    trader = initialize_global_trader()
+    if not trader.client:
         return {'success': False, 'error': 'Binance client not connected'}
     
     try:
         # Get account trades from Binance
         if symbol:
-            trades = binance_trader.client.get_my_trades(symbol=symbol, limit=limit)
+            trades = trader.client.get_my_trades(symbol=symbol, limit=limit)
         else:
             # Get trades for multiple symbols
             symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT']
             all_trades = []
             for sym in symbols:
                 try:
-                    sym_trades = binance_trader.client.get_my_trades(symbol=sym, limit=20)
+                    sym_trades = trader.client.get_my_trades(symbol=sym, limit=20)
                     all_trades.extend(sym_trades)
                 except:
                     continue
@@ -765,19 +901,20 @@ async def get_binance_trade_history(symbol: str = None, limit: int = 100) -> Dic
 
 async def get_binance_order_history(symbol: str = None, limit: int = 100) -> Dict[str, Any]:
     """Get real order history from Binance API"""
-    if not binance_trader.client:
+    trader = initialize_global_trader()
+    if not trader.client:
         return {'success': False, 'error': 'Binance client not connected'}
     
     try:
         if symbol:
-            orders = binance_trader.client.get_all_orders(symbol=symbol, limit=limit)
+            orders = trader.client.get_all_orders(symbol=symbol, limit=limit)
         else:
             # Get orders for multiple symbols
             symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT']
             all_orders = []
             for sym in symbols:
                 try:
-                    sym_orders = binance_trader.client.get_all_orders(symbol=sym, limit=20)
+                    sym_orders = trader.client.get_all_orders(symbol=sym, limit=20)
                     all_orders.extend(sym_orders)
                 except:
                     continue
