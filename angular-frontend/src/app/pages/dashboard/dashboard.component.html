@@ -23,7 +23,7 @@
   <!-- Main Content -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Panel - Signals List -->
-    <div class="w-2/5 flex flex-col border-r border-gray-200 dark:border-gray-700">
+    <div class="w-1/3 flex flex-col border-r border-gray-200 dark:border-gray-700">
       <!-- Filters -->
       <div class="bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex space-x-4">
@@ -107,7 +107,7 @@
     </div>
 
     <!-- Middle Panel - Signal Details -->
-    <div class="w-2/5 flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+    <div class="w-1/2 flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
       <div *ngIf="selectedSignal; else noSelection" class="flex-1 flex flex-col">
         <!-- Signal Header -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -125,9 +125,9 @@
         </div>
 
         <!-- Signal Details -->
-        <div class="flex-1 p-6 overflow-auto">
+        <div class="flex-1 p-4 overflow-auto">
           <!-- Price Information -->
-          <div class="grid grid-cols-4 gap-4 mb-8">
+          <div class="grid grid-cols-4 gap-3 mb-6">
             <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <div class="text-sm text-blue-600 dark:text-blue-400 mb-1">Aktuális Ár</div>
               <div class="text-xl font-bold text-blue-600 dark:text-blue-400">${{ selectedSignal.current_price | number:'1.2-6' }}</div>
@@ -147,8 +147,8 @@
           </div>
 
           <!-- Signal Decision Matrix -->
-          <div class="mb-8">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center">
               <i class="pi pi-cog text-blue-600 mr-2"></i>
               Szignál Döntési Mátrix
               <span class="ml-2 text-sm font-normal text-gray-500">
@@ -156,180 +156,186 @@
               </span>
             </h3>
             
-            <div class="grid grid-cols-1 gap-4">
+            <div class="grid grid-cols-3 gap-2">
               <!-- Candlestick Pattern Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-chart-bar text-purple-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">Gyertyaminta Elemzés</span>
+                    <i class="pi pi-chart-bar text-purple-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">Gyertyaminta</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="selectedSignal.decision_factors?.candlestick_pattern?.signal || 'NEUTRAL'"
-                      [severity]="selectedSignal.decision_factors?.candlestick_pattern?.signal === 'BUY' ? 'success' : selectedSignal.decision_factors?.candlestick_pattern?.signal === 'SELL' ? 'danger' : 'secondary'">
+                      [severity]="selectedSignal.decision_factors?.candlestick_pattern?.signal === 'BUY' ? 'success' : selectedSignal.decision_factors?.candlestick_pattern?.signal === 'SELL' ? 'danger' : 'secondary'"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="(selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? 'text-green-600' : (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) < 0 ? 'text-red-600' : 'text-gray-600'">
                       {{ (selectedSignal.decision_factors?.candlestick_pattern?.weight || 0) > 0 ? '+' : '' }}{{ selectedSignal.decision_factors?.candlestick_pattern?.weight || 0 }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <strong>Pattern:</strong> {{ getDecisionFactorName() }}
-                  <span class="ml-2"><strong>Pontszám:</strong> {{ getDecisionFactorScore() }}/5</span>
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {{ getDecisionFactorName() }} ({{ getDecisionFactorScore() }}/5)
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('candlestick_pattern') }}
                 </div>
               </div>
 
               <!-- Trend Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-arrow-up-right text-green-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">Trend Elemzés</span>
+                    <i class="pi pi-arrow-up-right text-green-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">Trend</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('trend_analysis')"
-                      [severity]="getDecisionFactorSeverity('trend_analysis')">
+                      [severity]="getDecisionFactorSeverity('trend_analysis')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('trend_analysis')">
                       {{ getDecisionFactorWeightDisplay('trend_analysis') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <strong>Trend:</strong> {{ getDecisionFactorTrend() }}
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {{ getDecisionFactorTrend() }}
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('trend_analysis') }}
                 </div>
               </div>
 
               <!-- RSI Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-chart-line text-blue-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">RSI Elemzés</span>
+                    <i class="pi pi-chart-line text-blue-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">RSI</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('rsi_analysis')"
-                      [severity]="getDecisionFactorSeverity('rsi_analysis')">
+                      [severity]="getDecisionFactorSeverity('rsi_analysis')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('rsi_analysis')">
                       {{ getDecisionFactorWeightDisplay('rsi_analysis') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <strong>RSI Érték:</strong> {{ getDecisionFactorValue('rsi_analysis') | number:'1.1-1' }}
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {{ getDecisionFactorValue('rsi_analysis') | number:'1.1-1' }}
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('rsi_analysis') }}
                 </div>
               </div>
 
               <!-- MACD Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-sitemap text-orange-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">MACD Elemzés</span>
+                    <i class="pi pi-sitemap text-orange-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">MACD</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('macd_analysis')"
-                      [severity]="getDecisionFactorSeverity('macd_analysis')">
+                      [severity]="getDecisionFactorSeverity('macd_analysis')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('macd_analysis')">
                       {{ getDecisionFactorWeightDisplay('macd_analysis') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <strong>MACD Érték:</strong> {{ getDecisionFactorValue('macd_analysis') | number:'1.2-2' }}
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {{ getDecisionFactorValue('macd_analysis') | number:'1.2-2' }}
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('macd_analysis') }}
                 </div>
               </div>
 
               <!-- Momentum Strength -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-bolt text-yellow-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">Momentum Erősség</span>
+                    <i class="pi pi-bolt text-yellow-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">Momentum</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('momentum_strength')"
-                      [severity]="getDecisionFactorSeverity('momentum_strength')">
+                      [severity]="getDecisionFactorSeverity('momentum_strength')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('momentum_strength')">
                       {{ getDecisionFactorWeightDisplay('momentum_strength') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  <strong>Erősség:</strong> {{ getDecisionFactorStrength() }}
+                <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {{ getDecisionFactorStrength() }}
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('momentum_strength') }}
                 </div>
               </div>
 
               <!-- Volume Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-chart-bar text-indigo-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">Volume Elemzés</span>
+                    <i class="pi pi-chart-bar text-indigo-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">Volume</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('volume_analysis')"
-                      [severity]="getDecisionFactorSeverity('volume_analysis')">
+                      [severity]="getDecisionFactorSeverity('volume_analysis')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('volume_analysis')">
                       {{ getDecisionFactorWeightDisplay('volume_analysis') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('volume_analysis') }}
                 </div>
               </div>
 
               <!-- Support/Resistance Analysis -->
-              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div class="flex items-center justify-between mb-3">
+              <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center">
-                    <i class="pi pi-minus text-gray-600 mr-2"></i>
-                    <span class="font-semibold text-gray-900 dark:text-white">Support/Resistance</span>
+                    <i class="pi pi-minus text-gray-600 mr-1 text-xs"></i>
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">S/R</span>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <p-tag
                       [value]="getDecisionFactorSignal('support_resistance')"
-                      [severity]="getDecisionFactorSeverity('support_resistance')">
+                      [severity]="getDecisionFactorSeverity('support_resistance')"
+                      class="text-xs scale-75">
                     </p-tag>
-                    <span class="text-sm font-medium"
+                    <span class="text-xs font-medium"
                           [class]="getDecisionFactorWeightClass('support_resistance')">
                       {{ getDecisionFactorWeightDisplay('support_resistance') }}
                     </span>
                   </div>
                 </div>
-                <div class="text-sm text-gray-700 dark:text-gray-300">
+                <div class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
                   {{ getDecisionFactorReasoning('support_resistance') }}
                 </div>
               </div>
@@ -343,7 +349,7 @@
             </div>
 
             <!-- Final Decision Summary -->
-            <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
               <div class="flex items-center justify-between">
                 <div>
                   <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-1">Végső Döntés</h4>
@@ -361,11 +367,86 @@
             </div>
           </div>
 
+          <!-- Basic Signal Info -->
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h3 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Alapvető Technikai Elemzés</h3>
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Pattern:</span>
+                  <span class="font-medium">{{ selectedSignal.pattern || 'Nincs felismert pattern' }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Trend:</span>
+                  <span class="font-medium">{{ selectedSignal.trend || 'N/A' }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Score:</span>
+                  <span class="font-medium">{{ selectedSignal.score || 0 }}/5</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-md font-semibold text-gray-900 dark:text-white mb-2">Kockázat</h3>
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Erősség:</span>
+                  <span class="font-medium">{{ getConfidenceText(selectedSignal.confidence) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Risk/Reward:</span>
+                  <span class="font-medium">{{ calculateRiskReward(selectedSignal) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Potential Loss:</span>
+                  <span class="font-medium text-red-600">${{ calculatePotentialLoss(selectedSignal) | number:'1.2-2' }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Potential Profit:</span>
+                  <span class="font-medium text-green-600">${{ calculatePotentialProfit(selectedSignal) | number:'1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trading Actions -->
+          <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+            <h3 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Kereskedési Műveletek</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <p-button
+                *ngIf="selectedSignal.signal === 'BUY'"
+                label="Vásárlás"
+                icon="pi pi-arrow-up"
+                severity="success"
+                size="small"
+                (onClick)="executeTrade('BUY', selectedSignal)"
+                class="w-full"
+              ></p-button>
+              <p-button
+                *ngIf="selectedSignal.signal === 'SELL'"
+                label="Eladás"
+                icon="pi pi-arrow-down"
+                severity="danger"
+                size="small"
+                (onClick)="executeTrade('SELL', selectedSignal)"
+                class="w-full"
+              ></p-button>
+              <p-button
+                label="Chart megjelenítése"
+                icon="pi pi-chart-line"
+                severity="secondary"
+                size="small"
+                (onClick)="showChart(selectedSignal)"
+                class="w-full col-span-2"
+              ></p-button>
+            </div>
+          </div>
+
           <p-divider *ngIf="selectedSignal?.decision_factors"></p-divider>
 
           <!-- AI Analysis Section -->
-          <div class="mb-8">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+          <div class="mb-4">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center">
               <i class="pi pi-sparkles text-purple-600 mr-2"></i>
               AI Elemzés Részletei
             </h3>
@@ -587,82 +668,6 @@
             </div>
           </div>
 
-          <p-divider></p-divider>
-
-          <!-- Basic Signal Info -->
-          <div class="grid grid-cols-2 gap-6 mb-8">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Alapvető Technikai Elemzés</h3>
-              <div class="space-y-3">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Pattern:</span>
-                  <span class="font-medium">{{ selectedSignal.pattern || 'Nincs felismert pattern' }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Trend:</span>
-                  <span class="font-medium">{{ selectedSignal.trend || 'N/A' }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Score:</span>
-                  <span class="font-medium">{{ selectedSignal.score || 0 }}/5</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Kockázat</h3>
-              <div class="space-y-3">
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Erősség:</span>
-                  <span class="font-medium">{{ getConfidenceText(selectedSignal.confidence) }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Risk/Reward:</span>
-                  <span class="font-medium">{{ calculateRiskReward(selectedSignal) }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Potential Loss:</span>
-                  <span class="font-medium text-red-600">${{ calculatePotentialLoss(selectedSignal) | number:'1.2-2' }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600 dark:text-gray-400">Potential Profit:</span>
-                  <span class="font-medium text-green-600">${{ calculatePotentialProfit(selectedSignal) | number:'1.2-2' }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Trading Actions -->
-          <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Kereskedési Műveletek</h3>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <p-button
-                *ngIf="selectedSignal.signal === 'BUY'"
-                label="Vásárlás"
-                icon="pi pi-arrow-up"
-                severity="success"
-                size="large"
-                (onClick)="executeTrade('BUY', selectedSignal)"
-                class="w-full"
-              ></p-button>
-              <p-button
-                *ngIf="selectedSignal.signal === 'SELL'"
-                label="Eladás"
-                icon="pi pi-arrow-down"
-                severity="danger"
-                size="large"
-                (onClick)="executeTrade('SELL', selectedSignal)"
-                class="w-full"
-              ></p-button>
-              <p-button
-                label="Chart megjelenítése"
-                icon="pi pi-chart-line"
-                severity="secondary"
-                size="large"
-                (onClick)="showChart(selectedSignal)"
-                class="w-full col-span-2"
-              ></p-button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -678,7 +683,7 @@
     </div>
 
     <!-- Right Panel - AI Insights -->
-    <div class="w-1/5 bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
+    <div class="w-1/6 bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
       <app-ai-insights-panel></app-ai-insights-panel>
     </div>
   </div>
