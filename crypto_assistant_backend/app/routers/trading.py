@@ -99,15 +99,20 @@ async def execute_trade(trade_request: TradeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ExecuteSignalRequest(BaseModel):
+    signal: Dict[str, Any]
+    position_size_usd: Optional[float] = None
+
+
 @router.post("/execute-signal")
-async def execute_signal_trade(signal: Dict[str, Any], position_size_usd: Optional[float] = None):
+async def execute_signal_trade(request: ExecuteSignalRequest):
     """
     Execute trade based on provided signal
     
     Use this endpoint to trade with a specific signal rather than getting current signal
     """
     try:
-        result = await execute_automatic_trade(signal, position_size_usd)
+        result = await execute_automatic_trade(request.signal, request.position_size_usd)
         
         return {
             "success": True,

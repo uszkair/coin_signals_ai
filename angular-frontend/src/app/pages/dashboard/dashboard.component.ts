@@ -136,10 +136,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.setupWebSocketConnection();
     this.selectedSignal = this.filteredSignals[0];
     this.loadWalletBalance();
+    this.loadAutoTradingStatus();
     
     // Subscribe to auto trading state
     this.tradingService.autoTrading$.subscribe(enabled => {
       this.autoTradingEnabled = enabled;
+      console.log('Auto-trading state updated:', enabled);
+    });
+  }
+
+  loadAutoTradingStatus(): void {
+    this.tradingService.getAutoTradingStatus().subscribe({
+      next: (response) => {
+        if (response.success) {
+          const enabled = response.data.auto_trading_enabled;
+          this.tradingService.updateAutoTradingState(enabled);
+          console.log('Auto-trading status loaded:', enabled);
+        }
+      },
+      error: (error) => {
+        console.error('Error loading auto-trading status:', error);
+      }
     });
   }
 

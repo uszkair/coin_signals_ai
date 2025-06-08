@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "symbols": [
     "BTCUSDT",
     "ETHUSDT",
@@ -9,5 +9,5 @@
   ],
   "interval": 300,
   "min_confidence": 70,
-  "last_updated": "2025-06-08T08:22:15.696841"
+  "last_updated": "2025-06-08T08:39:50.305312"
 }
