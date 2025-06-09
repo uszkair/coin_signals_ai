@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 from app.services.auto_trading_scheduler import (
     auto_trading_scheduler,
+    start_auto_trading,
+    stop_auto_trading,
     enable_auto_trading,
     disable_auto_trading,
     get_auto_trading_status,
@@ -32,6 +34,34 @@ async def get_status():
         return {
             "success": True,
             "data": status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/start")
+async def start():
+    """Start the auto-trading scheduler"""
+    try:
+        await start_auto_trading()
+        return {
+            "success": True,
+            "message": "Auto-trading scheduler started",
+            "data": await get_auto_trading_status()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/stop")
+async def stop():
+    """Stop the auto-trading scheduler"""
+    try:
+        stop_auto_trading()
+        return {
+            "success": True,
+            "message": "Auto-trading scheduler stopped",
+            "data": await get_auto_trading_status()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

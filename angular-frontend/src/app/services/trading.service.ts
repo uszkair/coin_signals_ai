@@ -105,6 +105,14 @@ export class TradingService {
     return this.http.get<TradeResult>(`${this.autoTradingUrl}/performance`);
   }
 
+  startAutoTradingScheduler(): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.autoTradingUrl}/start`, {});
+  }
+
+  stopAutoTradingScheduler(): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.autoTradingUrl}/stop`, {});
+  }
+
   autoTradingEmergencyStop(): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.autoTradingUrl}/emergency-stop`, {});
   }

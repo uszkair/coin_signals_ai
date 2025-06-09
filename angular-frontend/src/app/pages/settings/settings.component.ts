@@ -69,6 +69,12 @@ export class SettingsComponent implements OnInit {
   savingTradingMode = false;
   savingEnvironment = false;
   loadingMinimumReqs = false;
+  
+  // Auto-trading scheduler control
+  autoTradingStatus: any = null;
+  startingScheduler = false;
+  stoppingScheduler = false;
+  loadingAutoTradingStatus = false;
 
   constructor(
     private tradingService: TradingService,
@@ -80,6 +86,7 @@ export class SettingsComponent implements OnInit {
     this.loadWalletBalance();
     this.loadTradingMode();
     this.loadTradingEnvironment();
+    this.loadAutoTradingStatus();
   }
 
   loadAllConfigs(): void {
@@ -506,6 +513,64 @@ export class SettingsComponent implements OnInit {
       error: (error) => {
         this.loadingMinimumReqs = false;
         this.showError('Hálózati hiba', 'Nem sikerült betölteni a követelményeket: ' + error.message);
+      }
+    });
+  }
+
+  // Auto-trading scheduler control methods
+  loadAutoTradingStatus(): void {
+    this.loadingAutoTradingStatus = true;
+    
+    this.tradingService.getAutoTradingStatus().subscribe({
+      next: (response) => {
+        this.loadingAutoTradingStatus = false;
+        if (response.success) {
+          this.autoTradingStatus = response.data;
+        }
+      },
+      error: (error) => {
+        this.loadingAutoTradingStatus = false;
+        console.warn('Could not load auto-trading status:', error);
+      }
+    });
+  }
+
+  startAutoTradingScheduler(): void {
+    this.startingScheduler = true;
+    
+    this.tradingService.startAutoTradingScheduler().subscribe({
+      next: (response) => {
+        this.startingScheduler = false;
+        if (response.success) {
+          this.showSuccess('Scheduler elindítva', 'Az auto-trading scheduler sikeresen elindult');
+          this.loadAutoTradingStatus(); // Refresh status
+        } else {
+          this.showError('Indítási hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.startingScheduler = false;
+        this.showError('Hálózati hiba', 'Nem sikerült elindítani a scheduler-t: ' + error.message);
+      }
+    });
+  }
+
+  stopAutoTradingScheduler(): void {
+    this.stoppingScheduler = true;
+    
+    this.tradingService.stopAutoTradingScheduler().subscribe({
+      next: (response) => {
+        this.stoppingScheduler = false;
+        if (response.success) {
+          this.showSuccess('Scheduler leállítva', 'Az auto-trading scheduler sikeresen leállítva');
+          this.loadAutoTradingStatus(); // Refresh status
+        } else {
+          this.showError('Leállítási hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.stoppingScheduler = false;
+        this.showError('Hálózati hiba', 'Nem sikerült leállítani a scheduler-t: ' + error.message);
       }
     });
   }
