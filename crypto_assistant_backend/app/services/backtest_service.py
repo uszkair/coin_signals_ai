@@ -208,6 +208,7 @@ class BacktestService:
                 total_profit_percent = 0.0
                 winning_trades = 0
                 losing_trades = 0
+                breakeven_trades = 0
                 equity_curve = [position_size]  # Track equity for drawdown calculation
                 
                 # Process each candle
@@ -273,9 +274,12 @@ class BacktestService:
                                 if profit_usd > 0:
                                     winning_trades += 1
                                     result_status = 'profit'
-                                else:
+                                elif profit_usd < 0:
                                     losing_trades += 1
                                     result_status = 'loss'
+                                else:
+                                    breakeven_trades += 1
+                                    result_status = 'breakeven'
                                 
                                 # Update equity curve
                                 current_equity = equity_curve[-1] + profit_usd
@@ -299,6 +303,35 @@ class BacktestService:
                                     result=result_status
                                 )
                                 trades.append(trade)
+                            else:
+                                # Handle no_exit case - treat as breakeven
+                                print(f"⚠️ {symbol} Trade timeout: No exit found, treating as breakeven")
+                                profit_usd = 0.0
+                                profit_percent = 0.0
+                                result_status = 'breakeven'
+                                breakeven_trades += 1
+                                
+                                # No change to equity curve for breakeven
+                                equity_curve.append(equity_curve[-1])
+                                
+                                # Create trade record with entry price as exit price
+                                trade = BacktestTrade(
+                                    backtest_result_id=backtest_result.id,
+                                    symbol=symbol,
+                                    signal_type=signal_data['signal'],
+                                    entry_price=Decimal(str(entry_price)),
+                                    exit_price=Decimal(str(entry_price)),  # Same as entry = breakeven
+                                    stop_loss=Decimal(str(stop_loss)) if stop_loss else None,
+                                    take_profit=Decimal(str(take_profit)) if take_profit else None,
+                                    confidence=Decimal(str(signal_data['confidence'])),
+                                    pattern=signal_data.get('pattern'),
+                                    entry_time=datetime.fromisoformat(current_candle['timestamp'].replace('Z', '+00:00')),
+                                    exit_time=None,  # No exit time for timeout
+                                    profit_usd=Decimal('0.0'),
+                                    profit_percent=Decimal('0.0'),
+                                    result=result_status
+                                )
+                                trades.append(trade)
                     
                     except Exception as e:
                         print(f"Error processing candle {i}: {e}")
@@ -307,6 +340,13 @@ class BacktestService:
                 # Calculate final statistics
                 total_trades = len(trades)
                 win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+                
+                print(f"📊 {symbol} Backtest Summary:")
+                print(f"   Total trades: {total_trades}")
+                print(f"   Winning: {winning_trades} ({win_rate:.1f}%)")
+                print(f"   Losing: {losing_trades}")
+                print(f"   Breakeven: {breakeven_trades}")
+                print(f"   Total P&L: ${total_profit_usd:.2f} ({total_profit_percent:.2f}%)")
                 
                 # Calculate max drawdown
                 max_drawdown = 0.0
@@ -326,6 +366,9 @@ class BacktestService:
                 backtest_result.total_profit_percent = Decimal(str(total_profit_percent))
                 backtest_result.win_rate = Decimal(str(win_rate))
                 backtest_result.max_drawdown = Decimal(str(max_drawdown))
+                
+                # Store breakeven trades in notes field for now (until we add a dedicated column)
+                backtest_result.notes = f"Breakeven trades: {breakeven_trades}"
                 
                 # Save all trades
                 session.add_all(trades)
