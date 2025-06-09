@@ -965,10 +965,10 @@ class BinanceTrader:
     async def _update_order_in_database(self, order_id: str, order_data: Dict[str, Any]):
         """Update order information in database"""
         try:
-            from app.database import get_db
             from app.services.database_service import DatabaseService
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 # Find the performance entry by order ID
                 performance = await DatabaseService.find_performance_by_order_id(db, order_id)
                 
@@ -1190,18 +1190,18 @@ class BinanceTrader:
     async def _save_successful_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:
         """Save successful trade to signal performance"""
         try:
-            from app.database import get_db
             from app.services.database_service import DatabaseService
             
             # First save the signal if it doesn't exist
             signal_id = signal.get("id")
             if not signal_id:
-                async for db in get_db():
+                from app.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
                     saved_signal = await DatabaseService.save_signal(db, signal)
                     signal_id = saved_signal.id
-                    break
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 trade_data = {
                     "quantity": quantity,
                     "position_size_usd": position_size_usd,
@@ -1223,18 +1223,18 @@ class BinanceTrader:
     async def _save_failed_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, failure_reason: str):
         """Save failed trade to signal performance"""
         try:
-            from app.database import get_db
             from app.services.database_service import DatabaseService
             
             # First save the signal if it doesn't exist
             signal_id = signal.get("id")
             if not signal_id:
-                async for db in get_db():
+                from app.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
                     saved_signal = await DatabaseService.save_signal(db, signal)
                     signal_id = saved_signal.id
-                    break
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 trade_data = {
                     "quantity": quantity,
                     "position_size_usd": position_size_usd,
@@ -1252,10 +1252,10 @@ class BinanceTrader:
     async def _update_trade_history_on_exit(self, main_order_id: str, exit_price: float, pnl: float, pnl_percentage: float, reason: str):
         """Update signal performance when position is closed"""
         try:
-            from app.database import get_db
             from app.services.database_service import DatabaseService
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 # Find the performance entry by order ID
                 performance = await DatabaseService.find_performance_by_order_id(db, main_order_id)
                 

@@ -9,8 +9,6 @@ from pydantic import BaseModel
 
 from app.services.auto_trading_scheduler import (
     auto_trading_scheduler,
-    start_auto_trading,
-    stop_auto_trading,
     enable_auto_trading,
     disable_auto_trading,
     get_auto_trading_status,
@@ -34,34 +32,6 @@ async def get_status():
         return {
             "success": True,
             "data": status
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/start")
-async def start():
-    """Start the auto-trading scheduler"""
-    try:
-        await start_auto_trading()
-        return {
-            "success": True,
-            "message": "Auto-trading scheduler started",
-            "data": await get_auto_trading_status()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/stop")
-async def stop():
-    """Stop the auto-trading scheduler"""
-    try:
-        stop_auto_trading()
-        return {
-            "success": True,
-            "message": "Auto-trading scheduler stopped",
-            "data": await get_auto_trading_status()
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -173,9 +143,9 @@ async def get_auto_trading_history():
 
 @router.post("/emergency-stop")
 async def emergency_stop():
-    """Emergency stop - disable auto-trading and close all positions"""
+    """Emergency stop - disable auto-trading and close all positions (scheduler keeps running)"""
     try:
-        # Disable auto-trading
+        # Disable auto-trading (scheduler continues monitoring but won't execute trades)
         await disable_auto_trading()
         
         # Close all positions (import from trading router)
@@ -191,9 +161,10 @@ async def emergency_stop():
         
         return {
             "success": True,
-            "message": "Emergency stop executed - auto-trading disabled and all positions closed",
+            "message": "Emergency stop executed - auto-trading disabled and all positions closed (scheduler continues monitoring)",
             "data": {
                 "auto_trading_disabled": True,
+                "scheduler_running": True,
                 "closed_positions": len(closed_positions),
                 "status": await get_auto_trading_status()
             }

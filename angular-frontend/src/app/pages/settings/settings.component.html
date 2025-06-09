@@ -54,67 +54,6 @@
             <p-divider></p-divider>
           </div>
 
-          <!-- Auto Trading Control -->
-          <div class="col-12">
-            <div class="bg-blue-50 border-round p-4 mb-4">
-              <h4 class="text-900 font-semibold mb-3">
-                <i class="pi pi-cog mr-2"></i>Auto-Trading Scheduler Vezérlés
-              </h4>
-              <div class="grid">
-                <div class="col-12 md:col-6">
-                  <div class="text-center p-3 border-round bg-white">
-                    <div class="text-2xl mb-2">
-                      {{ autoTradingStatus?.is_running ? '🟢' : '🔴' }}
-                    </div>
-                    <div class="font-bold text-lg"
-                         [class]="autoTradingStatus?.is_running ? 'text-green-700' : 'text-red-700'">
-                      {{ autoTradingStatus?.is_running ? 'FUTÓ' : 'LEÁLLÍTVA' }}
-                    </div>
-                    <div class="text-sm text-600 mt-1">
-                      Scheduler állapot
-                    </div>
-                  </div>
-                </div>
-                <div class="col-12 md:col-6">
-                  <div class="flex flex-column gap-2">
-                    <p-button
-                      *ngIf="!autoTradingStatus?.is_running"
-                      label="Scheduler Indítása"
-                      icon="pi pi-play"
-                      severity="success"
-                      [loading]="startingScheduler"
-                      (onClick)="startAutoTradingScheduler()"
-                      styleClass="w-full">
-                    </p-button>
-                    <p-button
-                      *ngIf="autoTradingStatus?.is_running"
-                      label="Scheduler Leállítása"
-                      icon="pi pi-stop"
-                      severity="danger"
-                      [loading]="stoppingScheduler"
-                      (onClick)="stopAutoTradingScheduler()"
-                      styleClass="w-full">
-                    </p-button>
-                    <p-button
-                      label="Állapot Frissítése"
-                      icon="pi pi-refresh"
-                      severity="secondary"
-                      [loading]="loadingAutoTradingStatus"
-                      (onClick)="loadAutoTradingStatus()"
-                      styleClass="w-full">
-                    </p-button>
-                  </div>
-                </div>
-              </div>
-              <div class="mt-3" *ngIf="autoTradingStatus">
-                <small class="text-600">
-                  <strong>Utolsó ellenőrzés:</strong> {{ autoTradingStatus.last_check | date:'medium' }}<br>
-                  <strong>Monitorozott szimbólumok:</strong> {{ autoTradingStatus.monitored_symbols?.join(', ') }}<br>
-                  <strong>Ellenőrzési intervallum:</strong> {{ autoTradingStatus.check_interval }} másodperc
-                </small>
-              </div>
-            </div>
-          </div>
 
           <!-- Auto Trading Status -->
           <div class="col-12">

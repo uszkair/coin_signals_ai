@@ -13,7 +13,6 @@ from app.services.binance_trading import execute_automatic_trade, initialize_glo
 from app.services.ml_signal_generator import generate_ai_signal
 from app.services.trading_settings_service import trading_settings_service
 from app.services.database_service import DatabaseService
-from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -100,13 +99,45 @@ class AutoTradingScheduler:
     
     async def enable_auto_trading(self):
         """Enable automatic trading"""
-        await trading_settings_service.update_auto_trading_settings({'enabled': True})
-        logger.info("Auto-trading ENABLED")
+        try:
+            # Use a separate database session to avoid conflicts with the monitoring loop
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                from app.services.database_service import DatabaseService
+                
+                # Update settings directly in database
+                settings_data = {'auto_trading_enabled': True}
+                await DatabaseService.save_trading_settings(db, '1', settings_data)
+                
+                # Update cached settings in trading_settings_service
+                if trading_settings_service._cached_settings:
+                    trading_settings_service._cached_settings['auto_trading_enabled'] = True
+                
+                logger.info("Auto-trading ENABLED")
+        except Exception as e:
+            logger.error(f"Error enabling auto-trading: {e}")
+            raise
     
     async def disable_auto_trading(self):
         """Disable automatic trading"""
-        await trading_settings_service.update_auto_trading_settings({'enabled': False})
-        logger.info("Auto-trading DISABLED")
+        try:
+            # Use a separate database session to avoid conflicts with the monitoring loop
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                from app.services.database_service import DatabaseService
+                
+                # Update settings directly in database
+                settings_data = {'auto_trading_enabled': False}
+                await DatabaseService.save_trading_settings(db, '1', settings_data)
+                
+                # Update cached settings in trading_settings_service
+                if trading_settings_service._cached_settings:
+                    trading_settings_service._cached_settings['auto_trading_enabled'] = False
+                
+                logger.info("Auto-trading DISABLED")
+        except Exception as e:
+            logger.error(f"Error disabling auto-trading: {e}")
+            raise
     
     async def _check_and_execute_trades(self):
         """Check signals and execute trades for all monitored symbols"""
@@ -253,24 +284,26 @@ class AutoTradingScheduler:
         try:
             auto_settings = await self._get_auto_trading_settings()
             return {
-                'is_running': self.is_running,
+                'scheduler_running': True,  # Scheduler always runs as background service
                 'auto_trading_enabled': auto_settings['enabled'],
                 'monitored_symbols': auto_settings['symbols'],
                 'check_interval': auto_settings['interval'],
                 'min_signal_confidence': auto_settings['min_confidence'],
                 'last_signals_count': len(self.last_signals),
-                'last_check': datetime.now().isoformat()
+                'last_check': datetime.now().isoformat(),
+                'mode': 'AUTOMATIC' if auto_settings['enabled'] else 'MANUAL'
             }
         except Exception as e:
             logger.error(f"Error getting auto-trading status: {e}")
             return {
-                'is_running': self.is_running,
+                'scheduler_running': True,  # Scheduler always runs as background service
                 'auto_trading_enabled': False,
                 'monitored_symbols': [],
                 'check_interval': 300,
                 'min_signal_confidence': 70,
                 'last_signals_count': len(self.last_signals),
                 'last_check': datetime.now().isoformat(),
+                'mode': 'MANUAL',
                 'error': str(e)
             }
     
@@ -312,7 +345,8 @@ class AutoTradingScheduler:
             
             logger.debug(f"Monitoring {len(active_positions)} active positions...")
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 for position_id, position in active_positions.items():
                     try:
                         # Refresh order status from Binance API
@@ -390,7 +424,8 @@ class AutoTradingScheduler:
         try:
             trader = initialize_global_trader()
             
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 # Get all pending trading performances with order IDs
                 pending_performances = await DatabaseService.get_pending_trading_performances(db)
                 
@@ -417,16 +452,6 @@ class AutoTradingScheduler:
 
 # Global scheduler instance
 auto_trading_scheduler = AutoTradingScheduler()
-
-
-async def start_auto_trading():
-    """Start the auto-trading scheduler"""
-    await auto_trading_scheduler.start_monitoring()
-
-
-def stop_auto_trading():
-    """Stop the auto-trading scheduler"""
-    auto_trading_scheduler.stop_monitoring()
 
 
 async def enable_auto_trading():

@@ -260,42 +260,52 @@ class DatabaseService:
         """Save or update trading settings"""
         from app.models.database_models import TradingSettings
         
-        # Try to get existing settings
-        existing = await DatabaseService.get_trading_settings(db, user_id)
-        
-        if existing:
-            # Update existing
-            if settings_data:
-                for key, value in settings_data.items():
-                    if hasattr(existing, key):
-                        setattr(existing, key, value)
-            settings = existing
-        else:
-            # Create new with defaults
-            default_settings = {
-                'user_id': user_id,
-                'auto_trading_enabled': False,
-                'monitored_symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
-                'check_interval': 300,
-                'min_signal_confidence': 70,
-                'position_size_mode': 'percentage',
-                'max_position_size': 0.02,
-                'default_position_size_usd': None,
-                'max_daily_trades': 10,
-                'daily_loss_limit': 0.05,
-                'testnet_mode': True
-            }
+        try:
+            # Try to get existing settings
+            existing = await DatabaseService.get_trading_settings(db, user_id)
             
-            # Override with provided settings
-            if settings_data:
-                default_settings.update(settings_data)
+            if existing:
+                # Update existing
+                if settings_data:
+                    for key, value in settings_data.items():
+                        if hasattr(existing, key):
+                            setattr(existing, key, value)
+                settings = existing
+            else:
+                # Create new with defaults
+                default_settings = {
+                    'user_id': user_id,
+                    'auto_trading_enabled': False,
+                    'monitored_symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+                    'check_interval': 300,
+                    'min_signal_confidence': 70,
+                    'position_size_mode': 'percentage',
+                    'max_position_size': 0.02,
+                    'default_position_size_usd': None,
+                    'max_daily_trades': 10,
+                    'daily_loss_limit': 0.05,
+                    'testnet_mode': True
+                }
                 
-            settings = TradingSettings(**default_settings)
-            db.add(settings)
+                # Override with provided settings
+                if settings_data:
+                    default_settings.update(settings_data)
+                    
+                settings = TradingSettings(**default_settings)
+                db.add(settings)
 
-        await db.commit()
-        await db.refresh(settings)
-        return settings
+            # Fast commit without refresh for simple updates
+            await db.commit()
+            
+            # Only refresh if it's a new record
+            if not existing:
+                await db.refresh(settings)
+                
+            return settings
+            
+        except Exception as e:
+            await db.rollback()
+            raise e
 
     @staticmethod
     async def create_default_trading_settings(db: AsyncSession, user_id: str = 'default') -> 'TradingSettings':

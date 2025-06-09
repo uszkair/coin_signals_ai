@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest
-from app.services.auto_trading_scheduler import start_auto_trading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -75,9 +74,14 @@ async def startup_event():
         logger.error(f"Failed to run startup tests: {e}")
         app.state.startup_tests = {"error": str(e)}
     
-    # Auto-trading scheduler is available but NOT started automatically
-    # Use the /api/auto-trading/start endpoint to start it manually
-    logger.info("Auto-trading scheduler available (not started automatically for safety)")
+    # Auto-trading scheduler starts AUTOMATICALLY as background service
+    try:
+        from app.services.auto_trading_scheduler import auto_trading_scheduler
+        asyncio.create_task(auto_trading_scheduler.start_monitoring())
+        logger.info("✅ Auto-trading scheduler started automatically as background service")
+        logger.info("📊 Scheduler will monitor markets continuously (auto-trading can be enabled/disabled via settings)")
+    except Exception as e:
+        logger.error(f"Failed to start auto-trading scheduler: {e}")
 
 
 @app.on_event("shutdown")
@@ -85,9 +89,8 @@ async def shutdown_event():
     """Clean shutdown of background services"""
     logger.info("Shutting down Crypto Trading Assistant API...")
     
-    from app.services.auto_trading_scheduler import stop_auto_trading
-    stop_auto_trading()
-    logger.info("Auto-trading scheduler stopped")
+    # Scheduler will stop automatically when the application shuts down
+    logger.info("Auto-trading scheduler will stop with application shutdown")
 
 
 @app.get("/")

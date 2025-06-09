@@ -7,7 +7,6 @@ import logging
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.database_service import DatabaseService
-from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,8 @@ class TradingSettingsService:
     async def get_settings(self) -> Dict[str, Any]:
         """Get trading settings from database"""
         try:
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 # Ensure default settings exist
                 await DatabaseService.create_default_trading_settings(db, self._user_id)
                 
@@ -41,7 +41,8 @@ class TradingSettingsService:
     async def update_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update trading settings in database"""
         try:
-            async for db in get_db():
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
                 settings = await DatabaseService.save_trading_settings(db, self._user_id, settings_data)
                 self._cached_settings = settings.to_dict()
                 logger.info(f"Trading settings updated: {settings_data}")
@@ -62,18 +63,34 @@ class TradingSettingsService:
     
     async def update_auto_trading_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update auto-trading specific settings"""
-        update_data = {}
-        
-        if 'enabled' in settings_data:
-            update_data['auto_trading_enabled'] = settings_data['enabled']
-        if 'symbols' in settings_data:
-            update_data['monitored_symbols'] = settings_data['symbols']
-        if 'interval' in settings_data:
-            update_data['check_interval'] = max(60, settings_data['interval'])  # Minimum 1 minute
-        if 'min_confidence' in settings_data:
-            update_data['min_signal_confidence'] = max(50, min(95, settings_data['min_confidence']))
-        
-        return await self.update_settings(update_data)
+        try:
+            update_data = {}
+            
+            if 'enabled' in settings_data:
+                update_data['auto_trading_enabled'] = settings_data['enabled']
+            if 'symbols' in settings_data:
+                update_data['monitored_symbols'] = settings_data['symbols']
+            if 'interval' in settings_data:
+                update_data['check_interval'] = max(60, settings_data['interval'])  # Minimum 1 minute
+            if 'min_confidence' in settings_data:
+                update_data['min_signal_confidence'] = max(50, min(95, settings_data['min_confidence']))
+            
+            # Quick update for simple enable/disable operations
+            if len(update_data) == 1 and 'auto_trading_enabled' in update_data:
+                # Update cache immediately for faster response
+                if self._cached_settings:
+                    self._cached_settings['auto_trading_enabled'] = update_data['auto_trading_enabled']
+                
+                # Update database in background
+                result = await self.update_settings(update_data)
+                logger.info(f"Auto-trading {'enabled' if update_data['auto_trading_enabled'] else 'disabled'} successfully")
+                return result
+            else:
+                return await self.update_settings(update_data)
+                
+        except Exception as e:
+            logger.error(f"Error updating auto-trading settings: {e}")
+            raise
     
     async def get_position_size_settings(self) -> Dict[str, Any]:
         """Get position size specific settings"""
