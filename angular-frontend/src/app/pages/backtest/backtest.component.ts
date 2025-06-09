@@ -48,6 +48,7 @@ export class BacktestComponent implements OnInit {
   symbolsDescription: string = '';
   dataStatuses: { [symbol: string]: DataStatus } = {};
   isDataFetching = false;
+  isDataRefreshing = false;
   dataFetchProgress = 0;
 
   // Backtest configuration
@@ -181,7 +182,12 @@ export class BacktestComponent implements OnInit {
       return;
     }
 
-    this.isDataFetching = true;
+    // Set the appropriate loading state based on the operation
+    if (forceRefresh) {
+      this.isDataFetching = true;
+    } else {
+      this.isDataRefreshing = true;
+    }
     this.dataFetchProgress = 0;
 
     const request = {
@@ -205,6 +211,7 @@ export class BacktestComponent implements OnInit {
       },
       error: (error) => {
         this.isDataFetching = false;
+        this.isDataRefreshing = false;
         this.messageService.add({
           severity: 'error',
           summary: 'Hiba',
@@ -220,6 +227,7 @@ export class BacktestComponent implements OnInit {
       if (this.dataFetchProgress >= 100) {
         this.dataFetchProgress = 100;
         this.isDataFetching = false;
+        this.isDataRefreshing = false;
         clearInterval(interval);
         this.checkDataStatuses(); // Refresh data statuses
         this.messageService.add({
