@@ -56,6 +56,7 @@ async def simulate_trade(entry: float, direction: str, candle: dict,
 from app.services.indicators import compute_indicators
 from app.services.candlestick_analyzer import detect_patterns
 from app.services.technical_indicators import calculate_professional_indicators
+from app.services.ml_signal_generator import generate_ai_signal
 
 async def get_current_signal(symbol: str, interval: str):
     """
@@ -64,8 +65,8 @@ async def get_current_signal(symbol: str, interval: str):
     Note: This function does not use a 'mode' parameter (scalp, swing).
     Those trading modes are not needed for this implementation.
     """
-    # Get more historical data for accurate technical indicators (minimum 50 candles)
-    candles = await get_historical_data(symbol, interval, days=7)
+    # Get more historical data for accurate technical indicators (minimum 200 candles for MA200)
+    candles = await get_historical_data(symbol, interval, days=30)
     latest = candles[-1]
     previous = candles[-2] if len(candles) > 1 else None
 
@@ -78,6 +79,18 @@ async def get_current_signal(symbol: str, interval: str):
 
     # Calculate professional technical indicators
     professional_indicators = calculate_professional_indicators(candles)
+    
+    # Get AI/ML signal for additional intelligence
+    try:
+        ai_signal_data = await generate_ai_signal(symbol, interval)
+        ai_signal = ai_signal_data.get('ai_signal', 'NEUTRAL')
+        ai_confidence = ai_signal_data.get('ai_confidence', 50.0)
+        ai_risk_score = ai_signal_data.get('risk_score', 50.0)
+    except Exception as e:
+        print(f"Warning: AI signal generation failed for {symbol}: {e}")
+        ai_signal = 'NEUTRAL'
+        ai_confidence = 50.0
+        ai_risk_score = 50.0
     
     # Keep legacy indicators for compatibility
     indicators = compute_indicators(latest)
@@ -130,6 +143,14 @@ async def get_current_signal(symbol: str, interval: str):
         "support_resistance": {
             "signal": "NEUTRAL",
             "reasoning": "Price within normal range",
+            "weight": 0
+        },
+        "ai_ml_analysis": {
+            "ai_signal": ai_signal,
+            "ai_confidence": ai_confidence,
+            "risk_score": ai_risk_score,
+            "signal": "NEUTRAL",
+            "reasoning": "AI/ML analysis neutral",
             "weight": 0
         }
     }
@@ -259,10 +280,40 @@ async def get_current_signal(symbol: str, interval: str):
         decision_factors["support_resistance"]["reasoning"] = f"Bollinger Bands lower breakout (BB%: {bb_percent:.2f})"
         decision_factors["support_resistance"]["weight"] = -1
     
+    # AI/ML Signal Analysis - add significant weight for strong AI signals
+    if ai_confidence >= 75:  # High confidence AI signal
+        if ai_signal == 'BUY':
+            ai_weight = 2
+            signal_score += ai_weight
+            decision_factors["ai_ml_analysis"]["signal"] = "BUY"
+            decision_factors["ai_ml_analysis"]["reasoning"] = f"High confidence AI BUY signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
+            decision_factors["ai_ml_analysis"]["weight"] = ai_weight
+        elif ai_signal == 'SELL':
+            ai_weight = -2
+            signal_score += ai_weight
+            decision_factors["ai_ml_analysis"]["signal"] = "SELL"
+            decision_factors["ai_ml_analysis"]["reasoning"] = f"High confidence AI SELL signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
+            decision_factors["ai_ml_analysis"]["weight"] = ai_weight
+    elif ai_confidence >= 60:  # Medium confidence AI signal
+        if ai_signal == 'BUY':
+            ai_weight = 1
+            signal_score += ai_weight
+            decision_factors["ai_ml_analysis"]["signal"] = "BUY"
+            decision_factors["ai_ml_analysis"]["reasoning"] = f"Medium confidence AI BUY signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
+            decision_factors["ai_ml_analysis"]["weight"] = ai_weight
+        elif ai_signal == 'SELL':
+            ai_weight = -1
+            signal_score += ai_weight
+            decision_factors["ai_ml_analysis"]["signal"] = "SELL"
+            decision_factors["ai_ml_analysis"]["reasoning"] = f"Medium confidence AI SELL signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
+            decision_factors["ai_ml_analysis"]["weight"] = ai_weight
+    else:
+        decision_factors["ai_ml_analysis"]["reasoning"] = f"Low confidence AI signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%) - not used"
+    
     # Use professional signal strength calculation
     professional_strength = professional_indicators.get('market_assessment', {}).get('signal_strength', 0)
     
-    # Combine traditional scoring with professional assessment
+    # Combine traditional scoring with professional assessment and AI
     combined_score = (signal_score + professional_strength) // 2
     
     # Determine final direction
@@ -289,6 +340,11 @@ async def get_current_signal(symbol: str, interval: str):
         "confidence": min(95, max(5, 50 + abs(combined_score) * 10)),  # Dynamic confidence based on combined signal strength
         "timestamp": signal_timestamp.isoformat(),
         "decision_factors": decision_factors,  # Detailed breakdown of decision logic
-        "total_score": combined_score,  # Combined professional + traditional score
-        "professional_indicators": professional_indicators  # Full professional analysis
+        "total_score": combined_score,  # Combined professional + traditional + AI score
+        "professional_indicators": professional_indicators,  # Full professional analysis
+        "ai_signal_data": {  # AI/ML analysis data
+            "ai_signal": ai_signal,
+            "ai_confidence": ai_confidence,
+            "risk_score": ai_risk_score
+        }
     }

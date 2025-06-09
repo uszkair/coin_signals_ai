@@ -184,9 +184,9 @@ class BacktestService:
             # Get historical data
             historical_data = await self.get_backtest_data(symbol, start_date, end_date)
             
-            if len(historical_data) < 50:
+            if len(historical_data) < 720:
                 return {
-                    "error": f"Insufficient data for {symbol}. Need at least 50 candles, got {len(historical_data)}"
+                    "error": f"Insufficient data for {symbol}. Need at least 720 candles (30 days), got {len(historical_data)}"
                 }
             
             # Initialize backtest result
@@ -211,11 +211,11 @@ class BacktestService:
                 equity_curve = [position_size]  # Track equity for drawdown calculation
                 
                 # Process each candle
-                for i in range(50, len(historical_data)):  # Start from 50 to have enough history
+                for i in range(720, len(historical_data)):  # Start from 720 to have enough history (30 days)
                     current_candle = historical_data[i]
                     
-                    # Prepare data for signal engine (last 50 candles)
-                    candle_window = historical_data[i-49:i+1]
+                    # Prepare data for signal engine (last 720 candles = 30 days)
+                    candle_window = historical_data[i-719:i+1]
                     
                     # Convert to format expected by signal engine
                     formatted_candles = []
@@ -236,8 +236,13 @@ class BacktestService:
                             formatted_candles, symbol, '1h'
                         )
                         
+                        # Debug: Log every 100th signal to see what's happening
+                        if i % 100 == 0:
+                            print(f"🔍 Debug {symbol} candle {i}: Signal={signal_data['signal']}, Confidence={signal_data['confidence']:.1f}%, Threshold={min_confidence}%")
+                        
                         # Check if signal meets confidence threshold
                         if signal_data['confidence'] >= min_confidence and signal_data['signal'] in ['BUY', 'SELL']:
+                            print(f"✅ {symbol} Trade Signal: {signal_data['signal']} at {signal_data['confidence']:.1f}% confidence (entry: ${signal_data['entry_price']:.2f})")
                             # Simulate trade execution
                             entry_price = signal_data['entry_price']
                             stop_loss = signal_data['stop_loss']
@@ -344,7 +349,6 @@ class BacktestService:
         """
         import unittest.mock
         from app.utils.price_data import get_historical_data, get_current_price
-        from app.services.ml_signal_generator import generate_ai_signal
         
         # Mock the price data functions to return our historical data
         async def mock_get_historical_data(symbol_param, interval_param, days):
@@ -353,24 +357,12 @@ class BacktestService:
         async def mock_get_current_price(symbol_param):
             return candles[-1]["close"]
         
-        # Mock AI signal generation to avoid model dependencies in backtest
-        async def mock_generate_ai_signal(symbol_param, interval_param):
-            return {
-                'symbol': symbol_param,
-                'interval': interval_param,
-                'ai_signal': 'HOLD',
-                'ai_confidence': 50.0,
-                'risk_score': 50.0,
-                'market_regime': 'NORMAL',
-                'timestamp': candles[-1]["timestamp"].isoformat()
-            }
-        
-        # Use the real signal engine with mocked data
+        # Use the real signal engine with mocked price data only
+        # Let AI signal generation use real data from database
         with unittest.mock.patch('app.utils.price_data.get_historical_data', side_effect=mock_get_historical_data), \
-             unittest.mock.patch('app.utils.price_data.get_current_price', side_effect=mock_get_current_price), \
-             unittest.mock.patch('app.services.ml_signal_generator.generate_ai_signal', side_effect=mock_generate_ai_signal):
+             unittest.mock.patch('app.utils.price_data.get_current_price', side_effect=mock_get_current_price):
             
-            # Call the real signal engine - this gives us 100% consistency!
+            # Call the real signal engine - includes REAL AI analysis from database!
             signal_data = await get_current_signal(symbol, interval)
             
             return signal_data
