@@ -91,7 +91,7 @@
                   <p-button
                     label="Frissítés"
                     icon="pi pi-refresh"
-                    [loading]="isDataFetching"
+                    [loading]="isDataRefreshing"
                     (onClick)="fetchHistoricalData(false)"
                     styleClass="p-button-success flex-1"
                     pTooltip="Csak hiányzó adatok letöltése (gyors)">
@@ -113,7 +113,7 @@
                 </div>
               </div>
 
-              <div *ngIf="isDataFetching">
+              <div *ngIf="isDataFetching || isDataRefreshing">
                 <p-progressBar [value]="dataFetchProgress"></p-progressBar>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
                   Adatok letöltése folyamatban... {{dataFetchProgress}}%
