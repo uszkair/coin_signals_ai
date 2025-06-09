@@ -27,6 +27,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent)
   },
   {
+    path: 'backtest',
+    loadComponent: () => import('./pages/backtest/backtest.component').then(m => m.BacktestComponent)
+  },
+  {
     path: '**',
     redirectTo: '/dashboard'
   }

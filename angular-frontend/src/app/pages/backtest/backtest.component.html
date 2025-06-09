@@ -1,0 +1,350 @@
+<div class="ml-64 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        <i class="pi pi-chart-bar mr-3 text-green-600"></i>
+        Backtesting
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400">
+        Tesztelje a kereskedési stratégiákat múltbeli adatokon
+      </p>
+    </div>
+
+    <!-- Tab View -->
+    <p-tabView>
+      <!-- Data Management Tab -->
+      <p-tabPanel header="Adatkezelés" leftIcon="pi pi-database">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Data Fetch Card -->
+          <p-card header="Történeti adatok letöltése" styleClass="h-fit">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Kiválasztott szimbólumok
+                </label>
+                <p-multiSelect
+                  [options]="availableSymbolOptions"
+                  [(ngModel)]="selectedSymbols"
+                  placeholder="Válassz szimbólumokat"
+                  styleClass="w-full">
+                </p-multiSelect>
+              </div>
+
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600 dark:text-gray-400">
+                  1 évre visszamenőleg (365 nap)
+                </span>
+                <p-button 
+                  label="Adatok letöltése"
+                  icon="pi pi-download"
+                  [loading]="isDataFetching"
+                  (onClick)="fetchHistoricalData()"
+                  styleClass="p-button-success">
+                </p-button>
+              </div>
+
+              <div *ngIf="isDataFetching">
+                <p-progressBar [value]="dataFetchProgress"></p-progressBar>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Adatok letöltése folyamatban... {{dataFetchProgress}}%
+                </p>
+              </div>
+            </div>
+          </p-card>
+
+          <!-- Data Status Card -->
+          <p-card header="Adatok állapota" styleClass="h-fit">
+            <div class="space-y-3">
+              <div *ngFor="let symbol of selectedSymbols" class="flex justify-between items-center">
+                <span class="font-medium">{{symbol}}</span>
+                <div class="flex items-center space-x-2">
+                  <p-tag
+                    [value]="getDataStatusText(dataStatuses[symbol] && dataStatuses[symbol].has_data || false)"
+                    [severity]="getDataStatusSeverity(dataStatuses[symbol] && dataStatuses[symbol].has_data || false)">
+                  </p-tag>
+                  <span class="text-sm text-gray-500" *ngIf="dataStatuses[symbol] && dataStatuses[symbol].data_points">
+                    {{dataStatuses[symbol].data_points}} pont
+                  </span>
+                </div>
+              </div>
+            </div>
+          </p-card>
+        </div>
+      </p-tabPanel>
+
+      <!-- Backtest Configuration Tab -->
+      <p-tabPanel header="Backtest futtatás" leftIcon="pi pi-play">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Configuration Card -->
+          <p-card header="Backtest beállítások" styleClass="h-fit">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Teszt neve
+                </label>
+                <input 
+                  pInputText 
+                  [(ngModel)]="backtestConfig.test_name" 
+                  placeholder="pl. BTC Strategy Test"
+                  class="w-full">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Szimbólum
+                </label>
+                <p-dropdown 
+                  [options]="availableSymbols" 
+                  [(ngModel)]="backtestConfig.symbol"
+                  placeholder="Válassz szimbólumot"
+                  styleClass="w-full">
+                </p-dropdown>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Visszatekintés (napok)
+                </label>
+                <p-inputNumber 
+                  [(ngModel)]="backtestConfig.days_back"
+                  [min]="30"
+                  [max]="365"
+                  styleClass="w-full">
+                </p-inputNumber>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Minimum bizalom (%)
+                </label>
+                <p-inputNumber 
+                  [(ngModel)]="backtestConfig.min_confidence"
+                  [min]="50"
+                  [max]="95"
+                  styleClass="w-full">
+                </p-inputNumber>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pozíció méret (USD)
+                </label>
+                <p-inputNumber 
+                  [(ngModel)]="backtestConfig.position_size"
+                  [min]="10"
+                  [max]="10000"
+                  mode="currency"
+                  currency="USD"
+                  styleClass="w-full">
+                </p-inputNumber>
+              </div>
+
+              <p-button 
+                label="Backtest futtatása"
+                icon="pi pi-play"
+                [loading]="isRunningBacktest"
+                (onClick)="runBacktest()"
+                styleClass="w-full p-button-lg p-button-success">
+              </p-button>
+            </div>
+          </p-card>
+
+          <!-- Quick Stats Card -->
+          <p-card header="Gyors statisztikák" styleClass="h-fit" *ngIf="selectedResult">
+            <div class="grid grid-cols-2 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">
+                  {{selectedResult.summary.winning_trades}}
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Nyerő kereskedések</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-red-600">
+                  {{selectedResult.summary.losing_trades}}
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Vesztes kereskedések</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">
+                  {{formatPercent(selectedResult.summary.win_rate)}}
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Nyerési arány</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold" 
+                     [class.text-green-600]="selectedResult.summary.total_profit_usd > 0"
+                     [class.text-red-600]="selectedResult.summary.total_profit_usd < 0">
+                  {{formatCurrency(selectedResult.summary.total_profit_usd)}}
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Összes profit</div>
+              </div>
+            </div>
+          </p-card>
+        </div>
+      </p-tabPanel>
+
+      <!-- Results Tab -->
+      <p-tabPanel header="Eredmények" leftIcon="pi pi-chart-line">
+        <div class="space-y-6">
+          <!-- Results Table -->
+          <p-card header="Backtest eredmények">
+            <p-table [value]="backtestResults" [paginator]="true" [rows]="10" 
+                     [showCurrentPageReport]="true" [responsive]="true">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Teszt neve</th>
+                  <th>Szimbólum</th>
+                  <th>Időszak</th>
+                  <th>Kereskedések</th>
+                  <th>Nyerési arány</th>
+                  <th>Profit</th>
+                  <th>Max. visszaesés</th>
+                  <th>Műveletek</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-result>
+                <tr>
+                  <td>{{result.test_name}}</td>
+                  <td>{{result.symbol}}</td>
+                  <td>{{formatDate(result.start_date)}} - {{formatDate(result.end_date)}}</td>
+                  <td>{{result.total_trades}}</td>
+                  <td>{{formatPercent(result.win_rate)}}</td>
+                  <td>
+                    <span [class.text-green-600]="result.total_profit_usd > 0"
+                          [class.text-red-600]="result.total_profit_usd < 0">
+                      {{formatCurrency(result.total_profit_usd)}}
+                    </span>
+                  </td>
+                  <td>{{formatPercent(result.max_drawdown)}}</td>
+                  <td>
+                    <div class="flex space-x-2">
+                      <p-button 
+                        icon="pi pi-eye"
+                        [text]="true"
+                        (onClick)="viewBacktestDetails(result.id)"
+                        pTooltip="Részletek megtekintése">
+                      </p-button>
+                      <p-button 
+                        icon="pi pi-trash"
+                        [text]="true"
+                        severity="danger"
+                        (onClick)="deleteBacktest(result.id)"
+                        pTooltip="Törlés">
+                      </p-button>
+                    </div>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </p-card>
+
+          <!-- Detailed Results -->
+          <div *ngIf="selectedResult" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Equity Chart -->
+            <p-card header="Tőke görbe">
+              <p-chart type="line" [data]="equityChartData" [options]="equityChartOptions"></p-chart>
+            </p-card>
+
+            <!-- Performance Metrics -->
+            <p-card header="Teljesítmény mutatók">
+              <div class="space-y-4">
+                <div class="flex justify-between">
+                  <span>Összes kereskedés:</span>
+                  <span class="font-semibold">{{selectedResult.summary.total_trades}}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Nyerő kereskedések:</span>
+                  <span class="font-semibold text-green-600">{{selectedResult.summary.winning_trades}}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Vesztes kereskedések:</span>
+                  <span class="font-semibold text-red-600">{{selectedResult.summary.losing_trades}}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Nyerési arány:</span>
+                  <span class="font-semibold">{{formatPercent(selectedResult.summary.win_rate)}}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Összes profit:</span>
+                  <span class="font-semibold" 
+                        [class.text-green-600]="selectedResult.summary.total_profit_usd > 0"
+                        [class.text-red-600]="selectedResult.summary.total_profit_usd < 0">
+                    {{formatCurrency(selectedResult.summary.total_profit_usd)}}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Profit százalék:</span>
+                  <span class="font-semibold" 
+                        [class.text-green-600]="selectedResult.summary.total_profit_percent > 0"
+                        [class.text-red-600]="selectedResult.summary.total_profit_percent < 0">
+                    {{formatPercent(selectedResult.summary.total_profit_percent)}}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Max. visszaesés:</span>
+                  <span class="font-semibold text-red-600">{{formatPercent(selectedResult.summary.max_drawdown)}}</span>
+                </div>
+                <div class="flex justify-between" *ngIf="selectedResult.summary.sharpe_ratio">
+                  <span>Sharpe arány:</span>
+                  <span class="font-semibold">{{selectedResult.summary.sharpe_ratio | number:'1.2-2'}}</span>
+                </div>
+              </div>
+            </p-card>
+
+            <!-- Trades Table -->
+            <div class="lg:col-span-2">
+              <p-card header="Kereskedések részletei">
+                <p-table [value]="selectedResult.trades" [paginator]="true" [rows]="20" 
+                         [showCurrentPageReport]="true" [responsive]="true">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Típus</th>
+                      <th>Belépés</th>
+                      <th>Kilépés</th>
+                      <th>Bizalom</th>
+                      <th>Minta</th>
+                      <th>Profit</th>
+                      <th>Eredmény</th>
+                      <th>Időtartam</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-trade>
+                    <tr>
+                      <td>
+                        <p-tag [value]="trade.signal_type" 
+                               [severity]="trade.signal_type === 'BUY' ? 'success' : 'danger'">
+                        </p-tag>
+                      </td>
+                      <td>{{formatCurrency(trade.entry_price)}}</td>
+                      <td>{{trade.exit_price ? formatCurrency(trade.exit_price) : '-'}}</td>
+                      <td>{{trade.confidence}}%</td>
+                      <td>{{trade.pattern || '-'}}</td>
+                      <td>
+                        <span [class.text-green-600]="trade.profit_usd > 0"
+                              [class.text-red-600]="trade.profit_usd < 0">
+                          {{formatCurrency(trade.profit_usd)}}
+                        </span>
+                      </td>
+                      <td>
+                        <p-tag [value]="trade.result" [severity]="getResultSeverity(trade.result)">
+                        </p-tag>
+                      </td>
+                      <td>
+                        {{formatDate(trade.entry_time)}}
+                        <span *ngIf="trade.exit_time"> - {{formatDate(trade.exit_time)}}</span>
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              </p-card>
+            </div>
+          </div>
+        </div>
+      </p-tabPanel>
+    </p-tabView>
+  </div>
+
+  <!-- Toast Messages -->
+  <p-toast></p-toast>
+</div>

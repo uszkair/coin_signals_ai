@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
 
-from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket
+from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest
 from app.services.auto_trading_scheduler import start_auto_trading
 
 # Configure logging
@@ -32,6 +32,7 @@ app.include_router(trading.router)
 app.include_router(ml_ai.router)
 app.include_router(auto_trading.router)  # Auto-trading endpoints
 app.include_router(websocket.router)  # WebSocket endpoints
+app.include_router(backtest.router)  # Backtest endpoints
 
 
 @app.on_event("startup")

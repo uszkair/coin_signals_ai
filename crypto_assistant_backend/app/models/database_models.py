@@ -201,3 +201,121 @@ class TradingSettings(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+class BacktestData(Base):
+    __tablename__ = "backtest_data"
+    __table_args__ = {'schema': 'crypto'}
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    open_price = Column(DECIMAL(20, 8), nullable=False)
+    high_price = Column(DECIMAL(20, 8), nullable=False)
+    low_price = Column(DECIMAL(20, 8), nullable=False)
+    close_price = Column(DECIMAL(20, 8), nullable=False)
+    volume = Column(DECIMAL(20, 8), nullable=False)
+    interval_type = Column(String(10), nullable=False)
+    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "open": float(self.open_price),
+            "high": float(self.high_price),
+            "low": float(self.low_price),
+            "close": float(self.close_price),
+            "volume": float(self.volume),
+            "interval": self.interval_type,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+        }
+
+class BacktestResult(Base):
+    __tablename__ = "backtest_results"
+    __table_args__ = {'schema': 'crypto'}
+
+    id = Column(Integer, primary_key=True, index=True)
+    test_name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False, index=True)
+    interval_type = Column(String(10), nullable=False)
+    start_date = Column(TIMESTAMP(timezone=True), nullable=False)
+    end_date = Column(TIMESTAMP(timezone=True), nullable=False)
+    
+    # Test parameters
+    min_confidence = Column(Integer, default=70)
+    position_size = Column(DECIMAL(10, 2), default=100.0)
+    
+    # Results
+    total_trades = Column(Integer, default=0)
+    winning_trades = Column(Integer, default=0)
+    losing_trades = Column(Integer, default=0)
+    total_profit_usd = Column(DECIMAL(20, 8), default=0.0)
+    total_profit_percent = Column(DECIMAL(10, 4), default=0.0)
+    win_rate = Column(DECIMAL(5, 2), default=0.0)
+    max_drawdown = Column(DECIMAL(10, 4), default=0.0)
+    sharpe_ratio = Column(DECIMAL(10, 4), nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "test_name": self.test_name,
+            "symbol": self.symbol,
+            "interval": self.interval_type,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "min_confidence": self.min_confidence,
+            "position_size": float(self.position_size) if self.position_size else 100.0,
+            "total_trades": self.total_trades,
+            "winning_trades": self.winning_trades,
+            "losing_trades": self.losing_trades,
+            "total_profit_usd": float(self.total_profit_usd) if self.total_profit_usd else 0.0,
+            "total_profit_percent": float(self.total_profit_percent) if self.total_profit_percent else 0.0,
+            "win_rate": float(self.win_rate) if self.win_rate else 0.0,
+            "max_drawdown": float(self.max_drawdown) if self.max_drawdown else 0.0,
+            "sharpe_ratio": float(self.sharpe_ratio) if self.sharpe_ratio else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+class BacktestTrade(Base):
+    __tablename__ = "backtest_trades"
+    __table_args__ = {'schema': 'crypto'}
+
+    id = Column(Integer, primary_key=True, index=True)
+    backtest_result_id = Column(Integer, ForeignKey("crypto.backtest_results.id", ondelete="CASCADE"), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    signal_type = Column(String(10), nullable=False)  # BUY, SELL
+    entry_price = Column(DECIMAL(20, 8), nullable=False)
+    exit_price = Column(DECIMAL(20, 8), nullable=True)
+    stop_loss = Column(DECIMAL(20, 8), nullable=True)
+    take_profit = Column(DECIMAL(20, 8), nullable=True)
+    confidence = Column(DECIMAL(10, 4), nullable=False)
+    pattern = Column(String(50), nullable=True)
+    entry_time = Column(TIMESTAMP(timezone=True), nullable=False)
+    exit_time = Column(TIMESTAMP(timezone=True), nullable=True)
+    profit_usd = Column(DECIMAL(20, 8), default=0.0)
+    profit_percent = Column(DECIMAL(10, 4), default=0.0)
+    result = Column(String(20), default='pending')  # profit, loss, pending
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "backtest_result_id": self.backtest_result_id,
+            "symbol": self.symbol,
+            "signal_type": self.signal_type,
+            "entry_price": float(self.entry_price) if self.entry_price else 0.0,
+            "exit_price": float(self.exit_price) if self.exit_price else None,
+            "stop_loss": float(self.stop_loss) if self.stop_loss else None,
+            "take_profit": float(self.take_profit) if self.take_profit else None,
+            "confidence": float(self.confidence) if self.confidence else 0.0,
+            "pattern": self.pattern,
+            "entry_time": self.entry_time.isoformat() if self.entry_time else None,
+            "exit_time": self.exit_time.isoformat() if self.exit_time else None,
+            "profit_usd": float(self.profit_usd) if self.profit_usd else 0.0,
+            "profit_percent": float(self.profit_percent) if self.profit_percent else 0.0,
+            "result": self.result,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
