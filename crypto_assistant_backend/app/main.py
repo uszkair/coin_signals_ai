@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
 
-from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading
+from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket
 from app.services.auto_trading_scheduler import start_auto_trading
 
 # Configure logging
@@ -31,6 +31,7 @@ app.include_router(ai.router, prefix="/api", tags=["AI"])
 app.include_router(trading.router)
 app.include_router(ml_ai.router)
 app.include_router(auto_trading.router)  # Auto-trading endpoints
+app.include_router(websocket.router)  # WebSocket endpoints
 
 
 @app.on_event("startup")
@@ -73,9 +74,9 @@ async def startup_event():
         logger.error(f"Failed to run startup tests: {e}")
         app.state.startup_tests = {"error": str(e)}
     
-    # Start auto-trading scheduler in background
-    asyncio.create_task(start_auto_trading())
-    logger.info("Auto-trading scheduler started in background")
+    # Auto-trading scheduler is available but NOT started automatically
+    # Use the /api/auto-trading/start endpoint to start it manually
+    logger.info("Auto-trading scheduler available (not started automatically for safety)")
 
 
 @app.on_event("shutdown")

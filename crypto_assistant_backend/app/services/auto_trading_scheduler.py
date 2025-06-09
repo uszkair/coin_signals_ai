@@ -306,6 +306,8 @@ class AutoTradingScheduler:
             active_positions = await trader.get_active_positions()
             
             if not active_positions:
+                # Also check for pending orders in database that need status updates
+                await self._refresh_pending_orders()
                 return
             
             logger.debug(f"Monitoring {len(active_positions)} active positions...")
@@ -313,13 +315,22 @@ class AutoTradingScheduler:
             async for db in get_db():
                 for position_id, position in active_positions.items():
                     try:
+                        # Refresh order status from Binance API
+                        main_order_id = position.get('main_order_id')
+                        symbol = position.get('symbol')
+                        
+                        if main_order_id and symbol:
+                            # Get fresh order status from Binance
+                            refresh_result = await trader.refresh_order_status(main_order_id, symbol)
+                            if refresh_result.get('success'):
+                                logger.debug(f"Order {main_order_id} status refreshed: {refresh_result.get('status')}")
+                        
                         # Check if position should be closed based on stop loss or take profit
                         current_price = position.get('current_price', 0)
                         entry_price = position.get('entry_price', 0)
                         stop_loss = position.get('stop_loss', 0)
                         take_profit = position.get('take_profit', 0)
                         direction = position.get('direction', '')
-                        main_order_id = position.get('main_order_id')
                         
                         should_close = False
                         close_reason = ""
@@ -367,9 +378,41 @@ class AutoTradingScheduler:
                     
                     except Exception as e:
                         logger.error(f"Error monitoring position {position_id}: {e}")
+                
+                # Also refresh pending orders that might not be in active positions
+                await self._refresh_pending_orders()
                         
         except Exception as e:
             logger.error(f"Error in position monitoring: {e}")
+    
+    async def _refresh_pending_orders(self):
+        """Refresh status of pending orders from database"""
+        try:
+            trader = initialize_global_trader()
+            
+            async for db in get_db():
+                # Get all pending trading performances with order IDs
+                pending_performances = await DatabaseService.get_pending_trading_performances(db)
+                
+                for performance in pending_performances:
+                    if performance.main_order_id and performance.signal:
+                        try:
+                            symbol = performance.signal.symbol
+                            order_id = performance.main_order_id
+                            
+                            # Refresh order status from Binance
+                            refresh_result = await trader.refresh_order_status(order_id, symbol)
+                            
+                            if refresh_result.get('success'):
+                                logger.info(f"Pending order {order_id} status updated: {refresh_result.get('status')}")
+                            else:
+                                logger.warning(f"Failed to refresh order {order_id}: {refresh_result.get('error')}")
+                                
+                        except Exception as e:
+                            logger.error(f"Error refreshing pending order {performance.main_order_id}: {e}")
+                            
+        except Exception as e:
+            logger.error(f"Error refreshing pending orders: {e}")
 
 
 # Global scheduler instance

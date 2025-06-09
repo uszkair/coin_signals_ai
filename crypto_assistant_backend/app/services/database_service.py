@@ -5,6 +5,7 @@ from sqlalchemy import select, desc, and_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from typing import List, Optional
+import random
 from app.models.database_models import Signal, SignalPerformance, PriceHistory, UserSettings
 from app.models.schema import SignalResponse, SignalHistoryItem
 
@@ -344,7 +345,6 @@ class DatabaseService:
             for signal in signals:
                 # Calculate profit/loss based on current market conditions
                 # For now, we'll use a simplified calculation
-                import random
                 profit_percent = round(random.uniform(-5.0, 10.0), 2)
                 
                 # Determine trade result based on profit
@@ -605,13 +605,44 @@ class DatabaseService:
     async def find_performance_by_order_id(db: AsyncSession, order_id: str) -> Optional[SignalPerformance]:
         """Find signal performance by order ID"""
         try:
-            query = select(SignalPerformance).where(
-                (SignalPerformance.main_order_id == order_id) |
-                (SignalPerformance.stop_loss_order_id == order_id) |
-                (SignalPerformance.take_profit_order_id == order_id)
+            # Ensure order_id is string for comparison
+            order_id_str = str(order_id)
+            
+            # Use only existing columns and proper string comparison
+            query = select(SignalPerformance).options(
+                selectinload(SignalPerformance.signal)
+            ).where(
+                (SignalPerformance.main_order_id == order_id_str) |
+                (SignalPerformance.stop_loss_order_id == order_id_str) |
+                (SignalPerformance.take_profit_order_id == order_id_str)
             )
             result = await db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
             print(f"❌ Error finding performance by order ID: {str(e)}")
+            # Rollback the transaction to recover from error
+            try:
+                await db.rollback()
+            except:
+                pass
             return None
+
+    @staticmethod
+    async def get_pending_trading_performances(db: AsyncSession, limit: int = 100) -> List[SignalPerformance]:
+        """Get all pending trading performances with order IDs for status refresh"""
+        try:
+            # Use only existing columns to avoid migration issues
+            query = select(SignalPerformance).options(
+                selectinload(SignalPerformance.signal)
+            ).where(
+                and_(
+                    SignalPerformance.result == 'pending',
+                    SignalPerformance.main_order_id.isnot(None)
+                )
+            ).order_by(desc(SignalPerformance.created_at)).limit(limit)
+            
+            result = await db.execute(query)
+            return result.scalars().all()
+        except Exception as e:
+            print(f"❌ Error getting pending trading performances: {str(e)}")
+            return []

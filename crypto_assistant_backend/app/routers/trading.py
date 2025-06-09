@@ -6,6 +6,7 @@ Endpoints for automatic trading functionality
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 from app.services.binance_trading import (
     execute_automatic_trade,
@@ -464,7 +465,7 @@ async def test_binance_connection():
                 "data": {
                     "connected": False,
                     "error": account_info['error'],
-                    "testnet": binance_trader.testnet
+                    "testnet": trader.testnet
                 }
             }
         else:
@@ -989,6 +990,94 @@ async def get_daily_trading_summary(
                 "by_symbol": symbol_summary,
                 "trades": daily_trades_data
             }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class RefreshOrderRequest(BaseModel):
+    order_id: str
+    symbol: str
+
+
+@router.post("/refresh-order-status")
+async def refresh_order_status(request: RefreshOrderRequest):
+    """Refresh order status from Binance API and update database"""
+    try:
+        trader = initialize_global_trader()
+        result = await trader.refresh_order_status(request.order_id, request.symbol)
+        
+        return {
+            "success": True,
+            "data": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/refresh-all-pending-orders")
+async def refresh_all_pending_orders(db: AsyncSession = Depends(get_db)):
+    """Refresh status of all pending orders from database"""
+    try:
+        trader = initialize_global_trader()
+        
+        # Get all pending trading performances with order IDs
+        pending_performances = await DatabaseService.get_pending_trading_performances(db)
+        
+        refresh_results = []
+        for performance in pending_performances:
+            if performance.main_order_id and performance.signal:
+                try:
+                    symbol = performance.signal.symbol
+                    order_id = performance.main_order_id
+                    
+                    # Refresh order status from Binance
+                    refresh_result = await trader.refresh_order_status(order_id, symbol)
+                    
+                    refresh_results.append({
+                        "order_id": order_id,
+                        "symbol": symbol,
+                        "success": refresh_result.get('success', False),
+                        "status": refresh_result.get('status'),
+                        "error": refresh_result.get('error')
+                    })
+                    
+                except Exception as e:
+                    refresh_results.append({
+                        "order_id": performance.main_order_id,
+                        "symbol": performance.signal.symbol if performance.signal else "unknown",
+                        "success": False,
+                        "error": str(e)
+                    })
+        
+        successful_refreshes = len([r for r in refresh_results if r['success']])
+        
+        return {
+            "success": True,
+            "data": {
+                "total_orders_checked": len(refresh_results),
+                "successful_refreshes": successful_refreshes,
+                "failed_refreshes": len(refresh_results) - successful_refreshes,
+                "results": refresh_results
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/order-status/{order_id}")
+async def get_order_status(order_id: str, symbol: str = Query(..., description="Trading symbol")):
+    """Get current order status from Binance API"""
+    try:
+        trader = initialize_global_trader()
+        result = await trader.get_order_status(symbol, order_id)
+        
+        return {
+            "success": True,
+            "data": result
         }
         
     except Exception as e:

@@ -5,6 +5,7 @@ Professional trading automation with risk management
 
 import os
 import asyncio
+import random
 from typing import Dict, List, Optional, Any
 from decimal import Decimal, ROUND_DOWN
 from datetime import datetime
@@ -185,7 +186,7 @@ class BinanceTrader:
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information and balances"""
         if not self.client:
-            return self._simulate_account_info()
+            raise Exception("Binance API client not initialized. Please check your API credentials.")
         
         try:
             if self.use_futures:
@@ -365,15 +366,20 @@ class BinanceTrader:
                 await self._cancel_order(symbol, position['take_profit_order_id'])
             
             # Close position with market order
-            close_direction = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            close_direction = 'SELL' if direction == 'BUY' else 'BUY'
             close_order = await self._place_market_order(symbol, close_direction, quantity)
             
             if close_order['success']:
-                # Calculate P&L
+                # Calculate P&L with zero division protection
                 entry_price = position['entry_price']
                 exit_price = close_order.get('price', 0)
                 pnl = self._calculate_pnl(quantity, entry_price, exit_price, direction)
-                pnl_percentage = (pnl / (quantity * entry_price)) * 100
+                
+                # Protect against division by zero
+                if quantity > 0 and entry_price > 0:
+                    pnl_percentage = (pnl / (quantity * entry_price)) * 100
+                else:
+                    pnl_percentage = 0.0
                 
                 # Update daily P&L
                 self.daily_pnl += pnl
@@ -422,11 +428,20 @@ class BinanceTrader:
                     position['direction']
                 )
                 
+                # Protect against division by zero for unrealized P&L percentage
+                quantity = position.get('quantity', 0)
+                entry_price = position.get('entry_price', 0)
+                
+                if quantity > 0 and entry_price > 0:
+                    unrealized_pnl_percentage = (unrealized_pnl / (quantity * entry_price)) * 100
+                else:
+                    unrealized_pnl_percentage = 0.0
+                
                 positions_with_pnl[position_id] = {
                     **position,
                     'current_price': current_price,
                     'unrealized_pnl': unrealized_pnl,
-                    'unrealized_pnl_percentage': (unrealized_pnl / (position['quantity'] * position['entry_price'])) * 100
+                    'unrealized_pnl_percentage': unrealized_pnl_percentage
                 }
                 
             except Exception as e:
@@ -546,7 +561,7 @@ class BinanceTrader:
     async def _get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol trading information"""
         if not self.client:
-            return self._simulate_symbol_info(symbol)
+            raise Exception("Binance API client not initialized. Cannot get symbol info without API connection.")
         
         try:
             if self.use_futures:
@@ -615,11 +630,37 @@ class BinanceTrader:
         return round(final_quantity, precision)
     
     async def _place_market_order(self, symbol: str, side: str, quantity: float) -> Dict[str, Any]:
-        """Place a market order"""
+        """Place a market order with price validation"""
         if not self.client:
-            return self._simulate_order(symbol, side, quantity, 'MARKET')
+            raise Exception("Binance API client not initialized. Cannot place orders without API connection.")
         
         try:
+            # Get current market price for validation
+            current_price = await self._get_current_price(symbol)
+            if current_price <= 0:
+                return {'success': False, 'error': f'Could not get current price for {symbol}'}
+            
+            # Get symbol info for price filters
+            symbol_info = await self._get_symbol_info(symbol)
+            if not symbol_info:
+                return {'success': False, 'error': f'Could not get symbol info for {symbol}'}
+            
+            # Validate price against PERCENT_PRICE filter
+            price_filter = None
+            for filter_info in symbol_info.get('filters', []):
+                if filter_info['filterType'] == 'PERCENT_PRICE':
+                    price_filter = filter_info
+                    break
+            
+            if price_filter:
+                multiplier_up = float(price_filter.get('multiplierUp', 5.0))
+                multiplier_down = float(price_filter.get('multiplierDown', 0.2))
+                
+                max_price = current_price * multiplier_up
+                min_price = current_price * multiplier_down
+                
+                logger.info(f"Price validation for {symbol}: current={current_price}, range=[{min_price:.8f}, {max_price:.8f}]")
+            
             binance_side = SIDE_BUY if side == 'BUY' else SIDE_SELL
             
             # Use appropriate order method based on API type
@@ -662,18 +703,56 @@ class BinanceTrader:
                 }
             
         except BinanceOrderException as e:
-            logger.error(f"Binance order error: {e}")
-            return {'success': False, 'error': str(e)}
+            error_msg = str(e)
+            logger.error(f"Binance order error for {symbol}: {error_msg}")
+            
+            # Provide more helpful error messages
+            if "PERCENT_PRICE" in error_msg:
+                return {'success': False, 'error': f'Price validation failed for {symbol}. Market order rejected due to price limits. This usually happens when the market is very volatile or the symbol has trading restrictions.'}
+            elif "MIN_NOTIONAL" in error_msg:
+                return {'success': False, 'error': f'Order value too small for {symbol}. Please increase position size.'}
+            elif "LOT_SIZE" in error_msg:
+                return {'success': False, 'error': f'Invalid quantity for {symbol}. Please adjust position size.'}
+            else:
+                return {'success': False, 'error': error_msg}
         except Exception as e:
-            logger.error(f"Unexpected error placing order: {e}")
+            logger.error(f"Unexpected error placing order for {symbol}: {e}")
             return {'success': False, 'error': str(e)}
     
     async def _place_stop_loss_order(self, symbol: str, direction: str, quantity: float, stop_price: float, symbol_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Place a stop loss order"""
+        """Place a stop loss order with price validation"""
         if not self.client:
-            return self._simulate_order(symbol, 'STOP_LOSS', quantity, 'STOP_LOSS_LIMIT')
+            raise Exception("Binance API client not initialized. Cannot place stop loss orders without API connection.")
         
         try:
+            # Get current market price for validation
+            current_price = await self._get_current_price(symbol)
+            if current_price <= 0:
+                logger.warning(f"Could not get current price for {symbol}, skipping stop loss order")
+                return {'success': False, 'error': f'Could not get current price for {symbol}'}
+            
+            # Validate stop price against PERCENT_PRICE filter
+            price_filter = None
+            for filter_info in symbol_info.get('filters', []):
+                if filter_info['filterType'] == 'PERCENT_PRICE':
+                    price_filter = filter_info
+                    break
+            
+            if price_filter:
+                multiplier_up = float(price_filter.get('multiplierUp', 5.0))
+                multiplier_down = float(price_filter.get('multiplierDown', 0.2))
+                
+                max_price = current_price * multiplier_up
+                min_price = current_price * multiplier_down
+                
+                # Adjust stop price if it's outside the allowed range
+                if stop_price > max_price:
+                    logger.warning(f"Stop price {stop_price} too high for {symbol}, adjusting to {max_price}")
+                    stop_price = max_price * 0.95  # 5% buffer
+                elif stop_price < min_price:
+                    logger.warning(f"Stop price {stop_price} too low for {symbol}, adjusting to {min_price}")
+                    stop_price = min_price * 1.05  # 5% buffer
+            
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
             if self.use_futures:
@@ -685,12 +764,14 @@ class BinanceTrader:
                     stopPrice=stop_price
                 )
             else:
+                # For spot, use a more conservative approach
+                limit_price = stop_price * 0.99 if side == SIDE_SELL else stop_price * 1.01
                 order = self.client.order_stop_loss_limit(
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
                     stopPrice=stop_price,
-                    price=stop_price * 0.99 if side == SIDE_SELL else stop_price * 1.01  # Slight buffer
+                    price=limit_price
                 )
             
             return {
@@ -700,16 +781,52 @@ class BinanceTrader:
                 'stop_price': stop_price
             }
             
+        except BinanceOrderException as e:
+            error_msg = str(e)
+            logger.error(f"Binance stop loss order error for {symbol}: {error_msg}")
+            
+            if "PERCENT_PRICE" in error_msg:
+                return {'success': False, 'error': f'Stop loss price validation failed for {symbol}. Price too far from market price.'}
+            else:
+                return {'success': False, 'error': error_msg}
         except Exception as e:
-            logger.error(f"Error placing stop loss order: {e}")
+            logger.error(f"Error placing stop loss order for {symbol}: {e}")
             return {'success': False, 'error': str(e)}
     
     async def _place_take_profit_order(self, symbol: str, direction: str, quantity: float, take_profit_price: float, symbol_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Place a take profit order"""
+        """Place a take profit order with price validation"""
         if not self.client:
-            return self._simulate_order(symbol, 'TAKE_PROFIT', quantity, 'TAKE_PROFIT_LIMIT')
+            raise Exception("Binance API client not initialized. Cannot place take profit orders without API connection.")
         
         try:
+            # Get current market price for validation
+            current_price = await self._get_current_price(symbol)
+            if current_price <= 0:
+                logger.warning(f"Could not get current price for {symbol}, skipping take profit order")
+                return {'success': False, 'error': f'Could not get current price for {symbol}'}
+            
+            # Validate take profit price against PERCENT_PRICE filter
+            price_filter = None
+            for filter_info in symbol_info.get('filters', []):
+                if filter_info['filterType'] == 'PERCENT_PRICE':
+                    price_filter = filter_info
+                    break
+            
+            if price_filter:
+                multiplier_up = float(price_filter.get('multiplierUp', 5.0))
+                multiplier_down = float(price_filter.get('multiplierDown', 0.2))
+                
+                max_price = current_price * multiplier_up
+                min_price = current_price * multiplier_down
+                
+                # Adjust take profit price if it's outside the allowed range
+                if take_profit_price > max_price:
+                    logger.warning(f"Take profit price {take_profit_price} too high for {symbol}, adjusting to {max_price}")
+                    take_profit_price = max_price * 0.95  # 5% buffer
+                elif take_profit_price < min_price:
+                    logger.warning(f"Take profit price {take_profit_price} too low for {symbol}, adjusting to {min_price}")
+                    take_profit_price = min_price * 1.05  # 5% buffer
+            
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
             if self.use_futures:
@@ -736,14 +853,22 @@ class BinanceTrader:
                 'take_profit_price': take_profit_price
             }
             
+        except BinanceOrderException as e:
+            error_msg = str(e)
+            logger.error(f"Binance take profit order error for {symbol}: {error_msg}")
+            
+            if "PERCENT_PRICE" in error_msg:
+                return {'success': False, 'error': f'Take profit price validation failed for {symbol}. Price too far from market price.'}
+            else:
+                return {'success': False, 'error': error_msg}
         except Exception as e:
-            logger.error(f"Error placing take profit order: {e}")
+            logger.error(f"Error placing take profit order for {symbol}: {e}")
             return {'success': False, 'error': str(e)}
     
     async def _cancel_order(self, symbol: str, order_id: str) -> bool:
         """Cancel an order"""
         if not self.client:
-            return True  # Simulate success
+            raise Exception("Binance API client not initialized. Cannot cancel orders without API connection.")
         
         try:
             if self.use_futures:
@@ -755,10 +880,147 @@ class BinanceTrader:
             logger.error(f"Error canceling order {order_id}: {e}")
             return False
     
+    async def get_order_status(self, symbol: str, order_id: str) -> Dict[str, Any]:
+        """Get order status from Binance API"""
+        if not self.client:
+            raise Exception("Binance API client not initialized. Cannot get order status without API connection.")
+        
+        try:
+            if self.use_futures:
+                order = self.client.futures_get_order(symbol=symbol, orderId=order_id)
+                return {
+                    'success': True,
+                    'order_id': order['orderId'],
+                    'symbol': order['symbol'],
+                    'status': order['status'],
+                    'side': order['side'],
+                    'type': order['type'],
+                    'original_qty': float(order['origQty']),
+                    'executed_qty': float(order['executedQty']),
+                    'cumulative_quote_qty': float(order['cumQuote']),
+                    'price': float(order['price']) if order['price'] != '0' else None,
+                    'avg_price': float(order['avgPrice']) if order['avgPrice'] != '0' else None,
+                    'stop_price': float(order['stopPrice']) if order.get('stopPrice') and order['stopPrice'] != '0' else None,
+                    'time': datetime.fromtimestamp(order['time'] / 1000),
+                    'update_time': datetime.fromtimestamp(order['updateTime'] / 1000),
+                    'time_in_force': order['timeInForce'],
+                    'reduce_only': order.get('reduceOnly', False),
+                    'close_position': order.get('closePosition', False)
+                }
+            else:
+                order = self.client.get_order(symbol=symbol, orderId=order_id)
+                return {
+                    'success': True,
+                    'order_id': order['orderId'],
+                    'symbol': order['symbol'],
+                    'status': order['status'],
+                    'side': order['side'],
+                    'type': order['type'],
+                    'original_qty': float(order['origQty']),
+                    'executed_qty': float(order['executedQty']),
+                    'cumulative_quote_qty': float(order['cummulativeQuoteQty']),
+                    'price': float(order['price']) if order['price'] != '0.00000000' else None,
+                    'stop_price': float(order['stopPrice']) if order.get('stopPrice') and order['stopPrice'] != '0.00000000' else None,
+                    'iceberg_qty': float(order['icebergQty']) if order.get('icebergQty') else None,
+                    'time': datetime.fromtimestamp(order['time'] / 1000),
+                    'update_time': datetime.fromtimestamp(order['updateTime'] / 1000),
+                    'time_in_force': order['timeInForce'],
+                    'is_working': order.get('isWorking', False)
+                }
+                
+        except BinanceAPIException as e:
+            logger.error(f"Binance API error getting order {order_id}: {e}")
+            return {'success': False, 'error': str(e)}
+        except Exception as e:
+            logger.error(f"Unexpected error getting order {order_id}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def refresh_order_status(self, order_id: str, symbol: str) -> Dict[str, Any]:
+        """Refresh order status and update database if needed"""
+        try:
+            # Get fresh order status from Binance
+            order_status = await self.get_order_status(symbol, order_id)
+            
+            if not order_status['success']:
+                return order_status
+            
+            # Update database with fresh order data
+            await self._update_order_in_database(order_id, order_status)
+            
+            return {
+                'success': True,
+                'order_id': order_id,
+                'symbol': symbol,
+                'status': order_status['status'],
+                'executed_qty': order_status['executed_qty'],
+                'avg_price': order_status.get('avg_price'),
+                'update_time': order_status['update_time'],
+                'database_updated': True
+            }
+            
+        except Exception as e:
+            logger.error(f"Error refreshing order status {order_id}: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def _update_order_in_database(self, order_id: str, order_data: Dict[str, Any]):
+        """Update order information in database"""
+        try:
+            from app.database import get_db
+            from app.services.database_service import DatabaseService
+            
+            async for db in get_db():
+                # Find the performance entry by order ID
+                performance = await DatabaseService.find_performance_by_order_id(db, order_id)
+                
+                if performance:
+                    # Update with fresh order data (only use existing columns)
+                    update_data = {}
+                    
+                    # Log the order status update for debugging
+                    logger.info(f"Updating order {order_id}: status={order_data['status']}, executed_qty={order_data['executed_qty']}")
+                    
+                    # If order is filled and we don't have exit data yet, calculate P&L
+                    if (order_data['status'] == 'FILLED' and
+                        performance.result == 'pending' and
+                        order_data.get('avg_price')):
+                        
+                        # This is a filled order, calculate final P&L
+                        # Get entry price from the related signal
+                        entry_price = float(performance.signal.price) if performance.signal else order_data.get('avg_price')
+                        exit_price = order_data.get('avg_price')
+                        quantity = order_data['executed_qty']
+                        
+                        # Get signal direction from the related signal
+                        if performance.signal:
+                            direction = performance.signal.signal_type
+                            pnl = self._calculate_pnl(quantity, entry_price, exit_price, direction)
+                            
+                            # Protect against division by zero
+                            if quantity > 0 and entry_price > 0:
+                                pnl_percentage = (pnl / (quantity * entry_price)) * 100
+                            else:
+                                pnl_percentage = 0.0
+                            
+                            update_data.update({
+                                'exit_price': exit_price,
+                                'exit_time': order_data['update_time'],
+                                'profit_loss': pnl,
+                                'profit_percentage': pnl_percentage,
+                                'result': 'profit' if pnl > 0 else 'loss' if pnl < 0 else 'breakeven'
+                            })
+                    
+                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                    logger.info(f"Order {order_id} updated in database: status={order_data['status']}")
+                else:
+                    logger.warning(f"Performance not found for order ID: {order_id}")
+                    
+        except Exception as e:
+            logger.error(f"Error updating order in database: {e}")
+    
     async def _get_current_price(self, symbol: str) -> float:
         """Get current market price"""
         if not self.client:
-            return 50000.0  # Simulate price
+            raise Exception("Binance API client not initialized. Cannot get current price without API connection.")
         
         try:
             if self.use_futures:
@@ -885,7 +1147,6 @@ class BinanceTrader:
     
     def _simulate_order(self, symbol: str, side: str, quantity: float, order_type: str) -> Dict[str, Any]:
         """Simulate order execution for testing"""
-        import random
         
         return {
             'success': True,
@@ -897,6 +1158,33 @@ class BinanceTrader:
             'commission': quantity * 0.001,  # 0.1% commission
             'status': 'FILLED',
             'type': order_type
+        }
+    
+    def _simulate_order_status(self, symbol: str, order_id: str) -> Dict[str, Any]:
+        """Simulate order status for testing"""
+        
+        # Simulate different order statuses
+        statuses = ['NEW', 'PARTIALLY_FILLED', 'FILLED', 'CANCELED', 'REJECTED']
+        status = random.choice(statuses)
+        
+        original_qty = 0.1
+        executed_qty = original_qty if status == 'FILLED' else (original_qty * 0.5 if status == 'PARTIALLY_FILLED' else 0)
+        
+        return {
+            'success': True,
+            'order_id': order_id,
+            'symbol': symbol,
+            'status': status,
+            'side': 'BUY',
+            'type': 'MARKET',
+            'original_qty': original_qty,
+            'executed_qty': executed_qty,
+            'cumulative_quote_qty': executed_qty * 50000,
+            'price': 50000.0 + random.uniform(-100, 100),
+            'avg_price': 50000.0 + random.uniform(-50, 50) if executed_qty > 0 else None,
+            'time': datetime.now(),
+            'update_time': datetime.now(),
+            'time_in_force': 'GTC'
         }
     
     async def _save_successful_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:

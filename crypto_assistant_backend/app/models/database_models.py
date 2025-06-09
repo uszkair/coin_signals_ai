@@ -178,6 +178,7 @@ class TradingSettings(Base):
     
     # Trading environment
     testnet_mode = Column(Boolean, default=True)
+    use_futures = Column(Boolean, default=True)
     
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -196,6 +197,7 @@ class TradingSettings(Base):
             "max_daily_trades": self.max_daily_trades,
             "daily_loss_limit": float(self.daily_loss_limit) if self.daily_loss_limit else 0.05,
             "testnet_mode": self.testnet_mode,
+            "use_futures": self.use_futures,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
