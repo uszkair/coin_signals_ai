@@ -20,49 +20,41 @@ except ImportError:
 router = APIRouter()
 
 if DATABASE_AVAILABLE:
-    @router.get("/", response_model=List[SignalResponse])
+    @router.get("/")
     async def get_signals(symbols: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
         """
         Trading signals lekérése adatbázisból.
-        A háttérben futó monitor szolgáltatás már elemzi és menti a signalokat.
+        Ha nincs signal az adatbázisban, üres listát ad vissza.
         symbols: vesszővel elválasztott szimbólumok (pl: BTCUSDT,ETHUSDT)
         """
         try:
             symbol_list = [s.strip() for s in symbols.split(',')]
             signals = []
             
-            # Get latest signals from database for each symbol
+            # Ellenőrizzük az adatbázist minden szimbólumra
             for symbol in symbol_list:
                 try:
-                    # Get the most recent signal for this symbol (within 24 hours)
                     recent_signals = await DatabaseService.get_recent_signals(
                         db, hours=24, symbol=symbol, limit=1
                     )
                     
                     if recent_signals:
+                        # Van signal az adatbázisban
                         signal_dict = recent_signals[0].to_dict()
-                        # Update current price for real-time display
-                        try:
-                            from app.utils.price_data import get_current_price
-                            current_price = await get_current_price(symbol)
-                            signal_dict['current_price'] = float(current_price)
-                        except:
-                            signal_dict['current_price'] = signal_dict['entry_price']
                         signals.append(signal_dict)
-                    else:
-                        # If no recent signal found, this shouldn't happen with background monitor
-                        # but we'll generate one as fallback
-                        signal_data = await get_current_signal(symbol, interval)
-                        await DatabaseService.save_signal(db, signal_data)
-                        signals.append(signal_data)
+                    # Ha nincs signal, nem adunk hozzá semmit
                         
-                except Exception as e:
-                    print(f"Error getting signal for {symbol}: {e}")
+                except Exception as db_error:
+                    print(f"Database error for {symbol}: {db_error}")
+                    # Adatbázis hiba esetén sem adunk hozzá semmit
                     continue
                     
             return signals
+            
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            print(f"Error in get_signals: {e}")
+            # Ha minden hibázik, üres lista
+            return []
 else:
     @router.get("/", response_model=List[SignalResponse])
     async def get_signals(symbols: str, interval: str = "1h"):
@@ -97,39 +89,32 @@ else:
             raise HTTPException(status_code=500, detail=str(e))
 
 if DATABASE_AVAILABLE:
-    @router.get("/{symbol}", response_model=SignalResponse)
+    @router.get("/{symbol}")
     async def get_signal(symbol: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
         try:
-            # Database mode
+            # Database mode - csak lekérés, nincs generálás
             try:
                 recent_signals = await DatabaseService.get_recent_signals(
-                    db, hours=1, symbol=symbol, limit=1
+                    db, hours=24, symbol=symbol, limit=1
                 )
                 
                 if recent_signals:
                     return recent_signals[0].to_dict()
-                
-                # Generate new signal if not found in database
-                signal_data = await get_current_signal(symbol, interval)
-                
-                # Save to database
-                await DatabaseService.save_signal(db, signal_data)
-                
-                return signal_data
+                else:
+                    # Ha nincs signal az adatbázisban, üres válasz
+                    print(f"No signal found for {symbol} in database, returning empty response")
+                    raise HTTPException(status_code=404, detail=f"No signal found for {symbol}")
+                    
+            except HTTPException:
+                raise
             except Exception as e:
-                print(f"Database error, using fallback: {e}")
-                # Fallback mode
-                recent_signals = fallback_service.get_recent_signals(hours=1, symbol=symbol, limit=1)
+                print(f"Database error for {symbol}: {e}")
+                raise HTTPException(status_code=500, detail="Database error")
                 
-                if recent_signals:
-                    return recent_signals[0]
-                
-                # Generate new signal
-                signal_data = await get_current_signal(symbol, interval)
-                fallback_service.add_signal(signal_data)
-                
-                return signal_data
+        except HTTPException:
+            raise
         except Exception as e:
+            print(f"Error in get_signal: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.get("/history/{symbol}", response_model=List[SignalResponse])
