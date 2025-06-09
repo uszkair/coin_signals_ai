@@ -16,61 +16,143 @@ class BacktestService:
     def __init__(self):
         pass
     
-    async def fetch_historical_data(self, symbols: List[str], days: int = 365) -> Dict[str, bool]:
+    async def fetch_historical_data(self, symbols: List[str], days: int = 365, force_refresh: bool = False) -> Dict[str, bool]:
         """
-        Fetch 1 year of historical data using existing get_historical_data function
+        Intelligently fetch historical data - avoids API rate limits by only downloading missing data
         Returns dict with symbol -> success status
         """
         results = {}
+        api_calls_made = 0
         
         try:
             async with AsyncSessionLocal() as session:
                 for symbol in symbols:
                     try:
-                        print(f"Fetching data for {symbol}...")
+                        print(f"📊 Checking data for {symbol}...")
                         
-                        # Delete existing backtest data for this symbol
-                        await session.execute(
-                            delete(BacktestData).where(BacktestData.symbol == symbol)
+                        # Check existing data coverage
+                        end_date = datetime.now()
+                        start_date = end_date - timedelta(days=days)
+                        
+                        # Get latest existing data
+                        existing_result = await session.execute(
+                            select(BacktestData)
+                            .where(
+                                BacktestData.symbol == symbol,
+                                BacktestData.timestamp >= start_date
+                            )
+                            .order_by(BacktestData.timestamp.desc())
+                            .limit(1)
                         )
+                        latest_data = existing_result.scalar_one_or_none()
                         
-                        # Use existing get_historical_data function
-                        candles = await get_historical_data(symbol=symbol, interval="1h", days=days)
+                        # Count existing data points in range
+                        count_result = await session.execute(
+                            select(BacktestData)
+                            .where(
+                                BacktestData.symbol == symbol,
+                                BacktestData.timestamp >= start_date,
+                                BacktestData.timestamp <= end_date
+                            )
+                        )
+                        existing_data = count_result.scalars().all()
+                        existing_count = len(existing_data)
+                        expected_count = days * 24  # 24 hours per day
                         
-                        if not candles:
+                        # Determine if we need to fetch data
+                        should_fetch = force_refresh
+                        fetch_reason = ""
+                        
+                        if not should_fetch:
+                            if not latest_data:
+                                should_fetch = True
+                                fetch_reason = "No existing data found"
+                            elif existing_count < (expected_count * 0.8):  # Less than 80% coverage
+                                should_fetch = True
+                                fetch_reason = f"Insufficient coverage ({existing_count}/{expected_count} points)"
+                            else:
+                                # Check if data is recent (within 2 hours)
+                                time_diff = datetime.now() - latest_data.timestamp.replace(tzinfo=None)
+                                if time_diff.total_seconds() > 7200:  # 2 hours
+                                    should_fetch = True
+                                    fetch_reason = f"Data outdated ({int(time_diff.total_seconds()/3600)}h old)"
+                                else:
+                                    print(f"✅ {symbol}: Data up-to-date ({existing_count} points, latest: {latest_data.timestamp})")
+                                    results[symbol] = True
+                                    continue
+                        
+                        # Rate limiting protection
+                        if api_calls_made >= 100:  # Conservative limit
+                            print(f"⚠️ API rate limit protection: Skipping {symbol} (made {api_calls_made} calls)")
                             results[symbol] = False
                             continue
                         
-                        # Save to database
-                        backtest_data_objects = []
-                        for candle in candles:
-                            backtest_data = BacktestData(
-                                symbol=symbol,
-                                open_price=Decimal(str(candle["open"])),
-                                high_price=Decimal(str(candle["high"])),
-                                low_price=Decimal(str(candle["low"])),
-                                close_price=Decimal(str(candle["close"])),
-                                volume=Decimal(str(candle["volume"])),
-                                interval_type='1h',
-                                timestamp=candle["timestamp"]
-                            )
-                            backtest_data_objects.append(backtest_data)
-                        
-                        # Bulk insert
-                        session.add_all(backtest_data_objects)
-                        await session.commit()
-                        
-                        results[symbol] = True
-                        print(f"Successfully saved {len(backtest_data_objects)} candles for {symbol}")
+                        if should_fetch:
+                            print(f"🔄 {symbol}: {fetch_reason}")
+                            
+                            if force_refresh:
+                                # Only delete if force refresh requested
+                                await session.execute(
+                                    delete(BacktestData).where(BacktestData.symbol == symbol)
+                                )
+                                print(f"🗑️ {symbol}: Cleared existing data")
+                            
+                            # Fetch new data with rate limiting
+                            print(f"📡 {symbol}: Downloading data (API call #{api_calls_made + 1})...")
+                            candles = await get_historical_data(symbol=symbol, interval="1h", days=days)
+                            api_calls_made += 1
+                            
+                            if not candles:
+                                print(f"❌ {symbol}: No data received")
+                                results[symbol] = False
+                                continue
+                            
+                            # Save to database (only new data if not force refresh)
+                            new_data_count = 0
+                            for candle in candles:
+                                # Skip if data already exists (unless force refresh)
+                                if not force_refresh:
+                                    existing_check = await session.execute(
+                                        select(BacktestData)
+                                        .where(
+                                            BacktestData.symbol == symbol,
+                                            BacktestData.timestamp == candle["timestamp"]
+                                        )
+                                    )
+                                    if existing_check.scalar_one_or_none():
+                                        continue
+                                
+                                backtest_data = BacktestData(
+                                    symbol=symbol,
+                                    open_price=Decimal(str(candle["open"])),
+                                    high_price=Decimal(str(candle["high"])),
+                                    low_price=Decimal(str(candle["low"])),
+                                    close_price=Decimal(str(candle["close"])),
+                                    volume=Decimal(str(candle["volume"])),
+                                    interval_type='1h',
+                                    timestamp=candle["timestamp"]
+                                )
+                                session.add(backtest_data)
+                                new_data_count += 1
+                            
+                            await session.commit()
+                            print(f"✅ {symbol}: Saved {new_data_count} new candles")
+                            results[symbol] = True
+                            
+                            # Rate limiting delay
+                            if api_calls_made % 10 == 0:
+                                print(f"⏱️ Rate limiting: Pausing after {api_calls_made} API calls...")
+                                await asyncio.sleep(2)  # 2 second pause every 10 calls
                         
                     except Exception as e:
-                        print(f"Error processing {symbol}: {e}")
+                        print(f"❌ Error processing {symbol}: {e}")
                         results[symbol] = False
                         await session.rollback()
                         
         except Exception as e:
-            print(f"General error in fetch_historical_data: {e}")
-                
+            print(f"❌ General error in fetch_historical_data: {e}")
+        
+        print(f"📈 Data fetch completed: {api_calls_made} API calls made")
         return results
     
     async def get_backtest_data(self, symbol: str, start_date: datetime, end_date: datetime) -> List[Dict]:

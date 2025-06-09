@@ -14,6 +14,7 @@ export interface BacktestRequest {
 export interface DataFetchRequest {
   symbols: string[];
   days: number;
+  force_refresh?: boolean;
 }
 
 export interface BacktestResult {
@@ -107,8 +108,8 @@ export class BacktestService {
   }
 
   // Get available symbols
-  getAvailableSymbols(): Observable<{ symbols: string[] }> {
-    return this.http.get<{ symbols: string[] }>(`${this.apiUrl}/symbols`);
+  getAvailableSymbols(): Observable<{ symbols: string[]; source?: string; description?: string }> {
+    return this.http.get<{ symbols: string[]; source?: string; description?: string }>(`${this.apiUrl}/symbols`);
   }
 
   // Health check

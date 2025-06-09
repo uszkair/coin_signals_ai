@@ -15,33 +15,102 @@
     <p-tabView>
       <!-- Data Management Tab -->
       <p-tabPanel header="Adatkezelés" leftIcon="pi pi-database">
+        <!-- Symbol Information Panel -->
+        <div class="mb-6" *ngIf="symbolsDescription">
+          <div class="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+            <div class="flex items-start">
+              <i class="pi pi-info-circle text-blue-600 dark:text-blue-400 mr-3 mt-1"></i>
+              <div>
+                <h3 class="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                  Elérhető szimbólumok
+                </h3>
+                <p class="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                  {{symbolsDescription}}
+                </p>
+                <div class="flex flex-wrap gap-1">
+                  <span *ngFor="let symbol of availableSymbols"
+                        class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200">
+                    {{symbol}}
+                  </span>
+                </div>
+                <p class="text-xs text-blue-600 dark:text-blue-400 mt-2" *ngIf="symbolsSource">
+                  Forrás: {{symbolsSource === 'auto_trading_settings' ? 'Auto Trading beállítások' : symbolsSource}}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Data Fetch Card -->
           <p-card header="Történeti adatok letöltése" styleClass="h-fit">
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Kiválasztott szimbólumok
-                </label>
+                <div class="flex justify-between items-center mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Kiválasztott szimbólumok
+                  </label>
+                  <div class="flex space-x-2">
+                    <p-button
+                      label="Összes kiválasztása"
+                      icon="pi pi-check-square"
+                      [text]="true"
+                      size="small"
+                      (onClick)="selectAllSymbols()"
+                      styleClass="p-button-sm">
+                    </p-button>
+                    <p-button
+                      label="Összes törlése"
+                      icon="pi pi-times"
+                      [text]="true"
+                      size="small"
+                      (onClick)="clearAllSymbols()"
+                      styleClass="p-button-sm p-button-secondary">
+                    </p-button>
+                  </div>
+                </div>
                 <p-multiSelect
                   [options]="availableSymbolOptions"
                   [(ngModel)]="selectedSymbols"
                   placeholder="Válassz szimbólumokat"
                   styleClass="w-full">
                 </p-multiSelect>
+                <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  {{selectedSymbols.length}} / {{availableSymbols.length}} szimbólum kiválasztva
+                </div>
               </div>
 
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-600 dark:text-gray-400">
-                  1 évre visszamenőleg (365 nap)
-                </span>
-                <p-button 
-                  label="Adatok letöltése"
-                  icon="pi pi-download"
-                  [loading]="isDataFetching"
-                  (onClick)="fetchHistoricalData()"
-                  styleClass="p-button-success">
-                </p-button>
+              <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">
+                    1 évre visszamenőleg (365 nap)
+                  </span>
+                </div>
+                
+                <div class="flex space-x-2">
+                  <p-button
+                    label="Frissítés"
+                    icon="pi pi-refresh"
+                    [loading]="isDataFetching"
+                    (onClick)="fetchHistoricalData(false)"
+                    styleClass="p-button-success flex-1"
+                    pTooltip="Csak hiányzó adatok letöltése (gyors)">
+                  </p-button>
+                  <p-button
+                    label="Teljes újratöltés"
+                    icon="pi pi-download"
+                    [loading]="isDataFetching"
+                    (onClick)="fetchHistoricalData(true)"
+                    styleClass="p-button-warning flex-1"
+                    pTooltip="Összes adat újratöltése (lassú)">
+                  </p-button>
+                </div>
+                
+                <div class="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900 p-2 rounded">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  <strong>Frissítés:</strong> Csak új/hiányzó adatok (API-barát) |
+                  <strong>Teljes újratöltés:</strong> Minden adat újra (lassabb)
+                </div>
               </div>
 
               <div *ngIf="isDataFetching">
@@ -91,15 +160,31 @@
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Szimbólum
-                </label>
-                <p-dropdown 
-                  [options]="availableSymbols" 
-                  [(ngModel)]="backtestConfig.symbol"
-                  placeholder="Válassz szimbólumot"
+                <div class="flex justify-between items-center mb-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Szimbólumok backtesthez
+                  </label>
+                  <div class="flex space-x-2">
+                    <p-button
+                      label="Kiválasztottak használata"
+                      icon="pi pi-check"
+                      [text]="true"
+                      size="small"
+                      (onClick)="useSelectedSymbolsForBacktest()"
+                      styleClass="p-button-sm"
+                      pTooltip="Az adatkezelésben kiválasztott szimbólumok használata">
+                    </p-button>
+                  </div>
+                </div>
+                <p-multiSelect
+                  [options]="availableSymbolOptions"
+                  [(ngModel)]="backtestSymbols"
+                  placeholder="Válassz szimbólumokat backtesthez"
                   styleClass="w-full">
-                </p-dropdown>
+                </p-multiSelect>
+                <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  {{backtestSymbols.length}} szimbólum lesz tesztelve
+                </div>
               </div>
 
               <div>

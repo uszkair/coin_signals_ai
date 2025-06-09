@@ -44,11 +44,14 @@ export class BacktestComponent implements OnInit {
   availableSymbols: string[] = [];
   availableSymbolOptions: any[] = [];
   selectedSymbols: string[] = [];
+  symbolsSource: string = '';
+  symbolsDescription: string = '';
   dataStatuses: { [symbol: string]: DataStatus } = {};
   isDataFetching = false;
   dataFetchProgress = 0;
 
   // Backtest configuration
+  backtestSymbols: string[] = [];
   backtestConfig: BacktestRequest = {
     test_name: '',
     symbol: 'BTCUSDT',
@@ -96,12 +99,25 @@ export class BacktestComponent implements OnInit {
     this.backtestService.getAvailableSymbols().subscribe({
       next: (response) => {
         this.availableSymbols = response.symbols;
+        this.symbolsSource = response.source || 'unknown';
+        this.symbolsDescription = response.description || 'Elérhető szimbólumok';
+        
         this.availableSymbolOptions = response.symbols.map(symbol => ({
           label: symbol,
           value: symbol
         }));
-        this.selectedSymbols = response.symbols.slice(0, 5); // Select first 5 by default
+        
+        // Select all available symbols by default since they are the exact ones used by the trading engine
+        this.selectedSymbols = [...response.symbols];
         this.checkDataStatuses();
+        
+        // Show info about symbol source
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Szimbólumok betöltve',
+          detail: `${response.symbols.length} szimbólum betöltve: ${this.symbolsDescription}`,
+          life: 5000
+        });
       },
       error: (error) => {
         this.messageService.add({
@@ -126,7 +142,36 @@ export class BacktestComponent implements OnInit {
     });
   }
 
-  fetchHistoricalData() {
+  selectAllSymbols() {
+    this.selectedSymbols = [...this.availableSymbols];
+    this.checkDataStatuses();
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Információ',
+      detail: `${this.selectedSymbols.length} szimbólum kiválasztva`
+    });
+  }
+
+  clearAllSymbols() {
+    this.selectedSymbols = [];
+    this.dataStatuses = {};
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Információ',
+      detail: 'Összes szimbólum törölve'
+    });
+  }
+
+  useSelectedSymbolsForBacktest() {
+    this.backtestSymbols = [...this.selectedSymbols];
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Siker',
+      detail: `${this.backtestSymbols.length} szimbólum átmásolva backtesthez`
+    });
+  }
+
+  fetchHistoricalData(forceRefresh: boolean = false) {
     if (this.selectedSymbols.length === 0) {
       this.messageService.add({
         severity: 'warn',
@@ -141,15 +186,18 @@ export class BacktestComponent implements OnInit {
 
     const request = {
       symbols: this.selectedSymbols,
-      days: 365
+      days: 365,
+      force_refresh: forceRefresh
     };
 
+    const actionType = forceRefresh ? 'teljes újratöltése' : 'frissítése';
+    
     this.backtestService.fetchHistoricalData(request).subscribe({
       next: (response) => {
         this.messageService.add({
           severity: 'success',
           summary: 'Siker',
-          detail: `Adatok letöltése elindítva ${this.selectedSymbols.length} szimbólumhoz`
+          detail: `Adatok ${actionType} elindítva ${this.selectedSymbols.length} szimbólumhoz`
         });
         
         // Simulate progress (since it's background task)
@@ -160,7 +208,7 @@ export class BacktestComponent implements OnInit {
         this.messageService.add({
           severity: 'error',
           summary: 'Hiba',
-          detail: 'Nem sikerült elindítani az adatok letöltését'
+          detail: `Nem sikerült elindítani az adatok ${actionType}t`
         });
       }
     });
@@ -193,27 +241,68 @@ export class BacktestComponent implements OnInit {
       return;
     }
 
-    this.isRunningBacktest = true;
+    if (this.backtestSymbols.length === 0) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Figyelmeztetés',
+        detail: 'Válassz ki legalább egy szimbólumot backtesthez'
+      });
+      return;
+    }
 
-    this.backtestService.runBacktest(this.backtestConfig).subscribe({
-      next: (response) => {
-        this.isRunningBacktest = false;
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Siker',
-          detail: 'Backtest sikeresen lefutott'
-        });
-        this.loadBacktestResults();
-        this.viewBacktestDetails(response.backtest_id);
-      },
-      error: (error) => {
-        this.isRunningBacktest = false;
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Hiba',
-          detail: error.error?.detail || 'Hiba történt a backtest futtatása során'
-        });
-      }
+    this.isRunningBacktest = true;
+    let completedTests = 0;
+    const totalTests = this.backtestSymbols.length;
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Backtest indítása',
+      detail: `${totalTests} szimbólum tesztelése megkezdődött...`
+    });
+
+    // Run backtest for each symbol
+    this.backtestSymbols.forEach((symbol, index) => {
+      const testConfig = {
+        ...this.backtestConfig,
+        symbol: symbol,
+        test_name: `${this.backtestConfig.test_name} - ${symbol}`
+      };
+
+      this.backtestService.runBacktest(testConfig).subscribe({
+        next: (response) => {
+          completedTests++;
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Siker',
+            detail: `${symbol} backtest befejezve (${completedTests}/${totalTests})`
+          });
+
+          // If this is the last test, finish up
+          if (completedTests === totalTests) {
+            this.isRunningBacktest = false;
+            this.loadBacktestResults();
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Összes backtest kész',
+              detail: `Mind a ${totalTests} szimbólum tesztelése befejeződött`
+            });
+          }
+        },
+        error: (error) => {
+          completedTests++;
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Hiba',
+            detail: `${symbol}: ${error.error?.detail || 'Hiba történt a backtest során'}`
+          });
+
+          // If this is the last test (even if failed), finish up
+          if (completedTests === totalTests) {
+            this.isRunningBacktest = false;
+            this.loadBacktestResults();
+          }
+        }
+      });
     });
   }
 

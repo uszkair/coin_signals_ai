@@ -6,6 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from app.services.backtest_service import backtest_service
+from app.services.trading_settings_service import trading_settings_service
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
@@ -19,6 +20,7 @@ class BacktestRequest(BaseModel):
 class DataFetchRequest(BaseModel):
     symbols: List[str]
     days: int = 365
+    force_refresh: bool = False
 
 @router.post("/fetch-data")
 async def fetch_historical_data(request: DataFetchRequest, background_tasks: BackgroundTasks):
@@ -31,7 +33,8 @@ async def fetch_historical_data(request: DataFetchRequest, background_tasks: Bac
         background_tasks.add_task(
             backtest_service.fetch_historical_data,
             request.symbols,
-            request.days
+            request.days,
+            request.force_refresh
         )
         
         return {
@@ -137,27 +140,25 @@ async def delete_backtest(backtest_id: int):
 @router.get("/symbols")
 async def get_available_symbols():
     """
-    Get list of popular trading symbols for backtesting
+    Get list of symbols that the trading engine actually monitors for backtesting
     """
-    return {
-        "symbols": [
-            "BTCUSDT",
-            "ETHUSDT", 
-            "BNBUSDT",
-            "ADAUSDT",
-            "SOLUSDT",
-            "XRPUSDT",
-            "DOTUSDT",
-            "LINKUSDT",
-            "LTCUSDT",
-            "BCHUSDT",
-            "UNIUSDT",
-            "MATICUSDT",
-            "AVAXUSDT",
-            "ATOMUSDT",
-            "FILUSDT"
-        ]
-    }
+    try:
+        # Get the actual symbols used by the auto trading system
+        auto_settings = await trading_settings_service.get_auto_trading_settings()
+        monitored_symbols = auto_settings['symbols']
+        
+        return {
+            "symbols": monitored_symbols,
+            "source": "auto_trading_settings",
+            "description": "Symbols actively monitored by the trading engine"
+        }
+    except Exception as e:
+        # Fallback to default symbols if settings service fails
+        return {
+            "symbols": ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"],
+            "source": "fallback",
+            "description": "Default symbols (settings service unavailable)"
+        }
 
 @router.get("/health")
 async def backtest_health():
