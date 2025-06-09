@@ -254,6 +254,7 @@ class BacktestResult(Base):
     win_rate = Column(DECIMAL(5, 2), default=0.0)
     max_drawdown = Column(DECIMAL(10, 4), default=0.0)
     sharpe_ratio = Column(DECIMAL(10, 4), nullable=True)
+    notes = Column(Text, nullable=True)  # Add missing notes field
     
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
 
@@ -275,6 +276,7 @@ class BacktestResult(Base):
             "win_rate": float(self.win_rate) if self.win_rate else 0.0,
             "max_drawdown": float(self.max_drawdown) if self.max_drawdown else 0.0,
             "sharpe_ratio": float(self.sharpe_ratio) if self.sharpe_ratio else None,
+            "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

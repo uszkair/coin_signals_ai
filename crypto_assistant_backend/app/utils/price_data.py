@@ -68,6 +68,7 @@ def get_api_credentials(use_testnet=False):
 async def get_historical_data(symbol: str, interval: str, days: int):
     """
     Get historical candlestick data for a single symbol from Binance API.
+    Uses pagination to fetch large amounts of data beyond the 1000 candle API limit.
     
     Args:
         symbol: Single trading symbol (e.g., 'BTCUSDT'). If multiple symbols are passed
@@ -82,9 +83,10 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         ValueError: If symbol contains multiple symbols
         httpx.HTTPStatusError: If API request fails
     """
-    # Get configuration from database
-    config = await get_binance_config()
-    base_url = config['base_url']
+    # For historical data, always use mainnet API as it has more complete data
+    # and doesn't require authentication for public endpoints
+    base_url = "https://api.binance.com"
+    print(f"📡 Using mainnet API for historical data: {base_url}")
     
     # Handle case where multiple symbols might be passed accidentally
     if ',' in symbol:
@@ -101,50 +103,98 @@ async def get_historical_data(symbol: str, interval: str, days: int):
     if not symbol or not symbol.isalnum():
         raise ValueError(f"Invalid symbol format: {symbol}")
     
-    limit = min(days * 24, 1000)  # max 1000 gyertya
     endpoint = f"/api/v3/klines"
     url = f"{base_url}{endpoint}"
+
+    # Calculate total candles needed based on interval
+    interval_hours = {
+        '1m': 1/60, '3m': 3/60, '5m': 5/60, '15m': 15/60, '30m': 30/60,
+        '1h': 1, '2h': 2, '4h': 4, '6h': 6, '8h': 8, '12h': 12,
+        '1d': 24, '3d': 72, '1w': 168, '1M': 720  # Approximate for 1M
+    }
+    
+    hours_per_candle = interval_hours.get(interval, 1)
+    total_candles_needed = int((days * 24) / hours_per_candle)
+    
+    print(f"📊 Fetching {total_candles_needed} candles for {symbol} ({days} days, {interval} interval)")
 
     end_time = int(datetime.utcnow().timestamp() * 1000)
     start_time = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
 
-    params = {
-        "symbol": symbol,
-        "interval": interval,
-        "limit": limit,
-        "startTime": start_time,
-        "endTime": end_time
-    }
-
-    # Get appropriate API credentials
-    credentials = get_api_credentials(config['use_testnet'])
+    # Historical data is public, no API key needed
     headers = {}
-    if credentials['api_key']:
-        headers["X-MBX-APIKEY"] = credentials['api_key']
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            raw_data = response.json()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 400:
-            raise ValueError(f"Bad request to Binance API for symbol '{symbol}': {e.response.text}")
-        else:
-            raise
+    all_candles = []
+    current_end_time = end_time
+    max_requests = 10  # Limit to prevent infinite loops
+    request_count = 0
+    
+    async with httpx.AsyncClient() as client:
+        while len(all_candles) < total_candles_needed and request_count < max_requests:
+            request_count += 1
+            limit = min(1000, total_candles_needed - len(all_candles))
+            
+            params = {
+                "symbol": symbol,
+                "interval": interval,
+                "limit": limit,
+                "endTime": current_end_time
+            }
+            
+            print(f"📡 API request #{request_count}: fetching {limit} candles ending at {datetime.fromtimestamp(current_end_time/1000)}")
 
-    candles = []
-    for item in raw_data:
-        candles.append({
-            "timestamp": datetime.utcfromtimestamp(item[0] / 1000),
-            "open": float(item[1]),
-            "high": float(item[2]),
-            "low": float(item[3]),
-            "close": float(item[4]),
-            "volume": float(item[5])
-        })
-
-    return candles
+            try:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                raw_data = response.json()
+                
+                if not raw_data:
+                    print(f"⚠️ No more data available from API")
+                    break
+                
+                # Convert to our format
+                batch_candles = []
+                for item in raw_data:
+                    batch_candles.append({
+                        "timestamp": datetime.utcfromtimestamp(item[0] / 1000),
+                        "open": float(item[1]),
+                        "high": float(item[2]),
+                        "low": float(item[3]),
+                        "close": float(item[4]),
+                        "volume": float(item[5])
+                    })
+                
+                # Add to beginning of list (since we're going backwards in time)
+                all_candles = batch_candles + all_candles
+                
+                # Update end time for next request (use the timestamp of the first candle - 1ms)
+                if raw_data:
+                    current_end_time = raw_data[0][0] - 1
+                    
+                print(f"✅ Fetched {len(batch_candles)} candles, total: {len(all_candles)}")
+                
+                # Check if we've reached the start time
+                if raw_data and raw_data[0][0] <= start_time:
+                    print(f"📅 Reached start time, stopping")
+                    break
+                    
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 400:
+                    raise ValueError(f"Bad request to Binance API for symbol '{symbol}': {e.response.text}")
+                else:
+                    raise
+    
+    # Filter to exact date range and sort by timestamp
+    filtered_candles = [
+        candle for candle in all_candles
+        if start_time <= int(candle["timestamp"].timestamp() * 1000) <= end_time
+    ]
+    
+    filtered_candles.sort(key=lambda x: x["timestamp"])
+    
+    print(f"📈 Final result: {len(filtered_candles)} candles for {symbol} from {filtered_candles[0]['timestamp'] if filtered_candles else 'N/A'} to {filtered_candles[-1]['timestamp'] if filtered_candles else 'N/A'}")
+    
+    return filtered_candles
 
 async def get_current_price(symbol: str):
     """
