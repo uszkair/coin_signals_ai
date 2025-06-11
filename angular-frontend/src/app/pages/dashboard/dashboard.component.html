@@ -315,6 +315,31 @@
                   </div>
                   <div class="text-gray-600 dark:text-gray-400 text-xs">{{ getDecisionFactorReasoning('volume_analysis') }}</div>
                 </div>
+
+                <!-- Support/Resistance -->
+                <div class="border border-gray-200 dark:border-gray-700 rounded p-1">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-900 dark:text-white text-xs">🎯 Support/Resistance</span>
+                    <span class="text-xs" [class]="getDecisionFactorWeightClass('support_resistance')">
+                      {{ getDecisionFactorWeightDisplay('support_resistance') }}
+                    </span>
+                  </div>
+                  <div class="text-gray-600 dark:text-gray-400 text-xs">{{ getDecisionFactorReasoning('support_resistance') }}</div>
+                </div>
+
+                <!-- AI/ML Analysis -->
+                <div class="border border-purple-200 dark:border-purple-700 rounded p-1 bg-purple-50 dark:bg-purple-900/10">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-purple-900 dark:text-purple-100 text-xs">🤖 AI/ML Elemzés</span>
+                    <span class="text-xs font-bold" [class]="getDecisionFactorWeightClass('ai_ml_analysis')">
+                      {{ getDecisionFactorWeightDisplay('ai_ml_analysis') }}
+                    </span>
+                  </div>
+                  <div class="text-purple-700 dark:text-purple-300 text-xs">{{ getDecisionFactorReasoning('ai_ml_analysis') }}</div>
+                  <div *ngIf="getAIMLFactorDetails()" class="text-purple-600 dark:text-purple-400 text-xs mt-1">
+                    {{ getAIMLFactorDetails() }}
+                  </div>
+                </div>
               </div>
             </div>
 

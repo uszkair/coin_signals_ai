@@ -797,4 +797,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (totalScore <= -1) return 'text-red-600 dark:text-red-500';
     return 'text-gray-600 dark:text-gray-400';
   }
+
+  // AI/ML Factor Details Helper
+  getAIMLFactorDetails(): string {
+    const aimlFactor = (this.selectedSignal?.decision_factors as any)?.ai_ml_analysis;
+    if (!aimlFactor) return '';
+    
+    const confidence = aimlFactor.ai_confidence || 0;
+    const riskScore = aimlFactor.risk_score || 0;
+    const aiSignal = aimlFactor.ai_signal || 'NEUTRAL';
+    
+    return `AI: ${aiSignal} (${confidence.toFixed(1)}% bizalom, ${riskScore.toFixed(0)}% kockázat)`;
+  }
 }

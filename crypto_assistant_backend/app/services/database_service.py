@@ -34,6 +34,9 @@ class DatabaseService:
                 support_level=float(signal_data.get("stop_loss")) if signal_data.get("stop_loss") else None,
                 resistance_level=float(signal_data.get("take_profit")) if signal_data.get("take_profit") else None,
                 interval_type=signal_data.get("interval", "1h"),
+                # Add decision factors and total score
+                decision_factors=signal_data.get("decision_factors"),
+                total_score=signal_data.get("total_score", 0),
                 created_at=timestamp
             )
             

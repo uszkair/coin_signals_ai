@@ -1,6 +1,6 @@
 # app/models/database_models.py
 
-from sqlalchemy import Column, Integer, String, DECIMAL, Boolean, TIMESTAMP, ForeignKey, Text, ARRAY
+from sqlalchemy import Column, Integer, String, DECIMAL, Boolean, TIMESTAMP, ForeignKey, Text, ARRAY, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -24,6 +24,11 @@ class Signal(Base):
     support_level = Column(DECIMAL(20, 8))
     resistance_level = Column(DECIMAL(20, 8))
     interval_type = Column(String(10), default='1h')
+    
+    # Add decision factors as JSON field
+    decision_factors = Column(JSON, nullable=True)
+    total_score = Column(Integer, default=0)
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False, index=True)
 
     # Relationship to performance
@@ -49,7 +54,10 @@ class Signal(Base):
             "macd": float(self.macd) if self.macd else None,
             "bollinger_position": float(self.bollinger_position) if self.bollinger_position else None,
             "support_level": float(self.support_level) if self.support_level else None,
-            "resistance_level": float(self.resistance_level) if self.resistance_level else None
+            "resistance_level": float(self.resistance_level) if self.resistance_level else None,
+            # Add decision factors and total score
+            "decision_factors": self.decision_factors,
+            "total_score": self.total_score
         }
 
 class SignalPerformance(Base):

@@ -417,7 +417,7 @@ async def get_current_signal(symbol: str, interval: str):
         "pattern": pattern,  # Send None instead of "None" string
         "score": abs(combined_score),  # Use combined professional + traditional score
         "trend": professional_indicators.get('market_assessment', {}).get('trend', indicators["trend"]),
-        "confidence": min(85, max(15, 30 + abs(combined_score) * 8)),  # More realistic confidence: 1 point = 38%, 5 points = 70%
+        "confidence": min(95, max(25, 40 + abs(combined_score) * 12)),  # Improved confidence: 1 point = 52%, 3 points = 76%, 5 points = 100%
         "timestamp": signal_timestamp.isoformat(),
         "decision_factors": decision_factors,  # Detailed breakdown of decision logic
         "total_score": combined_score,  # Combined professional + traditional + AI score

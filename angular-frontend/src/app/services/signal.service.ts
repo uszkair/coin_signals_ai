@@ -32,6 +32,11 @@ export interface Signal {
     macd_analysis: DecisionFactor & { value: number };
     volume_analysis: DecisionFactor;
     support_resistance: DecisionFactor;
+    ai_ml_analysis: DecisionFactor & {
+      ai_signal: string;
+      ai_confidence: number;
+      risk_score: number
+    };
   };
   total_score?: number;
 }
