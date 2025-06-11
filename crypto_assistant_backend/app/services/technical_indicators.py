@@ -106,9 +106,9 @@ class TechnicalIndicators:
             'rsi': {
                 'value': float(latest.get('rsi', 50)),
                 'signal': self._get_rsi_signal(latest.get('rsi', 50)),
-                'overbought': latest.get('rsi', 50) > 70,
-                'oversold': latest.get('rsi', 50) < 30,
-                'divergence': self._check_rsi_divergence()
+                'overbought': bool(latest.get('rsi', 50) > 70),
+                'oversold': bool(latest.get('rsi', 50) < 30),
+                'divergence': bool(self._check_rsi_divergence())
             },
             
             # MACD Analysis
@@ -117,8 +117,8 @@ class TechnicalIndicators:
                 'signal': float(latest.get('macd_signal', 0)),
                 'histogram': float(latest.get('macd_histogram', 0)),
                 'signal_type': self._get_macd_signal(latest, previous),
-                'bullish_crossover': self._is_macd_bullish_crossover(latest, previous),
-                'bearish_crossover': self._is_macd_bearish_crossover(latest, previous)
+                'bullish_crossover': bool(self._is_macd_bullish_crossover(latest, previous)),
+                'bearish_crossover': bool(self._is_macd_bearish_crossover(latest, previous))
             },
             
             # Bollinger Bands
@@ -128,7 +128,7 @@ class TechnicalIndicators:
                 'lower': float(latest.get('bb_lower', 0)),
                 'width': float(latest.get('bb_width', 0)),
                 'percent_b': float(latest.get('bb_percent', 0)),
-                'squeeze': latest.get('bb_width', 1) < 0.1,
+                'squeeze': bool(latest.get('bb_width', 1) < 0.1),
                 'breakout': self._check_bb_breakout(latest)
             },
             
@@ -139,8 +139,8 @@ class TechnicalIndicators:
                 'ema_12': float(latest.get('ema_12', 0)),
                 'ema_26': float(latest.get('ema_26', 0)),
                 'trend': self._get_ma_trend(latest),
-                'golden_cross': self._check_golden_cross(latest, previous),
-                'death_cross': self._check_death_cross(latest, previous)
+                'golden_cross': bool(self._check_golden_cross(latest, previous)),
+                'death_cross': bool(self._check_death_cross(latest, previous))
             },
             
             # ADX (Trend Strength)
@@ -148,7 +148,7 @@ class TechnicalIndicators:
                 'value': float(latest.get('adx', 25)),
                 'strength': self._get_adx_strength(latest.get('adx', 25)),
                 'trend_direction': self._get_adx_direction(latest),
-                'trending': latest.get('adx', 25) > 25
+                'trending': bool(latest.get('adx', 25) > 25)
             },
             
             # Stochastic
@@ -156,8 +156,8 @@ class TechnicalIndicators:
                 'k': float(latest.get('stoch_k', 50)),
                 'd': float(latest.get('stoch_d', 50)),
                 'signal': self._get_stochastic_signal(latest),
-                'overbought': latest.get('stoch_k', 50) > 80,
-                'oversold': latest.get('stoch_k', 50) < 20
+                'overbought': bool(latest.get('stoch_k', 50) > 80),
+                'oversold': bool(latest.get('stoch_k', 50) < 20)
             },
             
             # Volume Analysis
@@ -167,7 +167,7 @@ class TechnicalIndicators:
                 'vwap': float(latest.get('vwap', 0)),
                 'obv': float(latest.get('obv', 0)),
                 'volume_trend': self._get_volume_trend(latest),
-                'high_volume': self._is_high_volume(latest)
+                'high_volume': bool(self._is_high_volume(latest))
             },
             
             # Overall Market Assessment
@@ -175,7 +175,7 @@ class TechnicalIndicators:
                 'trend': self._assess_overall_trend(),
                 'momentum': self._assess_momentum(),
                 'volatility': self._assess_volatility(),
-                'volume_confirmation': self._assess_volume_confirmation(),
+                'volume_confirmation': bool(self._assess_volume_confirmation()),
                 'signal_strength': self._calculate_signal_strength()
             }
         }

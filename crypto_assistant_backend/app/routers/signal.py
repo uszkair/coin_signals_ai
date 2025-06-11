@@ -89,6 +89,29 @@ else:
             raise HTTPException(status_code=500, detail=str(e))
 
 if DATABASE_AVAILABLE:
+    @router.get("/current")
+    async def get_current_signal_live(symbol: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
+        """
+        Generate a fresh signal in real-time and optionally save to database
+        """
+        try:
+            # Generate fresh signal using signal engine
+            signal_data = await get_current_signal(symbol, interval)
+            
+            # Save to database for future reference
+            try:
+                await DatabaseService.save_signal(db, signal_data)
+                print(f"✅ Fresh signal generated and saved for {symbol}")
+            except Exception as save_error:
+                print(f"Warning: Could not save signal to database: {save_error}")
+                # Continue anyway, return the generated signal
+            
+            return signal_data
+            
+        except Exception as e:
+            print(f"Error generating current signal for {symbol}: {e}")
+            raise HTTPException(status_code=500, detail=f"Error generating signal: {str(e)}")
+
     @router.get("/{symbol}")
     async def get_signal(symbol: str, interval: str = "1h", db: AsyncSession = Depends(get_db)):
         try:
