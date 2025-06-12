@@ -775,8 +775,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getDecisionFactorWeightDisplay(factorName: keyof NonNullable<Signal['decision_factors']>): string {
     const weight = this.getDecisionFactorWeight(factorName);
-    if (weight === 0) return 'Nincs hatás';
-    return `${weight > 0 ? '+' : ''}${weight} pont`;
+    const signal = this.getDecisionFactorSignal(factorName);
+    
+    // For AI/ML analysis, use confidence levels
+    if (factorName === 'ai_ml_analysis') {
+      const aimlFactor = (this.selectedSignal?.decision_factors as any)?.ai_ml_analysis;
+      if (aimlFactor) {
+        const confidence = aimlFactor.ai_confidence || 0;
+        if (confidence >= 75) return 'Magas bizalom';
+        if (confidence >= 60) return 'Közepes bizalom';
+        if (confidence >= 40) return 'Alacsony bizalom';
+        return 'Nincs hatás';
+      }
+    }
+    
+    // For other factors, use weight-based descriptions
+    if (weight === 0) return 'Semleges';
+    
+    const absWeight = Math.abs(weight);
+    let strength = '';
+    
+    if (absWeight >= 2) {
+      strength = 'Erős';
+    } else if (absWeight >= 1) {
+      strength = 'Közepes';
+    } else {
+      strength = 'Gyenge';
+    }
+    
+    // Add direction
+    if (signal === 'BUY') {
+      return `${strength} bullish`;
+    } else if (signal === 'SELL') {
+      return `${strength} bearish`;
+    } else {
+      return strength;
+    }
   }
 
   getSignalStrengthText(totalScore: number): string {
