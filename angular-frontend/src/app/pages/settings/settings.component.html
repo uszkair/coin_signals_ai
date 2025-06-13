@@ -132,6 +132,12 @@
                 [loading]="savingTradingMode"
                 (onClick)="saveTradingMode()">
               </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetAutoTradingSettings()">
+              </p-button>
             </div>
           </div>
         </div>
@@ -260,6 +266,12 @@
                 icon="pi pi-save"
                 [loading]="savingPosition"
                 (onClick)="savePositionSizeConfig()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetPositionSizeSettings()">
               </p-button>
             </div>
           </div>
@@ -401,6 +413,12 @@
                 icon="pi pi-save"
                 [loading]="savingRisk"
                 (onClick)="saveRiskManagementConfig()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetRiskManagementSettings()">
               </p-button>
             </div>
           </div>
@@ -585,6 +603,12 @@
                 severity="secondary"
                 [loading]="loadingMinimumReqs"
                 (onClick)="loadMinimumRequirements()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-undo"
+                severity="secondary"
+                (onClick)="resetTradingEnvironmentSettings()">
               </p-button>
               <p-button
                 label="Környezet Váltása"
@@ -938,7 +962,13 @@
           </div>
 
           <div class="col-12">
-            <div class="flex justify-content-end">
+            <div class="flex justify-content-end gap-2">
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                severity="secondary"
+                (onClick)="resetTechnicalIndicatorSettings()">
+              </p-button>
               <p-button
                 label="Mentés"
                 icon="pi pi-save"
@@ -1083,7 +1113,13 @@
           </div>
 
           <div class="col-12">
-            <div class="flex justify-content-end">
+            <div class="flex justify-content-end gap-2">
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                severity="secondary"
+                (onClick)="resetAIMLSettings()">
+              </p-button>
               <p-button
                 label="Mentés"
                 icon="pi pi-save"
@@ -1221,6 +1257,12 @@
                 icon="pi pi-save"
                 [loading]="savingNotificationSettings"
                 (onClick)="saveNotificationSettings()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetNotificationSettings()">
               </p-button>
             </div>
           </div>

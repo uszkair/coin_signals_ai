@@ -759,4 +759,124 @@ export class SettingsComponent implements OnInit {
     this.loadNotificationSettings();
   }
 
+  // Reset methods for each category
+  resetTechnicalIndicatorSettings(): void {
+    this.technicalIndicatorWeights = {
+      rsi_weight: 1.0,
+      macd_weight: 1.0,
+      volume_weight: 1.0,
+      candlestick_weight: 2.0,
+      bollinger_weight: 1.0,
+      ma_weight: 1.0
+    };
+
+    this.rsiSettings = {
+      period: 14,
+      overbought: 70,
+      oversold: 30
+    };
+
+    this.macdSettings = {
+      fast_period: 12,
+      slow_period: 26,
+      signal_period: 9
+    };
+
+    this.bollingerSettings = {
+      period: 20,
+      deviation: 2.0
+    };
+
+    this.maSettings = {
+      short_ma: 20,
+      long_ma: 50,
+      ma_type: 'EMA'
+    };
+
+    this.volumeSettings = {
+      volume_threshold_multiplier: 1.5,
+      high_volume_threshold: 2.0
+    };
+
+    this.candlestickSettings = {
+      sensitivity: 'medium',
+      min_pattern_score: 0.7
+    };
+
+    this.showSuccess('Alaphelyzetbe állítva', 'A technikai indikátor beállítások visszaállítva az alapértékekre');
+  }
+
+  resetAIMLSettings(): void {
+    this.aiMlSettings = {
+      ai_signal_weight: 2.0,
+      ai_confidence_threshold: 60.0,
+      ml_models: {
+        lstm_enabled: true,
+        random_forest_enabled: true,
+        gradient_boosting_enabled: true
+      },
+      market_regime_detection: true,
+      sentiment_analysis: false,
+      ensemble_method: 'weighted'
+    };
+
+    this.showSuccess('Alaphelyzetbe állítva', 'Az AI/ML beállítások visszaállítva az alapértékekre');
+  }
+
+  resetNotificationSettings(): void {
+    this.notificationSettings = {
+      signal_notifications: {
+        enabled: true,
+        email: false,
+        push: true,
+        in_app: true,
+        min_confidence: 70
+      },
+      trade_notifications: {
+        enabled: true,
+        execution_alerts: true,
+        profit_loss_alerts: true,
+        risk_alerts: true
+      },
+      system_notifications: {
+        enabled: true,
+        connection_issues: true,
+        error_alerts: true,
+        maintenance_alerts: false
+      }
+    };
+
+    this.showSuccess('Alaphelyzetbe állítva', 'Az értesítési beállítások visszaállítva az alapértékekre');
+  }
+
+  resetPositionSizeSettings(): void {
+    this.positionSizeConfig = {
+      mode: 'percentage',
+      max_percentage: 2.0,
+      fixed_amount_usd: 100
+    };
+
+    this.showSuccess('Alaphelyzetbe állítva', 'A pozíció méret beállítások visszaállítva az alapértékekre');
+  }
+
+  resetRiskManagementSettings(): void {
+    this.riskConfig = {
+      max_daily_trades: 10,
+      daily_loss_limit: 5.0,
+      max_position_size: 2.0
+    };
+
+    this.showSuccess('Alaphelyzetbe állítva', 'A kockázatkezelési beállítások visszaállítva az alapértékekre');
+  }
+
+  resetAutoTradingSettings(): void {
+    this.tradingMode = 'manual';
+    this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés beállítások visszaállítva manuális módra');
+  }
+
+  resetTradingEnvironmentSettings(): void {
+    this.useTestnet = true;
+    this.showSuccess('Alaphelyzetbe állítva', 'A kereskedési környezet visszaállítva testnet módra');
+  }
+
 }
