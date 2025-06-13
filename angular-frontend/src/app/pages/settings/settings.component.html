@@ -622,6 +622,144 @@
       </p-card>
     </p-tabPanel>
 
+    <!-- Notifications Tab -->
+    <p-tabPanel header="Értesítések" leftIcon="pi pi-bell">
+      <p-card header="Értesítési Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- Signal Notifications -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-line mr-2"></i>Signal Értesítések
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalNotificationsEnabled"
+                [(ngModel)]="notificationSettings.signal_notifications.enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="signalNotificationsEnabled" class="ml-2">Engedélyezve</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalEmail"
+                [(ngModel)]="notificationSettings.signal_notifications.email"
+                binary="true">
+              </p-checkbox>
+              <label for="signalEmail" class="ml-2">Email</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalPush"
+                [(ngModel)]="notificationSettings.signal_notifications.push"
+                binary="true">
+              </p-checkbox>
+              <label for="signalPush" class="ml-2">Push</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field">
+              <label for="signalMinConfidence" class="block text-900 font-medium mb-2">Min. Bizalom (%)</label>
+              <p-inputNumber
+                id="signalMinConfidence"
+                [(ngModel)]="notificationSettings.signal_notifications.min_confidence"
+                [min]="30"
+                [max]="95"
+                [step]="5"
+                suffix="%"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Trade Notifications -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-dollar mr-2"></i>Kereskedési Értesítések
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="tradeNotificationsEnabled"
+                [(ngModel)]="notificationSettings.trade_notifications.enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="tradeNotificationsEnabled" class="ml-2">Engedélyezve</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="executionAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.execution_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="executionAlerts" class="ml-2">Végrehajtási Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="profitLossAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.profit_loss_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="profitLossAlerts" class="ml-2">Profit/Loss Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="riskAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.risk_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="riskAlerts" class="ml-2">Kockázati Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingNotificationSettings"
+                (onClick)="saveNotificationSettings()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetNotificationSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
     <!-- Current Settings Tab -->
     <p-tabPanel header="Jelenlegi Beállítások" leftIcon="pi pi-eye">
       <div class="grid">
@@ -1132,143 +1270,6 @@
       </p-card>
     </p-tabPanel>
 
-    <!-- Notifications Tab -->
-    <p-tabPanel header="Értesítések" leftIcon="pi pi-bell">
-      <p-card header="Értesítési Beállítások" styleClass="mb-4">
-        <div class="grid">
-          <!-- Signal Notifications -->
-          <div class="col-12">
-            <h4 class="text-900 font-semibold mb-3">
-              <i class="pi pi-chart-line mr-2"></i>Signal Értesítések
-            </h4>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="signalNotificationsEnabled"
-                [(ngModel)]="notificationSettings.signal_notifications.enabled"
-                binary="true">
-              </p-checkbox>
-              <label for="signalNotificationsEnabled" class="ml-2">Engedélyezve</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="signalEmail"
-                [(ngModel)]="notificationSettings.signal_notifications.email"
-                binary="true">
-              </p-checkbox>
-              <label for="signalEmail" class="ml-2">Email</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="signalPush"
-                [(ngModel)]="notificationSettings.signal_notifications.push"
-                binary="true">
-              </p-checkbox>
-              <label for="signalPush" class="ml-2">Push</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field">
-              <label for="signalMinConfidence" class="block text-900 font-medium mb-2">Min. Bizalom (%)</label>
-              <p-inputNumber
-                id="signalMinConfidence"
-                [(ngModel)]="notificationSettings.signal_notifications.min_confidence"
-                [min]="30"
-                [max]="95"
-                [step]="5"
-                suffix="%"
-                styleClass="w-full">
-              </p-inputNumber>
-            </div>
-          </div>
-
-          <div class="col-12">
-            <p-divider></p-divider>
-          </div>
-
-          <!-- Trade Notifications -->
-          <div class="col-12">
-            <h4 class="text-900 font-semibold mb-3">
-              <i class="pi pi-dollar mr-2"></i>Kereskedési Értesítések
-            </h4>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="tradeNotificationsEnabled"
-                [(ngModel)]="notificationSettings.trade_notifications.enabled"
-                binary="true">
-              </p-checkbox>
-              <label for="tradeNotificationsEnabled" class="ml-2">Engedélyezve</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="executionAlerts"
-                [(ngModel)]="notificationSettings.trade_notifications.execution_alerts"
-                binary="true">
-              </p-checkbox>
-              <label for="executionAlerts" class="ml-2">Végrehajtási Riasztások</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="profitLossAlerts"
-                [(ngModel)]="notificationSettings.trade_notifications.profit_loss_alerts"
-                binary="true">
-              </p-checkbox>
-              <label for="profitLossAlerts" class="ml-2">Profit/Loss Riasztások</label>
-            </div>
-          </div>
-
-          <div class="col-12 md:col-3">
-            <div class="field-checkbox">
-              <p-checkbox
-                id="riskAlerts"
-                [(ngModel)]="notificationSettings.trade_notifications.risk_alerts"
-                binary="true">
-              </p-checkbox>
-              <label for="riskAlerts" class="ml-2">Kockázati Riasztások</label>
-            </div>
-          </div>
-
-          <div class="col-12">
-            <p-divider></p-divider>
-          </div>
-
-          <div class="col-12">
-            <div class="flex justify-content-end">
-              <p-button
-                label="Mentés"
-                icon="pi pi-save"
-                [loading]="savingNotificationSettings"
-                (onClick)="saveNotificationSettings()">
-              </p-button>
-              <p-button
-                label="Alaphelyzetbe"
-                icon="pi pi-refresh"
-                styleClass="p-button-secondary ml-2"
-                (onClick)="resetNotificationSettings()">
-              </p-button>
-            </div>
-          </div>
-        </div>
-      </p-card>
-    </p-tabPanel>
   </p-tabView>
 </div>
 

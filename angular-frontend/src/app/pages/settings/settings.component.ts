@@ -736,18 +736,23 @@ export class SettingsComponent implements OnInit {
   saveNotificationSettings(): void {
     this.savingNotificationSettings = true;
     
+    // Send the notification settings directly as the backend expects
     const settings = {
       notification_settings: this.notificationSettings
     };
 
+    console.log('Saving notification settings:', settings);
+
     this.settingsService.updateNotificationSettings(settings).subscribe({
       next: (response) => {
         this.savingNotificationSettings = false;
+        console.log('Notification settings saved successfully:', response);
         this.showSuccess('Értesítési beállítások mentve', 'Az értesítési beállítások sikeresen frissítve');
       },
       error: (error) => {
         this.savingNotificationSettings = false;
-        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+        console.error('Error saving notification settings:', error);
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + (error.error?.detail || error.message));
       }
     });
   }
