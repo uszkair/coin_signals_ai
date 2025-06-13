@@ -188,6 +188,121 @@ class TradingSettings(Base):
     testnet_mode = Column(Boolean, default=True)
     use_futures = Column(Boolean, default=True)
     
+    # Signal Generation Settings
+    technical_indicator_weights = Column(JSON, default={
+        'rsi_weight': 1.0,
+        'macd_weight': 1.0,
+        'volume_weight': 1.0,
+        'candlestick_weight': 2.0,
+        'bollinger_weight': 1.0,
+        'ma_weight': 1.0
+    })
+
+    # Technical Analysis Settings
+    rsi_settings = Column(JSON, default={
+        'period': 14,
+        'overbought': 70,
+        'oversold': 30
+    })
+    macd_settings = Column(JSON, default={
+        'fast_period': 12,
+        'slow_period': 26,
+        'signal_period': 9
+    })
+    bollinger_settings = Column(JSON, default={
+        'period': 20,
+        'deviation': 2.0
+    })
+    ma_settings = Column(JSON, default={
+        'short_ma': 20,
+        'long_ma': 50,
+        'ma_type': 'EMA'
+    })
+    volume_settings = Column(JSON, default={
+        'volume_threshold_multiplier': 1.5,
+        'high_volume_threshold': 2.0
+    })
+    candlestick_settings = Column(JSON, default={
+        'sensitivity': 'medium',
+        'min_pattern_score': 0.7
+    })
+
+    # AI/ML Settings
+    ai_ml_settings = Column(JSON, default={
+        'ai_signal_weight': 2.0,
+        'ai_confidence_threshold': 60.0,
+        'ml_models': {
+            'lstm_enabled': True,
+            'random_forest_enabled': True,
+            'gradient_boosting_enabled': True
+        },
+        'market_regime_detection': True,
+        'sentiment_analysis': False,
+        'ensemble_method': 'weighted'
+    })
+
+    # Notification Settings
+    notification_settings = Column(JSON, default={
+        'signal_notifications': {
+            'enabled': True,
+            'email': False,
+            'push': True,
+            'in_app': True,
+            'min_confidence': 70
+        },
+        'trade_notifications': {
+            'enabled': True,
+            'execution_alerts': True,
+            'profit_loss_alerts': True,
+            'risk_alerts': True
+        },
+        'system_notifications': {
+            'enabled': True,
+            'connection_issues': True,
+            'error_alerts': True,
+            'maintenance_alerts': False
+        }
+    })
+
+    # Backtesting Settings
+    backtest_settings = Column(JSON, default={
+        'default_period_days': 30,
+        'default_symbols': ['BTCUSDT', 'ETHUSDT'],
+        'commission_rate': 0.001,
+        'slippage_bps': 5,
+        'initial_capital': 10000,
+        'benchmark_symbol': 'BTCUSDT'
+    })
+
+    # Data & History Settings
+    data_history_settings = Column(JSON, default={
+        'retention_period_days': 90,
+        'auto_cleanup': True,
+        'export_format': 'JSON',
+        'performance_tracking_period': 30,
+        'max_signals_stored': 1000
+    })
+
+    # Advanced Settings
+    advanced_settings = Column(JSON, default={
+        'api_rate_limit': 1200,
+        'retry_attempts': 3,
+        'request_timeout': 30,
+        'cache_duration': 300,
+        'logging_level': 'INFO',
+        'webhook_urls': []
+    })
+
+    # UI/UX Settings
+    ui_settings = Column(JSON, default={
+        'dashboard_refresh_rate': 30,
+        'chart_default_timeframe': '1h',
+        'table_rows_per_page': 25,
+        'theme': 'light',
+        'language': 'hu',
+        'decimal_places': 6
+    })
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -206,6 +321,19 @@ class TradingSettings(Base):
             "daily_loss_limit": float(self.daily_loss_limit) if self.daily_loss_limit else 0.05,
             "testnet_mode": self.testnet_mode,
             "use_futures": self.use_futures,
+            "technical_indicator_weights": self.technical_indicator_weights or {},
+            "rsi_settings": self.rsi_settings or {},
+            "macd_settings": self.macd_settings or {},
+            "bollinger_settings": self.bollinger_settings or {},
+            "ma_settings": self.ma_settings or {},
+            "volume_settings": self.volume_settings or {},
+            "candlestick_settings": self.candlestick_settings or {},
+            "ai_ml_settings": self.ai_ml_settings or {},
+            "notification_settings": self.notification_settings or {},
+            "backtest_settings": self.backtest_settings or {},
+            "data_history_settings": self.data_history_settings or {},
+            "advanced_settings": self.advanced_settings or {},
+            "ui_settings": self.ui_settings or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

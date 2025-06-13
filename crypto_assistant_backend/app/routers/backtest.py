@@ -6,7 +6,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from app.services.backtest_service import backtest_service
-from app.services.trading_settings_service import trading_settings_service
+from app.services.trading_settings_service import get_trading_settings_service
+from app.database import get_db
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 

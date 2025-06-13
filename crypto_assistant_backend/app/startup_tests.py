@@ -44,10 +44,15 @@ async def test_binance_connectivity() -> Dict[str, Any]:
 async def test_database_settings() -> Dict[str, Any]:
     """Test database settings access"""
     try:
-        from app.services.trading_settings_service import trading_settings_service
+        from app.services.trading_settings_service import get_trading_settings_service
+        from app.database import get_sync_db
+        
+        # Get database session and settings service
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
         
         # Test getting risk management settings
-        risk_settings = await trading_settings_service.get_risk_management_settings()
+        risk_settings = settings_service.get_risk_management_settings()
         
         return {
             "test": "database_settings",

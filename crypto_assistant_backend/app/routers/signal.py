@@ -35,7 +35,7 @@ if DATABASE_AVAILABLE:
             for symbol in symbol_list:
                 try:
                     recent_signals = await DatabaseService.get_recent_signals(
-                        db, hours=24, symbol=symbol, limit=1
+                        db, hours=72, symbol=symbol, limit=1
                     )
                     
                     if recent_signals:

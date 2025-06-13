@@ -15,7 +15,7 @@ except ImportError:
 
 # Database configuration
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
+    "DATABASE_URL",
     "postgresql://crypto_user:crypto_password123@localhost:5432/crypto_signals"
 )
 

@@ -45,28 +45,17 @@ class BinanceTrader:
         if testnet is None:
             try:
                 # Import here to avoid circular imports
-                from app.services.trading_settings_service import trading_settings_service
+                from app.services.trading_settings_service import get_trading_settings_service
+                from app.database import get_sync_db
                 
                 # Always try to get from database first
                 try:
-                    # Use the cached settings if available to avoid async issues
-                    cached_settings = trading_settings_service.get_cached_settings()
-                    if cached_settings:
-                        db_testnet = cached_settings.get('testnet_mode', True)  # Default to testnet for safety
-                        logger.info(f"Using cached settings: testnet_mode = {db_testnet}")
-                    else:
-                        # Try to load from database
-                        import asyncio
-                        try:
-                            loop = asyncio.get_running_loop()
-                            # We're in async context, use safe default and log warning
-                            logger.warning("In async context without cached settings, using testnet=True for safety")
-                            db_testnet = True
-                        except RuntimeError:
-                            # Not in async context, can use asyncio.run directly
-                            risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
-                            db_testnet = risk_settings.get('testnet_mode', True)
-                            logger.info(f"Database settings loaded: testnet_mode = {db_testnet}")
+                    # Get database session and settings service
+                    db = next(get_sync_db())
+                    settings_service = get_trading_settings_service(db)
+                    risk_settings = settings_service.get_risk_management_settings()
+                    db_testnet = risk_settings.get('testnet_mode', True)
+                    logger.info(f"Database settings loaded: testnet_mode = {db_testnet}")
                     
                 except Exception as db_error:
                     logger.warning(f"Could not get database settings: {db_error}")
@@ -96,26 +85,15 @@ class BinanceTrader:
             else:
                 try:
                     # Import here to avoid circular imports
-                    import asyncio
-                    from app.services.trading_settings_service import trading_settings_service
+                    from app.services.trading_settings_service import get_trading_settings_service
+                    from app.database import get_sync_db
                     
-                    # Get settings from database
-                    # Use cached settings if available
-                    cached_settings = trading_settings_service.get_cached_settings()
-                    if cached_settings:
-                        db_use_futures = cached_settings.get('use_futures', True if self.testnet else False)
-                        logger.info(f"Using cached settings: use_futures = {db_use_futures}")
-                    else:
-                        try:
-                            loop = asyncio.get_running_loop()
-                            # We're in async context, use testnet-appropriate default
-                            db_use_futures = True if self.testnet else False
-                            logger.warning(f"In async context without cached settings, using use_futures={db_use_futures}")
-                        except RuntimeError:
-                            # Not in async context, can use asyncio.run directly
-                            risk_settings = asyncio.run(trading_settings_service.get_risk_management_settings())
-                            db_use_futures = risk_settings.get('use_futures', True if self.testnet else False)
-                            logger.info(f"Database settings loaded: use_futures = {db_use_futures}")
+                    # Get database session and settings service
+                    db = next(get_sync_db())
+                    settings_service = get_trading_settings_service(db)
+                    risk_settings = settings_service.get_risk_management_settings()
+                    db_use_futures = risk_settings.get('use_futures', True if self.testnet else False)
+                    logger.info(f"Database settings loaded: use_futures = {db_use_futures}")
                     
                     self.use_futures = db_use_futures
                     
@@ -1322,8 +1300,13 @@ async def switch_trading_environment(use_testnet: bool = True, use_futures: bool
     
     # Update database settings FIRST
     try:
-        from app.services.trading_settings_service import trading_settings_service
-        await trading_settings_service.update_risk_management_settings({
+        from app.services.trading_settings_service import get_trading_settings_service
+        from app.database import get_sync_db
+        
+        # Get database session and settings service
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        settings_service.update_risk_management_settings({
             'testnet_mode': use_testnet,
             'use_futures': use_futures
         })

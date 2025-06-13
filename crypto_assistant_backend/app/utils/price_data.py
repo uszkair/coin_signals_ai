@@ -15,8 +15,13 @@ except ImportError:
 async def get_binance_config():
     """Get Binance configuration from database settings"""
     try:
-        from app.services.trading_settings_service import trading_settings_service
-        risk_settings = await trading_settings_service.get_risk_management_settings()
+        from app.services.trading_settings_service import get_trading_settings_service
+        from app.database import get_sync_db
+        
+        # Get database session and settings service
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        risk_settings = settings_service.get_risk_management_settings()
         use_testnet = risk_settings.get('testnet_mode', True)
         
         # For price data, use Spot API for testnet (more reliable for price queries)

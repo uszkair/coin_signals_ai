@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
 
-from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest
+from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest, settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +32,7 @@ app.include_router(ml_ai.router)
 app.include_router(auto_trading.router)  # Auto-trading endpoints
 app.include_router(websocket.router)  # WebSocket endpoints
 app.include_router(backtest.router)  # Backtest endpoints
+app.include_router(settings.router)  # Settings endpoints
 
 
 @app.on_event("startup")
@@ -41,9 +42,15 @@ async def startup_event():
     
     # Load trading settings first to cache them
     try:
-        from app.services.trading_settings_service import trading_settings_service
-        settings = await trading_settings_service.get_settings()
-        logger.info(f"Trading settings loaded and cached: testnet_mode={settings.get('testnet_mode')}")
+        from app.services.trading_settings_service import get_trading_settings_service
+        from app.database import get_sync_db
+        
+        # Get database session and settings service
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        settings = settings_service.get_settings()
+        testnet_mode = getattr(settings, 'testnet_mode', True) if settings else True
+        logger.info(f"Trading settings loaded and cached: testnet_mode={testnet_mode}")
     except Exception as e:
         logger.error(f"Failed to load trading settings: {e}")
     
