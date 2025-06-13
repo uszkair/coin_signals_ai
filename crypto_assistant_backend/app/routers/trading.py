@@ -19,9 +19,9 @@ from app.services.binance_trading import (
     get_trading_environment_info
 )
 from app.services.signal_engine import get_current_signal
-from app.services.trading_settings_service import trading_settings_service
+from app.services.trading_settings_service import get_trading_settings_service
 from app.services.database_service import DatabaseService
-from app.database import get_db
+from app.database import get_db, get_sync_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/trading", tags=["trading"])
@@ -227,7 +227,9 @@ async def update_trading_config(config: TradingConfig):
             update_data['testnet_mode'] = config.testnet
         
         # Update risk management settings in database
-        await trading_settings_service.update_risk_management_settings(update_data)
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        settings_service.update_settings('default', update_data)
         
         # Also update trader for immediate effect
         trader = initialize_global_trader()
@@ -241,7 +243,7 @@ async def update_trading_config(config: TradingConfig):
             trader.daily_loss_limit = config.daily_loss_limit
         
         # Get current settings from database
-        current_settings = await trading_settings_service.get_risk_management_settings()
+        current_settings = settings_service.get_risk_management_settings()
         
         return {
             "success": True,
@@ -265,8 +267,10 @@ async def get_trading_config():
     """Get current trading configuration"""
     try:
         # Get settings from database
-        risk_settings = await trading_settings_service.get_risk_management_settings()
-        position_settings = await trading_settings_service.get_position_size_settings()
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        risk_settings = settings_service.get_risk_management_settings()
+        position_settings = settings_service.get_position_size_settings()
         
         return {
             "success": True,
@@ -316,7 +320,9 @@ async def update_position_size_config(config: PositionSizeConfig):
             'fixed_amount_usd': config.fixed_amount_usd
         }
         
-        await trading_settings_service.update_position_size_settings(update_data)
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        settings_service.update_position_size_settings(update_data)
         
         # Also update trader for immediate effect
         trader = initialize_global_trader()
@@ -327,7 +333,7 @@ async def update_position_size_config(config: PositionSizeConfig):
         )
         
         # Get updated settings from database
-        updated_settings = await trading_settings_service.get_position_size_settings()
+        updated_settings = settings_service.get_position_size_settings()
         
         return {
             "success": True,
@@ -349,8 +355,10 @@ async def update_position_size_config(config: PositionSizeConfig):
 async def get_position_size_config():
     """Get current position size configuration"""
     try:
-        # Get settings from database
-        position_settings = await trading_settings_service.get_position_size_settings()
+        # Get settings from database using sync session
+        db = next(get_sync_db())
+        settings_service = get_trading_settings_service(db)
+        position_settings = settings_service.get_position_size_settings()
         
         return {
             "success": True,

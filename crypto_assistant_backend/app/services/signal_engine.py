@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 import random
 from app.utils.price_data import get_historical_data, get_current_price
+from app.services.trading_settings_service import get_trading_settings_service
+from app.database import get_db
 
 class TradeResult:
     def __init__(self, entry_price: float, stop_loss: float, take_profit: float, 
@@ -111,6 +113,33 @@ async def get_current_signal(symbol: str, interval: str):
     Note: This function does not use a 'mode' parameter (scalp, swing).
     Those trading modes are not needed for this implementation.
     """
+    # Get settings from database
+    try:
+        db = next(get_db())
+        settings_service = get_trading_settings_service(db)
+        
+        # Get all relevant settings
+        indicator_weights = await settings_service.get_technical_indicator_weights()
+        rsi_settings = await settings_service.get_rsi_settings()
+        macd_settings = await settings_service.get_macd_settings()
+        bollinger_settings = await settings_service.get_bollinger_settings()
+        ma_settings = await settings_service.get_ma_settings()
+        volume_settings = await settings_service.get_volume_settings()
+        candlestick_settings = await settings_service.get_candlestick_settings()
+        ai_ml_settings = await settings_service.get_ai_ml_settings()
+        
+    except Exception as e:
+        print(f"Warning: Failed to load settings from database: {e}")
+        # Use default values
+        indicator_weights = {'rsi_weight': 1.0, 'macd_weight': 1.0, 'volume_weight': 1.0, 'candlestick_weight': 2.0, 'bollinger_weight': 1.0, 'ma_weight': 1.0}
+        rsi_settings = {'period': 14, 'overbought': 70, 'oversold': 30}
+        macd_settings = {'fast_period': 12, 'slow_period': 26, 'signal_period': 9}
+        bollinger_settings = {'period': 20, 'deviation': 2.0}
+        ma_settings = {'short_ma': 20, 'long_ma': 50, 'ma_type': 'EMA'}
+        volume_settings = {'volume_threshold_multiplier': 1.5, 'high_volume_threshold': 2.0}
+        candlestick_settings = {'sensitivity': 'medium', 'min_pattern_score': 0.7}
+        ai_ml_settings = {'ai_signal_weight': 2.0, 'ai_confidence_threshold': 60.0}
+    
     # Get more historical data for accurate technical indicators (minimum 200 candles for MA200)
     candles = await get_historical_data(symbol, interval, days=30)
     latest = candles[-1]
@@ -123,7 +152,7 @@ async def get_current_signal(symbol: str, interval: str):
     except:
         current_price = float(latest["close"])
 
-    # Calculate professional technical indicators
+    # Calculate professional technical indicators (function only takes candle data)
     professional_indicators = calculate_professional_indicators(candles)
     
     # Get AI/ML signal for additional intelligence
@@ -199,63 +228,69 @@ async def get_current_signal(symbol: str, interval: str):
         }
     }
     
-    # Pattern-based signals (if pattern exists)
+    # Pattern-based signals (if pattern exists) - use database weight
+    candlestick_weight = indicator_weights.get('candlestick_weight', 2.0)
     if pattern in ["Hammer", "Bullish Engulfing"]:
-        signal_score += 2
+        weight = candlestick_weight
+        signal_score += weight
         decision_factors["candlestick_pattern"]["signal"] = "BUY"
         decision_factors["candlestick_pattern"]["reasoning"] = f"Strong bullish pattern: {pattern}"
-        decision_factors["candlestick_pattern"]["weight"] = 2
+        decision_factors["candlestick_pattern"]["weight"] = weight
     elif pattern in ["Shooting Star", "Bearish Engulfing"]:
-        signal_score -= 2
+        weight = -candlestick_weight
+        signal_score += weight
         decision_factors["candlestick_pattern"]["signal"] = "SELL"
         decision_factors["candlestick_pattern"]["reasoning"] = f"Strong bearish pattern: {pattern}"
-        decision_factors["candlestick_pattern"]["weight"] = -2
+        decision_factors["candlestick_pattern"]["weight"] = weight
     elif pattern == "Doji":
         signal_score += 0  # Neutral
         decision_factors["candlestick_pattern"]["signal"] = "NEUTRAL"
         decision_factors["candlestick_pattern"]["reasoning"] = "Doji pattern indicates indecision"
         decision_factors["candlestick_pattern"]["weight"] = 0
     
-    # Trend-based signals
+    # Trend-based signals - use MA weight
+    ma_weight = indicator_weights.get('ma_weight', 1.0)
     if indicators["trend"] == "bullish":
-        signal_score += 1
+        signal_score += ma_weight
         decision_factors["trend_analysis"]["signal"] = "BUY"
         decision_factors["trend_analysis"]["reasoning"] = "Bullish trend detected"
-        decision_factors["trend_analysis"]["weight"] = 1
+        decision_factors["trend_analysis"]["weight"] = ma_weight
     elif indicators["trend"] == "bearish":
-        signal_score -= 1
+        signal_score -= ma_weight
         decision_factors["trend_analysis"]["signal"] = "SELL"
         decision_factors["trend_analysis"]["reasoning"] = "Bearish trend detected"
-        decision_factors["trend_analysis"]["weight"] = -1
+        decision_factors["trend_analysis"]["weight"] = -ma_weight
     
     # Strength-based signals
     if indicators["strength"] == "strong":
-        weight = 1 if indicators["trend"] == "bullish" else -1
+        weight = ma_weight if indicators["trend"] == "bullish" else -ma_weight
         signal_score += weight
         decision_factors["momentum_strength"]["signal"] = "BUY" if weight > 0 else "SELL"
         decision_factors["momentum_strength"]["reasoning"] = f"Strong momentum supporting {indicators['trend']} trend"
         decision_factors["momentum_strength"]["weight"] = weight
     
-    # Professional RSI analysis
+    # Professional RSI analysis - use database weight
+    rsi_weight = indicator_weights.get('rsi_weight', 1.0)
     rsi_data = professional_indicators.get('rsi', {})
     rsi_value = rsi_data.get('value', 50)
     rsi_signal = rsi_data.get('signal', 'NEUTRAL')
     
     decision_factors["rsi_analysis"]["value"] = rsi_value
     if rsi_signal == "SELL":
-        signal_score -= 1
+        signal_score -= rsi_weight
         decision_factors["rsi_analysis"]["signal"] = "SELL"
-        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI overbought at {rsi_value:.1f}"
-        decision_factors["rsi_analysis"]["weight"] = -1
+        decision_factors["rsi_analysis"]["reasoning"] = f"RSI overbought at {rsi_value:.1f} (threshold: {rsi_settings['overbought']})"
+        decision_factors["rsi_analysis"]["weight"] = -rsi_weight
     elif rsi_signal == "BUY":
-        signal_score += 1
+        signal_score += rsi_weight
         decision_factors["rsi_analysis"]["signal"] = "BUY"
-        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI oversold at {rsi_value:.1f}"
-        decision_factors["rsi_analysis"]["weight"] = 1
+        decision_factors["rsi_analysis"]["reasoning"] = f"RSI oversold at {rsi_value:.1f} (threshold: {rsi_settings['oversold']})"
+        decision_factors["rsi_analysis"]["weight"] = rsi_weight
     else:
-        decision_factors["rsi_analysis"]["reasoning"] = f"Professional RSI neutral at {rsi_value:.1f}"
+        decision_factors["rsi_analysis"]["reasoning"] = f"RSI neutral at {rsi_value:.1f} (range: {rsi_settings['oversold']}-{rsi_settings['overbought']})"
     
-    # Professional MACD analysis
+    # Professional MACD analysis - use database weight
+    macd_weight = indicator_weights.get('macd_weight', 1.0)
     macd_data = professional_indicators.get('macd', {})
     macd_value = macd_data.get('macd', 0)
     macd_signal_type = macd_data.get('signal_type', 'NEUTRAL')
@@ -263,32 +298,33 @@ async def get_current_signal(symbol: str, interval: str):
     
     decision_factors["macd_analysis"]["value"] = macd_value
     if macd_signal_type == "BUY":
-        signal_score += 1
+        signal_score += macd_weight
         decision_factors["macd_analysis"]["signal"] = "BUY"
-        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD bullish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
-        decision_factors["macd_analysis"]["weight"] = 1
+        decision_factors["macd_analysis"]["reasoning"] = f"MACD bullish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
+        decision_factors["macd_analysis"]["weight"] = macd_weight
     elif macd_signal_type == "SELL":
-        signal_score -= 1
+        signal_score -= macd_weight
         decision_factors["macd_analysis"]["signal"] = "SELL"
-        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD bearish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
-        decision_factors["macd_analysis"]["weight"] = -1
+        decision_factors["macd_analysis"]["reasoning"] = f"MACD bearish crossover (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
+        decision_factors["macd_analysis"]["weight"] = -macd_weight
     else:
-        decision_factors["macd_analysis"]["reasoning"] = f"Professional MACD neutral (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
+        decision_factors["macd_analysis"]["reasoning"] = f"MACD neutral (MACD: {macd_value:.3f}, Histogram: {macd_histogram:.3f})"
     
-    # Professional Volume analysis
+    # Professional Volume analysis - use database weight
+    volume_weight = indicator_weights.get('volume_weight', 1.0)
     volume_data = professional_indicators.get('volume', {})
     current_volume = volume_data.get('current', 0)
     volume_trend = volume_data.get('volume_trend', 'NORMAL')
     is_high_volume = volume_data.get('high_volume', False)
     
     if is_high_volume and volume_trend == 'HIGH':
-        weight = 1 if signal_score > 0 else -1 if signal_score < 0 else 0
+        weight = volume_weight if signal_score > 0 else -volume_weight if signal_score < 0 else 0
         signal_score += weight
         decision_factors["volume_analysis"]["signal"] = "BUY" if weight > 0 else "SELL" if weight < 0 else "NEUTRAL"
-        decision_factors["volume_analysis"]["reasoning"] = f"Professional volume analysis: High volume ({current_volume/1000000:.1f}M) confirms signal"
+        decision_factors["volume_analysis"]["reasoning"] = f"High volume ({current_volume/1000000:.1f}M) confirms signal (threshold: {volume_settings['high_volume_threshold']}x)"
         decision_factors["volume_analysis"]["weight"] = weight
     else:
-        decision_factors["volume_analysis"]["reasoning"] = f"Professional volume analysis: {volume_trend.lower()} volume ({current_volume/1000000:.1f}M)"
+        decision_factors["volume_analysis"]["reasoning"] = f"Volume analysis: {volume_trend.lower()} volume ({current_volume/1000000:.1f}M)"
     
     # Support/Resistance analysis
     close = latest["close"]
@@ -324,35 +360,38 @@ async def get_current_signal(symbol: str, interval: str):
         decision_factors["support_resistance"]["reasoning"] = f"Bollinger Bands lower breakout (BB%: {bb_percent:.2f})"
         decision_factors["support_resistance"]["weight"] = -1
     
-    # AI/ML Signal Analysis - add significant weight for strong AI signals
+    # AI/ML Signal Analysis - use database settings for weight and threshold
+    ai_signal_weight = ai_ml_settings.get('ai_signal_weight', 2.0)
+    ai_confidence_threshold = ai_ml_settings.get('ai_confidence_threshold', 60.0)
+    
     if ai_confidence >= 75:  # High confidence AI signal
         if ai_signal == 'BUY':
-            ai_weight = 2
+            ai_weight = ai_signal_weight
             signal_score += ai_weight
             decision_factors["ai_ml_analysis"]["signal"] = "BUY"
             decision_factors["ai_ml_analysis"]["reasoning"] = f"High confidence AI BUY signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
             decision_factors["ai_ml_analysis"]["weight"] = ai_weight
         elif ai_signal == 'SELL':
-            ai_weight = -2
+            ai_weight = -ai_signal_weight
             signal_score += ai_weight
             decision_factors["ai_ml_analysis"]["signal"] = "SELL"
             decision_factors["ai_ml_analysis"]["reasoning"] = f"High confidence AI SELL signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
             decision_factors["ai_ml_analysis"]["weight"] = ai_weight
-    elif ai_confidence >= 60:  # Medium confidence AI signal
+    elif ai_confidence >= ai_confidence_threshold:  # Medium confidence AI signal - use database threshold
         if ai_signal == 'BUY':
-            ai_weight = 1
+            ai_weight = ai_signal_weight * 0.5  # Half weight for medium confidence
             signal_score += ai_weight
             decision_factors["ai_ml_analysis"]["signal"] = "BUY"
             decision_factors["ai_ml_analysis"]["reasoning"] = f"Medium confidence AI BUY signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
             decision_factors["ai_ml_analysis"]["weight"] = ai_weight
         elif ai_signal == 'SELL':
-            ai_weight = -1
+            ai_weight = -ai_signal_weight * 0.5  # Half weight for medium confidence
             signal_score += ai_weight
             decision_factors["ai_ml_analysis"]["signal"] = "SELL"
             decision_factors["ai_ml_analysis"]["reasoning"] = f"Medium confidence AI SELL signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%)"
             decision_factors["ai_ml_analysis"]["weight"] = ai_weight
     else:
-        decision_factors["ai_ml_analysis"]["reasoning"] = f"Low confidence AI signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%) - not used"
+        decision_factors["ai_ml_analysis"]["reasoning"] = f"Low confidence AI signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%) - below threshold ({ai_confidence_threshold}%)"
     
     # Use professional signal strength calculation
     professional_strength = professional_indicators.get('market_assessment', {}).get('signal_strength', 0)

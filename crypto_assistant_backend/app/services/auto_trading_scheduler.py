@@ -11,7 +11,8 @@ from typing import Dict, List, Optional
 from app.services.signal_engine import get_current_signal
 from app.services.binance_trading import execute_automatic_trade, initialize_global_trader
 from app.services.ml_signal_generator import generate_ai_signal
-from app.services.trading_settings_service import trading_settings_service
+from app.services.trading_settings_service import get_trading_settings_service
+from app.database import get_db
 from app.services.database_service import DatabaseService
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,10 @@ class AutoTradingScheduler:
     async def _get_auto_trading_settings(self):
         """Get current auto-trading settings from database"""
         try:
-            return await trading_settings_service.get_auto_trading_settings()
+            from app.database import get_sync_db
+            db = next(get_sync_db())
+            settings_service = get_trading_settings_service(db)
+            return settings_service.get_auto_trading_settings()
         except Exception as e:
             logger.error(f"Error getting auto-trading settings: {e}")
             # Return default settings if database fails
@@ -53,7 +57,10 @@ class AutoTradingScheduler:
     async def _get_position_size_settings(self):
         """Get current position size settings from database"""
         try:
-            return await trading_settings_service.get_position_size_settings()
+            from app.database import get_sync_db
+            db = next(get_sync_db())
+            settings_service = get_trading_settings_service(db)
+            return settings_service.get_position_size_settings()
         except Exception as e:
             logger.error(f"Error getting position size settings: {e}")
             # Return default settings if database fails
@@ -100,20 +107,16 @@ class AutoTradingScheduler:
     async def enable_auto_trading(self):
         """Enable automatic trading"""
         try:
-            # Use a separate database session to avoid conflicts with the monitoring loop
-            from app.database import AsyncSessionLocal
-            async with AsyncSessionLocal() as db:
-                from app.services.database_service import DatabaseService
-                
-                # Update settings directly in database
-                settings_data = {'auto_trading_enabled': True}
-                await DatabaseService.save_trading_settings(db, '1', settings_data)
-                
-                # Update cached settings in trading_settings_service
-                if trading_settings_service._cached_settings:
-                    trading_settings_service._cached_settings['auto_trading_enabled'] = True
-                
-                logger.info("Auto-trading ENABLED")
+            # Use the trading settings service for consistency
+            from app.database import get_sync_db
+            db = next(get_sync_db())
+            settings_service = get_trading_settings_service(db)
+            
+            # Update auto-trading settings using the service
+            settings_data = {'enabled': True}
+            settings_service.update_auto_trading_settings(settings_data)
+            
+            logger.info("Auto-trading ENABLED")
         except Exception as e:
             logger.error(f"Error enabling auto-trading: {e}")
             raise
@@ -121,20 +124,16 @@ class AutoTradingScheduler:
     async def disable_auto_trading(self):
         """Disable automatic trading"""
         try:
-            # Use a separate database session to avoid conflicts with the monitoring loop
-            from app.database import AsyncSessionLocal
-            async with AsyncSessionLocal() as db:
-                from app.services.database_service import DatabaseService
-                
-                # Update settings directly in database
-                settings_data = {'auto_trading_enabled': False}
-                await DatabaseService.save_trading_settings(db, '1', settings_data)
-                
-                # Update cached settings in trading_settings_service
-                if trading_settings_service._cached_settings:
-                    trading_settings_service._cached_settings['auto_trading_enabled'] = False
-                
-                logger.info("Auto-trading DISABLED")
+            # Use the trading settings service for consistency
+            from app.database import get_sync_db
+            db = next(get_sync_db())
+            settings_service = get_trading_settings_service(db)
+            
+            # Update auto-trading settings using the service
+            settings_data = {'enabled': False}
+            settings_service.update_auto_trading_settings(settings_data)
+            
+            logger.info("Auto-trading DISABLED")
         except Exception as e:
             logger.error(f"Error disabling auto-trading: {e}")
             raise
@@ -325,7 +324,10 @@ class AutoTradingScheduler:
             if 'enabled' in settings:
                 update_data['enabled'] = settings['enabled']
             
-            await trading_settings_service.update_auto_trading_settings(update_data)
+            from app.database import get_sync_db
+            db = next(get_sync_db())
+            settings_service = get_trading_settings_service(db)
+            settings_service.update_auto_trading_settings(update_data)
             logger.info("Auto-trading settings updated in database")
             
         except Exception as e:
