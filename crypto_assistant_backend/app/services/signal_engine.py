@@ -115,18 +115,19 @@ async def get_current_signal(symbol: str, interval: str):
     """
     # Get settings from database
     try:
-        db = next(get_db())
+        from app.database import get_sync_db
+        db = next(get_sync_db())
         settings_service = get_trading_settings_service(db)
         
-        # Get all relevant settings
-        indicator_weights = await settings_service.get_technical_indicator_weights()
-        rsi_settings = await settings_service.get_rsi_settings()
-        macd_settings = await settings_service.get_macd_settings()
-        bollinger_settings = await settings_service.get_bollinger_settings()
-        ma_settings = await settings_service.get_ma_settings()
-        volume_settings = await settings_service.get_volume_settings()
-        candlestick_settings = await settings_service.get_candlestick_settings()
-        ai_ml_settings = await settings_service.get_ai_ml_settings()
+        # Get all relevant settings (these are sync functions, no await needed)
+        indicator_weights = settings_service.get_technical_indicator_weights()
+        rsi_settings = settings_service.get_rsi_settings()
+        macd_settings = settings_service.get_macd_settings()
+        bollinger_settings = settings_service.get_bollinger_settings()
+        ma_settings = settings_service.get_ma_settings()
+        volume_settings = settings_service.get_volume_settings()
+        candlestick_settings = settings_service.get_candlestick_settings()
+        ai_ml_settings = settings_service.get_ai_ml_settings()
         
     except Exception as e:
         print(f"Warning: Failed to load settings from database: {e}")
