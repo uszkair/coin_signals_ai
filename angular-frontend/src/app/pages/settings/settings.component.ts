@@ -11,9 +11,13 @@ import { ToastModule } from 'primeng/toast';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { DividerModule } from 'primeng/divider';
 import { TabViewModule } from 'primeng/tabview';
+import { DropdownModule } from 'primeng/dropdown';
+import { SliderModule } from 'primeng/slider';
+import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService } from 'primeng/api';
 
 import { TradingService, PositionSizeConfig, TradingEnvironment } from '../../services/trading.service';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-settings',
@@ -28,7 +32,10 @@ import { TradingService, PositionSizeConfig, TradingEnvironment } from '../../se
     ToastModule,
     ProgressSpinnerModule,
     DividerModule,
-    TabViewModule
+    TabViewModule,
+    DropdownModule,
+    SliderModule,
+    CheckboxModule
   ],
   providers: [MessageService],
   templateUrl: './settings.component.html'
@@ -70,10 +77,117 @@ export class SettingsComponent implements OnInit {
   savingEnvironment = false;
   loadingMinimumReqs = false;
   
+  // Technical Indicator Settings
+  technicalIndicatorWeights = {
+    rsi_weight: 1.0,
+    macd_weight: 1.0,
+    volume_weight: 1.0,
+    candlestick_weight: 2.0,
+    bollinger_weight: 1.0,
+    ma_weight: 1.0
+  };
+
+  rsiSettings = {
+    period: 14,
+    overbought: 70,
+    oversold: 30
+  };
+
+  macdSettings = {
+    fast_period: 12,
+    slow_period: 26,
+    signal_period: 9
+  };
+
+  bollingerSettings = {
+    period: 20,
+    deviation: 2.0
+  };
+
+  maSettings = {
+    short_ma: 20,
+    long_ma: 50,
+    ma_type: 'EMA'
+  };
+
+  volumeSettings = {
+    volume_threshold_multiplier: 1.5,
+    high_volume_threshold: 2.0
+  };
+
+  candlestickSettings = {
+    sensitivity: 'medium',
+    min_pattern_score: 0.7
+  };
+
+  // AI/ML Settings
+  aiMlSettings = {
+    ai_signal_weight: 2.0,
+    ai_confidence_threshold: 60.0,
+    ml_models: {
+      lstm_enabled: true,
+      random_forest_enabled: true,
+      gradient_boosting_enabled: true
+    },
+    market_regime_detection: true,
+    sentiment_analysis: false,
+    ensemble_method: 'weighted'
+  };
+
+  // Notification Settings
+  notificationSettings = {
+    signal_notifications: {
+      enabled: true,
+      email: false,
+      push: true,
+      in_app: true,
+      min_confidence: 70
+    },
+    trade_notifications: {
+      enabled: true,
+      execution_alerts: true,
+      profit_loss_alerts: true,
+      risk_alerts: true
+    },
+    system_notifications: {
+      enabled: true,
+      connection_issues: true,
+      error_alerts: true,
+      maintenance_alerts: false
+    }
+  };
+
+  // Loading states for new settings
+  loadingTechnicalSettings = false;
+  savingTechnicalSettings = false;
+  loadingAIMLSettings = false;
+  savingAIMLSettings = false;
+  loadingNotificationSettings = false;
+  savingNotificationSettings = false;
+
+  // Dropdown options
+  maTypeOptions = [
+    { label: 'EMA (Exponential)', value: 'EMA' },
+    { label: 'SMA (Simple)', value: 'SMA' },
+    { label: 'WMA (Weighted)', value: 'WMA' }
+  ];
+
+  sensitivityOptions = [
+    { label: 'Alacsony', value: 'low' },
+    { label: 'Közepes', value: 'medium' },
+    { label: 'Magas', value: 'high' }
+  ];
+
+  ensembleMethodOptions = [
+    { label: 'Súlyozott átlag', value: 'weighted' },
+    { label: 'Szavazás', value: 'voting' },
+    { label: 'Stacking', value: 'stacking' }
+  ];
 
   constructor(
     private tradingService: TradingService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
@@ -81,6 +195,7 @@ export class SettingsComponent implements OnInit {
     this.loadWalletBalance();
     this.loadTradingMode();
     this.loadTradingEnvironment();
+    this.loadAdvancedSettings();
   }
 
   loadAllConfigs(): void {
@@ -520,5 +635,128 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  // Technical Indicator Settings Methods
+  loadTechnicalIndicatorSettings(): void {
+    this.loadingTechnicalSettings = true;
+    
+    this.settingsService.getTechnicalAnalysisSettings().subscribe({
+      next: (data) => {
+        this.loadingTechnicalSettings = false;
+        this.technicalIndicatorWeights = data.technical_indicator_weights || this.technicalIndicatorWeights;
+        this.rsiSettings = data.rsi_settings || this.rsiSettings;
+        this.macdSettings = data.macd_settings || this.macdSettings;
+        this.bollingerSettings = data.bollinger_settings || this.bollingerSettings;
+        this.maSettings = data.ma_settings || this.maSettings;
+        this.volumeSettings = data.volume_settings || this.volumeSettings;
+        this.candlestickSettings = data.candlestick_settings || this.candlestickSettings;
+      },
+      error: (error) => {
+        this.loadingTechnicalSettings = false;
+        this.showError('Technical beállítások betöltése sikertelen', error.message);
+      }
+    });
+  }
+
+  saveTechnicalIndicatorSettings(): void {
+    this.savingTechnicalSettings = true;
+    
+    const settings = {
+      technical_indicator_weights: this.technicalIndicatorWeights,
+      rsi_settings: this.rsiSettings,
+      macd_settings: this.macdSettings,
+      bollinger_settings: this.bollingerSettings,
+      ma_settings: this.maSettings,
+      volume_settings: this.volumeSettings,
+      candlestick_settings: this.candlestickSettings
+    };
+
+    this.settingsService.updateTechnicalAnalysisSettings(settings).subscribe({
+      next: (response) => {
+        this.savingTechnicalSettings = false;
+        this.showSuccess('Technical beállítások mentve', 'A technikai indikátor beállítások sikeresen frissítve');
+      },
+      error: (error) => {
+        this.savingTechnicalSettings = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+      }
+    });
+  }
+
+  // AI/ML Settings Methods
+  loadAIMLSettings(): void {
+    this.loadingAIMLSettings = true;
+    
+    this.settingsService.getAIMLSettings().subscribe({
+      next: (data) => {
+        this.loadingAIMLSettings = false;
+        this.aiMlSettings = data.ai_ml_settings || this.aiMlSettings;
+      },
+      error: (error) => {
+        this.loadingAIMLSettings = false;
+        this.showError('AI/ML beállítások betöltése sikertelen', error.message);
+      }
+    });
+  }
+
+  saveAIMLSettings(): void {
+    this.savingAIMLSettings = true;
+    
+    const settings = {
+      ai_ml_settings: this.aiMlSettings
+    };
+
+    this.settingsService.updateAIMLSettings(settings).subscribe({
+      next: (response) => {
+        this.savingAIMLSettings = false;
+        this.showSuccess('AI/ML beállítások mentve', 'A mesterséges intelligencia beállítások sikeresen frissítve');
+      },
+      error: (error) => {
+        this.savingAIMLSettings = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+      }
+    });
+  }
+
+  // Notification Settings Methods
+  loadNotificationSettings(): void {
+    this.loadingNotificationSettings = true;
+    
+    this.settingsService.getNotificationSettings().subscribe({
+      next: (data) => {
+        this.loadingNotificationSettings = false;
+        this.notificationSettings = data.notification_settings || this.notificationSettings;
+      },
+      error: (error) => {
+        this.loadingNotificationSettings = false;
+        this.showError('Értesítési beállítások betöltése sikertelen', error.message);
+      }
+    });
+  }
+
+  saveNotificationSettings(): void {
+    this.savingNotificationSettings = true;
+    
+    const settings = {
+      notification_settings: this.notificationSettings
+    };
+
+    this.settingsService.updateNotificationSettings(settings).subscribe({
+      next: (response) => {
+        this.savingNotificationSettings = false;
+        this.showSuccess('Értesítési beállítások mentve', 'Az értesítési beállítások sikeresen frissítve');
+      },
+      error: (error) => {
+        this.savingNotificationSettings = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+      }
+    });
+  }
+
+  // Load all advanced settings
+  loadAdvancedSettings(): void {
+    this.loadTechnicalIndicatorSettings();
+    this.loadAIMLSettings();
+    this.loadNotificationSettings();
+  }
 
 }

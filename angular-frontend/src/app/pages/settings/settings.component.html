@@ -715,6 +715,518 @@
         </div>
       </div>
     </p-tabPanel>
+
+    <!-- Technical Indicators Tab -->
+    <p-tabPanel header="Technikai Indikátorok" leftIcon="pi pi-chart-line">
+      <p-card header="Technikai Indikátor Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- Indicator Weights -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-sliders-h mr-2"></i>Indikátor Súlyok
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="rsiWeight" class="block text-900 font-medium mb-2">RSI Súly</label>
+              <p-slider
+                id="rsiWeight"
+                [(ngModel)]="technicalIndicatorWeights.rsi_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.rsi_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="macdWeight" class="block text-900 font-medium mb-2">MACD Súly</label>
+              <p-slider
+                id="macdWeight"
+                [(ngModel)]="technicalIndicatorWeights.macd_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.macd_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="volumeWeight" class="block text-900 font-medium mb-2">Volume Súly</label>
+              <p-slider
+                id="volumeWeight"
+                [(ngModel)]="technicalIndicatorWeights.volume_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.volume_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="candlestickWeight" class="block text-900 font-medium mb-2">Gyertya Minta Súly</label>
+              <p-slider
+                id="candlestickWeight"
+                [(ngModel)]="technicalIndicatorWeights.candlestick_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.candlestick_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- RSI Settings -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-bar mr-2"></i>RSI Beállítások
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="rsiPeriod" class="block text-900 font-medium mb-2">Periódus</label>
+              <p-inputNumber
+                id="rsiPeriod"
+                [(ngModel)]="rsiSettings.period"
+                [min]="5"
+                [max]="50"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="rsiOverbought" class="block text-900 font-medium mb-2">Túlvett Szint</label>
+              <p-inputNumber
+                id="rsiOverbought"
+                [(ngModel)]="rsiSettings.overbought"
+                [min]="60"
+                [max]="90"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="rsiOversold" class="block text-900 font-medium mb-2">Túladott Szint</label>
+              <p-inputNumber
+                id="rsiOversold"
+                [(ngModel)]="rsiSettings.oversold"
+                [min]="10"
+                [max]="40"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- MACD Settings -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-line mr-2"></i>MACD Beállítások
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="macdFast" class="block text-900 font-medium mb-2">Gyors Periódus</label>
+              <p-inputNumber
+                id="macdFast"
+                [(ngModel)]="macdSettings.fast_period"
+                [min]="5"
+                [max]="20"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="macdSlow" class="block text-900 font-medium mb-2">Lassú Periódus</label>
+              <p-inputNumber
+                id="macdSlow"
+                [(ngModel)]="macdSettings.slow_period"
+                [min]="20"
+                [max]="50"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="macdSignal" class="block text-900 font-medium mb-2">Signal Periódus</label>
+              <p-inputNumber
+                id="macdSignal"
+                [(ngModel)]="macdSettings.signal_period"
+                [min]="5"
+                [max]="15"
+                [step]="1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Candlestick Settings -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-bar mr-2"></i>Gyertya Minta Beállítások
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="candlestickSensitivity" class="block text-900 font-medium mb-2">Érzékenység</label>
+              <p-dropdown
+                id="candlestickSensitivity"
+                [(ngModel)]="candlestickSettings.sensitivity"
+                [options]="sensitivityOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Válassz érzékenységet"
+                styleClass="w-full">
+              </p-dropdown>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="minPatternScore" class="block text-900 font-medium mb-2">Min. Minta Pontszám</label>
+              <p-inputNumber
+                id="minPatternScore"
+                [(ngModel)]="candlestickSettings.min_pattern_score"
+                [min]="0.1"
+                [max]="1.0"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingTechnicalSettings"
+                (onClick)="saveTechnicalIndicatorSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
+    <!-- AI/ML Tab -->
+    <p-tabPanel header="AI/ML Beállítások" leftIcon="pi pi-android">
+      <p-card header="Mesterséges Intelligencia Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- AI Signal Weight -->
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="aiSignalWeight" class="block text-900 font-medium mb-2">AI Signal Súly</label>
+              <p-slider
+                id="aiSignalWeight"
+                [(ngModel)]="aiMlSettings.ai_signal_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ aiMlSettings.ai_signal_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="aiConfidenceThreshold" class="block text-900 font-medium mb-2">AI Bizalom Küszöb (%)</label>
+              <p-inputNumber
+                id="aiConfidenceThreshold"
+                [(ngModel)]="aiMlSettings.ai_confidence_threshold"
+                [min]="30"
+                [max]="95"
+                [step]="5"
+                suffix="%"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- ML Models -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-cog mr-2"></i>ML Modellek
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="lstmEnabled"
+                [(ngModel)]="aiMlSettings.ml_models.lstm_enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="lstmEnabled" class="ml-2">LSTM Neural Network</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="randomForestEnabled"
+                [(ngModel)]="aiMlSettings.ml_models.random_forest_enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="randomForestEnabled" class="ml-2">Random Forest</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="gradientBoostingEnabled"
+                [(ngModel)]="aiMlSettings.ml_models.gradient_boosting_enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="gradientBoostingEnabled" class="ml-2">Gradient Boosting</label>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Advanced AI Settings -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-brain mr-2"></i>Haladó AI Beállítások
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="marketRegimeDetection"
+                [(ngModel)]="aiMlSettings.market_regime_detection"
+                binary="true">
+              </p-checkbox>
+              <label for="marketRegimeDetection" class="ml-2">Piaci Rezsim Felismerés</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="sentimentAnalysis"
+                [(ngModel)]="aiMlSettings.sentiment_analysis"
+                binary="true">
+              </p-checkbox>
+              <label for="sentimentAnalysis" class="ml-2">Hangulat Elemzés</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-4">
+            <div class="field">
+              <label for="ensembleMethod" class="block text-900 font-medium mb-2">Ensemble Módszer</label>
+              <p-dropdown
+                id="ensembleMethod"
+                [(ngModel)]="aiMlSettings.ensemble_method"
+                [options]="ensembleMethodOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Válassz módszert"
+                styleClass="w-full">
+              </p-dropdown>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingAIMLSettings"
+                (onClick)="saveAIMLSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
+    <!-- Notifications Tab -->
+    <p-tabPanel header="Értesítések" leftIcon="pi pi-bell">
+      <p-card header="Értesítési Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- Signal Notifications -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-line mr-2"></i>Signal Értesítések
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalNotificationsEnabled"
+                [(ngModel)]="notificationSettings.signal_notifications.enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="signalNotificationsEnabled" class="ml-2">Engedélyezve</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalEmail"
+                [(ngModel)]="notificationSettings.signal_notifications.email"
+                binary="true">
+              </p-checkbox>
+              <label for="signalEmail" class="ml-2">Email</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="signalPush"
+                [(ngModel)]="notificationSettings.signal_notifications.push"
+                binary="true">
+              </p-checkbox>
+              <label for="signalPush" class="ml-2">Push</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field">
+              <label for="signalMinConfidence" class="block text-900 font-medium mb-2">Min. Bizalom (%)</label>
+              <p-inputNumber
+                id="signalMinConfidence"
+                [(ngModel)]="notificationSettings.signal_notifications.min_confidence"
+                [min]="30"
+                [max]="95"
+                [step]="5"
+                suffix="%"
+                styleClass="w-full">
+              </p-inputNumber>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Trade Notifications -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-dollar mr-2"></i>Kereskedési Értesítések
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="tradeNotificationsEnabled"
+                [(ngModel)]="notificationSettings.trade_notifications.enabled"
+                binary="true">
+              </p-checkbox>
+              <label for="tradeNotificationsEnabled" class="ml-2">Engedélyezve</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="executionAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.execution_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="executionAlerts" class="ml-2">Végrehajtási Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="profitLossAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.profit_loss_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="profitLossAlerts" class="ml-2">Profit/Loss Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <div class="field-checkbox">
+              <p-checkbox
+                id="riskAlerts"
+                [(ngModel)]="notificationSettings.trade_notifications.risk_alerts"
+                binary="true">
+              </p-checkbox>
+              <label for="riskAlerts" class="ml-2">Kockázati Riasztások</label>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingNotificationSettings"
+                (onClick)="saveNotificationSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
   </p-tabView>
 </div>
 

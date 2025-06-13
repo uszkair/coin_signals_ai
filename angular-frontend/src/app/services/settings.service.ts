@@ -7,7 +7,7 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class SettingsService {
-  private apiUrl = `${environment.apiUrl}/api/settings`;
+  private apiUrl = `${environment.apiUrl}/settings`;
   private settingsSubject = new BehaviorSubject<any | null>(null);
   public settings$ = this.settingsSubject.asObservable();
 
