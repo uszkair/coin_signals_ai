@@ -167,11 +167,11 @@
               </div>
               <div class="text-center">
                 <div class="text-2xl font-bold text-green-600">{{ getLivePositionsStats().longPositions }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Long pozíciók</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">BUY pozíciók</div>
               </div>
               <div class="text-center">
                 <div class="text-2xl font-bold text-red-600">{{ getLivePositionsStats().shortPositions }}</div>
-                <div class="text-sm text-gray-600 dark:text-gray-400">Short pozíciók</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">SELL pozíciók</div>
               </div>
               <div class="text-center">
                 <div class="text-2xl font-bold text-green-600">{{ getLivePositionsStats().profitablePositions }}</div>
@@ -244,6 +244,8 @@
                   <th>Mennyiség</th>
                   <th>Belépési Ár</th>
                   <th>Jelenlegi Ár</th>
+                  <th>Stop Loss</th>
+                  <th>Take Profit</th>
                   <th>Nem Realizált P&L</th>
                   <th>P&L %</th>
                   <th>Tőkeáttétel</th>
@@ -265,6 +267,22 @@
                   <td class="font-mono">{{ position.position_amt | number:'1.4-4' }}</td>
                   <td class="font-mono">${{ position.entry_price | number:'1.4-4' }}</td>
                   <td class="font-mono">${{ position.mark_price | number:'1.4-4' }}</td>
+                  <td class="font-mono">
+                    <span *ngIf="position.stop_loss_price; else noStopLoss" class="text-red-600 dark:text-red-400">
+                      ${{ position.stop_loss_price | number:'1.4-4' }}
+                    </span>
+                    <ng-template #noStopLoss>
+                      <span class="text-gray-400 dark:text-gray-500">-</span>
+                    </ng-template>
+                  </td>
+                  <td class="font-mono">
+                    <span *ngIf="position.take_profit_price; else noTakeProfit" class="text-green-600 dark:text-green-400">
+                      ${{ position.take_profit_price | number:'1.4-4' }}
+                    </span>
+                    <ng-template #noTakeProfit>
+                      <span class="text-gray-400 dark:text-gray-500">-</span>
+                    </ng-template>
+                  </td>
                   <td>
                     <span [class]="getPositionPnlClass(position.unrealized_pnl)">
                       {{ position.unrealized_pnl >= 0 ? '+' : '' }}${{ position.unrealized_pnl | number:'1.2-2' }}
@@ -289,7 +307,7 @@
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="9" class="text-center py-8">
+                  <td colspan="11" class="text-center py-8">
                     <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
                     <p class="text-gray-500 dark:text-gray-400">Nincs nyitott pozíció</p>
                     <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">

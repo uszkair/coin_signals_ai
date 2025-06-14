@@ -1098,7 +1098,7 @@ async def get_order_status(order_id: str, symbol: str = Query(..., description="
 
 @router.get("/live-positions")
 async def get_live_positions():
-    """Get live positions from Binance API (including external positions)"""
+    """Get live positions from Binance API with stop loss and take profit prices"""
     try:
         trader = initialize_global_trader()
         
@@ -1145,14 +1145,59 @@ async def get_live_positions():
                         else:
                             pnl_percentage = 0.0
                         
+                        # Get open orders for this symbol to find stop loss and take profit
+                        stop_loss_price = None
+                        take_profit_price = None
+                        
+                        try:
+                            open_orders = trader.client.futures_get_open_orders(symbol=symbol)
+                            logger.info(f"Found {len(open_orders)} open orders for {symbol}")
+                            
+                            for order in open_orders:
+                                order_type = order.get('type', '')
+                                stop_price = float(order.get('stopPrice', 0)) if order.get('stopPrice') else None
+                                price = float(order.get('price', 0)) if order.get('price') else None
+                                side = order.get('side', '')
+                                
+                                logger.info(f"Order: type={order_type}, side={side}, stopPrice={stop_price}, price={price}")
+                                
+                                # Check for stop loss orders (STOP_MARKET, STOP, STOP_LOSS_LIMIT)
+                                if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
+                                    trigger_price = stop_price or price
+                                    # For LONG positions, stop loss is SELL order below entry price
+                                    # For SHORT positions, stop loss is BUY order above entry price
+                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                                        stop_loss_price = trigger_price
+                                        logger.info(f"Found LONG stop loss: {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                                        stop_loss_price = trigger_price
+                                        logger.info(f"Found SHORT stop loss: {trigger_price}")
+                                
+                                # Check for take profit orders (TAKE_PROFIT_MARKET, TAKE_PROFIT, LIMIT)
+                                elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
+                                    trigger_price = stop_price or price
+                                    # For LONG positions, take profit is SELL order above entry price
+                                    # For SHORT positions, take profit is BUY order below entry price
+                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                                        take_profit_price = trigger_price
+                                        logger.info(f"Found LONG take profit: {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                                        take_profit_price = trigger_price
+                                        logger.info(f"Found SHORT take profit: {trigger_price}")
+                                
+                        except Exception as order_error:
+                            logger.warning(f"Could not get open orders for {symbol}: {order_error}")
+                        
                         live_positions.append({
                             'symbol': symbol,
-                            'position_side': 'LONG' if position_amt > 0 else 'SHORT',
+                            'position_side': 'BUY' if position_amt > 0 else 'SELL',
                             'position_amt': abs(position_amt),
                             'entry_price': entry_price,
                             'mark_price': current_price,
                             'unrealized_pnl': unrealized_pnl,
                             'pnl_percentage': pnl_percentage,
+                            'stop_loss_price': stop_loss_price,
+                            'take_profit_price': take_profit_price,
                             'position_type': 'FUTURES',
                             'leverage': float(pos.get('leverage', 1)),
                             'margin_type': pos.get('marginType', 'cross'),
@@ -1198,7 +1243,7 @@ async def get_live_positions():
 
 @router.get("/live-positions/pnl-only")
 async def get_live_positions_pnl_only():
-    """Get only P&L data for live positions (for efficient updates)"""
+    """Get only P&L data and exit prices for live positions (for efficient updates)"""
     try:
         trader = initialize_global_trader()
         
@@ -1240,11 +1285,50 @@ async def get_live_positions_pnl_only():
                         else:
                             pnl_percentage = 0.0
                         
+                        # Get stop loss and take profit prices from open orders (lightweight check)
+                        stop_loss_price = None
+                        take_profit_price = None
+                        
+                        try:
+                            open_orders = trader.client.futures_get_open_orders(symbol=symbol)
+                            
+                            for order in open_orders:
+                                order_type = order.get('type', '')
+                                stop_price = float(order.get('stopPrice', 0)) if order.get('stopPrice') else None
+                                price = float(order.get('price', 0)) if order.get('price') else None
+                                side = order.get('side', '')
+                                
+                                # Check for stop loss orders (STOP_MARKET, STOP, STOP_LOSS_LIMIT)
+                                if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
+                                    trigger_price = stop_price or price
+                                    # For LONG positions, stop loss is SELL order below entry price
+                                    # For SHORT positions, stop loss is BUY order above entry price
+                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                                        stop_loss_price = trigger_price
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                                        stop_loss_price = trigger_price
+                                
+                                # Check for take profit orders (TAKE_PROFIT_MARKET, TAKE_PROFIT, LIMIT)
+                                elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
+                                    trigger_price = stop_price or price
+                                    # For LONG positions, take profit is SELL order above entry price
+                                    # For SHORT positions, take profit is BUY order below entry price
+                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                                        take_profit_price = trigger_price
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                                        take_profit_price = trigger_price
+                                        
+                        except Exception as order_error:
+                            # Don't log warnings for P&L-only updates to avoid spam
+                            pass
+                        
                         pnl_updates.append({
                             'symbol': symbol,
                             'mark_price': current_price,
                             'unrealized_pnl': unrealized_pnl,
                             'pnl_percentage': pnl_percentage,
+                            'stop_loss_price': stop_loss_price,
+                            'take_profit_price': take_profit_price,
                             'update_time': int(time.time() * 1000)
                         })
                 
@@ -1264,6 +1348,105 @@ async def get_live_positions_pnl_only():
                 "pnl_updates": pnl_updates,
                 "count": len(pnl_updates),
                 "timestamp": int(time.time() * 1000)
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/open-orders")
+async def get_open_orders(symbol: Optional[str] = Query(None, description="Filter by symbol")):
+    """Get all open orders from Binance API"""
+    try:
+        trader = initialize_global_trader()
+        
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
+            }
+        
+        all_orders = []
+        
+        if trader.use_futures:
+            try:
+                if symbol:
+                    # Get orders for specific symbol
+                    orders = trader.client.futures_get_open_orders(symbol=symbol)
+                else:
+                    # Get all open orders
+                    orders = trader.client.futures_get_open_orders()
+                
+                for order in orders:
+                    formatted_order = {
+                        'symbol': order.get('symbol'),
+                        'order_id': order.get('orderId'),
+                        'side': order.get('side'),
+                        'type': order.get('type'),
+                        'status': order.get('status'),
+                        'price': float(order.get('price', 0)) if order.get('price') else None,
+                        'stop_price': float(order.get('stopPrice', 0)) if order.get('stopPrice') else None,
+                        'original_qty': float(order.get('origQty', 0)),
+                        'executed_qty': float(order.get('executedQty', 0)),
+                        'time_in_force': order.get('timeInForce'),
+                        'reduce_only': order.get('reduceOnly', False),
+                        'close_position': order.get('closePosition', False),
+                        'working_type': order.get('workingType'),
+                        'price_protect': order.get('priceProtect', False),
+                        'time': datetime.fromtimestamp(order.get('time', 0) / 1000) if order.get('time') else None,
+                        'update_time': datetime.fromtimestamp(order.get('updateTime', 0) / 1000) if order.get('updateTime') else None
+                    }
+                    all_orders.append(formatted_order)
+                    
+            except Exception as e:
+                logger.error(f"Error getting Futures open orders: {e}")
+                return {
+                    "success": False,
+                    "error": f"Failed to get Futures open orders: {str(e)}"
+                }
+        else:
+            try:
+                if symbol:
+                    # Get orders for specific symbol
+                    orders = trader.client.get_open_orders(symbol=symbol)
+                else:
+                    # Get all open orders
+                    orders = trader.client.get_open_orders()
+                
+                for order in orders:
+                    formatted_order = {
+                        'symbol': order.get('symbol'),
+                        'order_id': order.get('orderId'),
+                        'side': order.get('side'),
+                        'type': order.get('type'),
+                        'status': order.get('status'),
+                        'price': float(order.get('price', 0)) if order.get('price') else None,
+                        'stop_price': float(order.get('stopPrice', 0)) if order.get('stopPrice') else None,
+                        'original_qty': float(order.get('origQty', 0)),
+                        'executed_qty': float(order.get('executedQty', 0)),
+                        'time_in_force': order.get('timeInForce'),
+                        'iceberg_qty': float(order.get('icebergQty', 0)) if order.get('icebergQty') else None,
+                        'time': datetime.fromtimestamp(order.get('time', 0) / 1000) if order.get('time') else None,
+                        'update_time': datetime.fromtimestamp(order.get('updateTime', 0) / 1000) if order.get('updateTime') else None,
+                        'is_working': order.get('isWorking', False)
+                    }
+                    all_orders.append(formatted_order)
+                    
+            except Exception as e:
+                logger.error(f"Error getting Spot open orders: {e}")
+                return {
+                    "success": False,
+                    "error": f"Failed to get Spot open orders: {str(e)}"
+                }
+        
+        return {
+            "success": True,
+            "data": {
+                "orders": all_orders,
+                "count": len(all_orders),
+                "account_type": "FUTURES" if trader.use_futures else "SPOT",
+                "testnet": trader.testnet
             }
         }
         

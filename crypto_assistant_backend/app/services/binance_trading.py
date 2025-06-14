@@ -709,16 +709,40 @@ class BinanceTrader:
                 logger.warning(f"Could not get current price for {symbol}, skipping stop loss order")
                 return {'success': False, 'error': f'Could not get current price for {symbol}'}
             
-            # Validate stop price against PERCENT_PRICE filter
+            # Round stop price to proper precision based on PRICE_FILTER
             price_filter = None
             for filter_info in symbol_info.get('filters', []):
-                if filter_info['filterType'] == 'PERCENT_PRICE':
+                if filter_info['filterType'] == 'PRICE_FILTER':
                     price_filter = filter_info
                     break
             
             if price_filter:
-                multiplier_up = float(price_filter.get('multiplierUp', 5.0))
-                multiplier_down = float(price_filter.get('multiplierDown', 0.2))
+                tick_size = float(price_filter.get('tickSize', '0.01'))
+                # Round to tick size precision
+                if tick_size >= 1:
+                    precision = 0
+                else:
+                    tick_str = f"{tick_size:.10f}".rstrip('0')
+                    if '.' in tick_str:
+                        precision = len(tick_str.split('.')[1])
+                    else:
+                        precision = 0
+                
+                # Round stop price to proper precision
+                stop_price = round(stop_price / tick_size) * tick_size
+                stop_price = round(stop_price, precision)
+                logger.info(f"Rounded stop price for {symbol}: {stop_price} (precision: {precision})")
+            
+            # Validate stop price against PERCENT_PRICE filter
+            percent_price_filter = None
+            for filter_info in symbol_info.get('filters', []):
+                if filter_info['filterType'] == 'PERCENT_PRICE':
+                    percent_price_filter = filter_info
+                    break
+            
+            if percent_price_filter:
+                multiplier_up = float(percent_price_filter.get('multiplierUp', 5.0))
+                multiplier_down = float(percent_price_filter.get('multiplierDown', 0.2))
                 
                 max_price = current_price * multiplier_up
                 min_price = current_price * multiplier_down
@@ -727,9 +751,11 @@ class BinanceTrader:
                 if stop_price > max_price:
                     logger.warning(f"Stop price {stop_price} too high for {symbol}, adjusting to {max_price}")
                     stop_price = max_price * 0.95  # 5% buffer
+                    stop_price = round(stop_price, precision) if 'precision' in locals() else stop_price
                 elif stop_price < min_price:
                     logger.warning(f"Stop price {stop_price} too low for {symbol}, adjusting to {min_price}")
                     stop_price = min_price * 1.05  # 5% buffer
+                    stop_price = round(stop_price, precision) if 'precision' in locals() else stop_price
             
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
@@ -783,16 +809,40 @@ class BinanceTrader:
                 logger.warning(f"Could not get current price for {symbol}, skipping take profit order")
                 return {'success': False, 'error': f'Could not get current price for {symbol}'}
             
-            # Validate take profit price against PERCENT_PRICE filter
+            # Round take profit price to proper precision based on PRICE_FILTER
             price_filter = None
             for filter_info in symbol_info.get('filters', []):
-                if filter_info['filterType'] == 'PERCENT_PRICE':
+                if filter_info['filterType'] == 'PRICE_FILTER':
                     price_filter = filter_info
                     break
             
             if price_filter:
-                multiplier_up = float(price_filter.get('multiplierUp', 5.0))
-                multiplier_down = float(price_filter.get('multiplierDown', 0.2))
+                tick_size = float(price_filter.get('tickSize', '0.01'))
+                # Round to tick size precision
+                if tick_size >= 1:
+                    precision = 0
+                else:
+                    tick_str = f"{tick_size:.10f}".rstrip('0')
+                    if '.' in tick_str:
+                        precision = len(tick_str.split('.')[1])
+                    else:
+                        precision = 0
+                
+                # Round take profit price to proper precision
+                take_profit_price = round(take_profit_price / tick_size) * tick_size
+                take_profit_price = round(take_profit_price, precision)
+                logger.info(f"Rounded take profit price for {symbol}: {take_profit_price} (precision: {precision})")
+            
+            # Validate take profit price against PERCENT_PRICE filter
+            percent_price_filter = None
+            for filter_info in symbol_info.get('filters', []):
+                if filter_info['filterType'] == 'PERCENT_PRICE':
+                    percent_price_filter = filter_info
+                    break
+            
+            if percent_price_filter:
+                multiplier_up = float(percent_price_filter.get('multiplierUp', 5.0))
+                multiplier_down = float(percent_price_filter.get('multiplierDown', 0.2))
                 
                 max_price = current_price * multiplier_up
                 min_price = current_price * multiplier_down
@@ -801,9 +851,11 @@ class BinanceTrader:
                 if take_profit_price > max_price:
                     logger.warning(f"Take profit price {take_profit_price} too high for {symbol}, adjusting to {max_price}")
                     take_profit_price = max_price * 0.95  # 5% buffer
+                    take_profit_price = round(take_profit_price, precision) if 'precision' in locals() else take_profit_price
                 elif take_profit_price < min_price:
                     logger.warning(f"Take profit price {take_profit_price} too low for {symbol}, adjusting to {min_price}")
                     take_profit_price = min_price * 1.05  # 5% buffer
+                    take_profit_price = round(take_profit_price, precision) if 'precision' in locals() else take_profit_price
             
             side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             

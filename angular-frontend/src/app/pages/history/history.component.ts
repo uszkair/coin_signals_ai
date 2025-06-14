@@ -27,6 +27,8 @@ interface LivePosition {
   mark_price: number;
   unrealized_pnl: number;
   pnl_percentage: number;
+  stop_loss_price?: number;
+  take_profit_price?: number;
   position_type: string;
   leverage?: number;
   margin_type?: string;
@@ -344,13 +346,13 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   private updatePositionsPnl(): void {
-    // Only update P&L data to avoid visual disruption
+    // Only update P&L data and exit prices to avoid visual disruption
     this.tradingService.getLivePositionsPnlOnly()
       .pipe(take(1))
       .subscribe({
         next: (response) => {
           if (response.success && response.data.pnl_updates) {
-            // Update only P&L values in existing positions
+            // Update only P&L values and exit prices in existing positions
             response.data.pnl_updates.forEach((update: any) => {
               const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
               if (existingPosition) {
@@ -358,6 +360,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
                 existingPosition.mark_price = update.mark_price;
                 existingPosition.unrealized_pnl = update.unrealized_pnl;
                 existingPosition.pnl_percentage = update.pnl_percentage;
+                existingPosition.stop_loss_price = update.stop_loss_price;
+                existingPosition.take_profit_price = update.take_profit_price;
                 existingPosition.update_time = update.update_time;
               }
             });
@@ -403,7 +407,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   getPositionSideSeverity(side: string): 'success' | 'danger' {
-    return side === 'LONG' ? 'success' : 'danger';
+    return side === 'BUY' ? 'success' : 'danger';
   }
 
   getPositionPnlClass(pnl: number): string {
@@ -429,8 +433,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
   getLivePositionsStats() {
     const stats = {
       totalPositions: this.livePositions.length,
-      longPositions: this.livePositions.filter(p => p.position_side === 'LONG').length,
-      shortPositions: this.livePositions.filter(p => p.position_side === 'SHORT').length,
+      longPositions: this.livePositions.filter(p => p.position_side === 'BUY').length,
+      shortPositions: this.livePositions.filter(p => p.position_side === 'SELL').length,
       totalUnrealizedPnl: this.getTotalUnrealizedPnl(),
       totalPositionValue: this.getTotalPositionValue(),
       profitablePositions: this.livePositions.filter(p => p.unrealized_pnl > 0).length,
