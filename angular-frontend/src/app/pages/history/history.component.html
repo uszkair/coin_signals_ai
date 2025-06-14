@@ -2,7 +2,7 @@
   <!-- Header -->
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
     <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-      Történeti kereskedés
+      Kereskedési Áttekintés
     </h1>
     
     <!-- Filters -->
@@ -151,9 +151,165 @@
     </div>
   </div>
 
-  <!-- Trade History Table -->
+  <!-- Main Content with Tabs -->
   <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-    <p-card>
+    <p-tabView>
+      <!-- Live Positions Tab -->
+      <p-tabPanel header="🔴 Nyitott Pozíciók" leftIcon="pi pi-circle-fill">
+        <div class="space-y-4">
+          <!-- Live Positions Summary -->
+          <div *ngIf="livePositions.length > 0" class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+            <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Pozíciók Összesítése</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">{{ getLivePositionsStats().totalPositions }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Összes pozíció</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">{{ getLivePositionsStats().longPositions }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Long pozíciók</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-red-600">{{ getLivePositionsStats().shortPositions }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Short pozíciók</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">{{ getLivePositionsStats().profitablePositions }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Nyereséges</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-red-600">{{ getLivePositionsStats().losingPositions }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Veszteséges</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold" [class]="getPositionPnlClass(getLivePositionsStats().totalUnrealizedPnl)">
+                  {{ getLivePositionsStats().totalUnrealizedPnl >= 0 ? '+' : '' }}${{ getLivePositionsStats().totalUnrealizedPnl | number:'1.2-2' }}
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Összes P&L</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">${{ getLivePositionsStats().totalPositionValue | number:'1.2-2' }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Pozíció érték</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Refresh Controls -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <p-button
+                icon="pi pi-refresh"
+                label="Frissítés"
+                size="small"
+                severity="secondary"
+                (onClick)="refreshLivePositions()"
+                [loading]="loadingLivePositions"
+              ></p-button>
+              <div *ngIf="lastPositionsUpdate" class="text-sm text-gray-500 dark:text-gray-400">
+                Utolsó frissítés: {{ lastPositionsUpdate | date:'HH:mm:ss' }}
+              </div>
+              <div class="flex items-center text-sm">
+                <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                <span class="text-gray-600 dark:text-gray-400">5 másodpercenként frissül</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Positions Table -->
+          <div *ngIf="!loadingLivePositions && !livePositionsError">
+            <p-table
+              [value]="livePositions"
+              [loading]="loadingLivePositions"
+              [paginator]="false"
+              styleClass="p-datatable-sm"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Symbol</th>
+                  <th>Irány</th>
+                  <th>Mennyiség</th>
+                  <th>Belépési Ár</th>
+                  <th>Jelenlegi Ár</th>
+                  <th>Nem Realizált P&L</th>
+                  <th>P&L %</th>
+                  <th>Tőkeáttétel</th>
+                  <th>Típus</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-position>
+                <tr [class]="position.unrealized_pnl > 0 ? 'bg-green-50 dark:bg-green-900/10' : position.unrealized_pnl < 0 ? 'bg-red-50 dark:bg-red-900/10' : ''">
+                  <td>
+                    <span class="font-bold text-lg">{{ position.symbol }}</span>
+                  </td>
+                  <td>
+                    <p-tag
+                      [value]="position.position_side"
+                      [severity]="getPositionSideSeverity(position.position_side)"
+                      class="font-medium"
+                    ></p-tag>
+                  </td>
+                  <td class="font-mono">{{ position.position_amt | number:'1.4-4' }}</td>
+                  <td class="font-mono">${{ position.entry_price | number:'1.4-4' }}</td>
+                  <td class="font-mono">${{ position.mark_price | number:'1.4-4' }}</td>
+                  <td>
+                    <span [class]="getPositionPnlClass(position.unrealized_pnl)">
+                      {{ position.unrealized_pnl >= 0 ? '+' : '' }}${{ position.unrealized_pnl | number:'1.2-2' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span [class]="getPositionPnlPercentageClass(position.pnl_percentage)">
+                      {{ position.pnl_percentage >= 0 ? '+' : '' }}{{ position.pnl_percentage | number:'1.2-2' }}%
+                    </span>
+                  </td>
+                  <td>
+                    <span class="font-medium">{{ position.leverage || 1 }}x</span>
+                  </td>
+                  <td>
+                    <p-tag
+                      [value]="position.position_type"
+                      severity="info"
+                      class="text-xs"
+                    ></p-tag>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="9" class="text-center py-8">
+                    <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500 dark:text-gray-400">Nincs nyitott pozíció</p>
+                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                      A nyitott pozíciók automatikusan megjelennek itt
+                    </p>
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+
+          <!-- Loading State -->
+          <div *ngIf="loadingLivePositions" class="text-center py-8">
+            <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4"></p-progressSpinner>
+            <p class="text-gray-500 dark:text-gray-400 mt-4">Pozíciók betöltése...</p>
+          </div>
+
+          <!-- Error State -->
+          <div *ngIf="livePositionsError" class="text-center py-8">
+            <i class="pi pi-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+            <p class="text-red-500 dark:text-red-400 mb-2">{{ livePositionsError }}</p>
+            <p-button
+              label="Újrapróbálás"
+              icon="pi pi-refresh"
+              severity="secondary"
+              size="small"
+              (onClick)="refreshLivePositions()"
+            ></p-button>
+          </div>
+        </div>
+      </p-tabPanel>
+
+      <!-- Trade History Tab -->
+      <p-tabPanel header="📊 Kereskedési Előzmények" leftIcon="pi pi-history">
       <p-table
         [value]="tradeHistory"
         [loading]="loading"
@@ -304,6 +460,7 @@
           </tr>
         </ng-template>
       </p-table>
-    </p-card>
+      </p-tabPanel>
+    </p-tabView>
   </div>
 </div>

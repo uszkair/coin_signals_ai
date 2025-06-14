@@ -3,10 +3,13 @@ Trading API Router
 Endpoints for automatic trading functionality
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from app.services.binance_trading import (
     execute_automatic_trade,
@@ -1086,6 +1089,74 @@ async def get_order_status(order_id: str, symbol: str = Query(..., description="
         return {
             "success": True,
             "data": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/live-positions")
+async def get_live_positions():
+    """Get live positions from Binance API (including external positions)"""
+    try:
+        trader = initialize_global_trader()
+        
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
+            }
+        
+        live_positions = []
+        
+        if trader.use_futures:
+            # Get Futures positions from Binance
+            try:
+                positions = trader.client.futures_position_information()
+                
+                # Filter only active positions (non-zero position amount)
+                for pos in positions:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    if position_amt != 0:
+                        symbol = pos.get('symbol')
+                        entry_price = float(pos.get('entryPrice', 0))
+                        mark_price = float(pos.get('markPrice', 0))
+                        unrealized_pnl = float(pos.get('unRealizedProfit', 0))
+                        percentage = float(pos.get('percentage', 0))
+                        
+                        live_positions.append({
+                            'symbol': symbol,
+                            'position_side': 'LONG' if position_amt > 0 else 'SHORT',
+                            'position_amt': abs(position_amt),
+                            'entry_price': entry_price,
+                            'mark_price': mark_price,
+                            'unrealized_pnl': unrealized_pnl,
+                            'pnl_percentage': percentage,
+                            'position_type': 'FUTURES',
+                            'leverage': float(pos.get('leverage', 1)),
+                            'margin_type': pos.get('marginType', 'cross'),
+                            'update_time': pos.get('updateTime')
+                        })
+                        
+            except Exception as e:
+                logger.error(f"Error getting Futures positions: {e}")
+                return {
+                    "success": False,
+                    "error": f"Failed to get Futures positions: {str(e)}"
+                }
+        else:
+            # For Spot trading, we would need to track positions differently
+            # Since Spot doesn't have "positions" in the same way as Futures
+            pass
+        
+        return {
+            "success": True,
+            "data": {
+                "positions": live_positions,
+                "count": len(live_positions),
+                "account_type": "FUTURES" if trader.use_futures else "SPOT",
+                "testnet": trader.testnet
+            }
         }
         
     except Exception as e:

@@ -1,7 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { take } from 'rxjs';
+import { take, interval, takeUntil, Subject } from 'rxjs';
 
 // PrimeNG imports
 import { TableModule } from 'primeng/table';
@@ -12,8 +12,26 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { ToolbarModule } from 'primeng/toolbar';
 import { CardModule } from 'primeng/card';
+import { TabViewModule } from 'primeng/tabview';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { HistoryService, TradeHistory } from '../../services/history.service';
+import { TradingService } from '../../services/trading.service';
+
+interface LivePosition {
+  symbol: string;
+  position_side: string;
+  position_amt: number;
+  entry_price: number;
+  mark_price: number;
+  unrealized_pnl: number;
+  pnl_percentage: number;
+  position_type: string;
+  leverage?: number;
+  margin_type?: string;
+  update_time?: number;
+}
 
 interface FilterOptions {
   label: string;
@@ -33,14 +51,24 @@ interface FilterOptions {
     InputTextModule,
     TagModule,
     ToolbarModule,
-    CardModule
+    CardModule,
+    TabViewModule,
+    ProgressSpinnerModule,
+    TooltipModule
   ],
   templateUrl: './history.component.html',
   styleUrls: []
 })
-export class HistoryComponent implements OnInit {
+export class HistoryComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   loading = false;
   tradeHistory: TradeHistory[] = [];
+  
+  // Live Positions
+  livePositions: LivePosition[] = [];
+  loadingLivePositions = false;
+  livePositionsError: string | null = null;
+  lastPositionsUpdate: Date | null = null;
   
   // Filters
   selectedCoin: string | null = null;
@@ -82,12 +110,22 @@ export class HistoryComponent implements OnInit {
     { label: 'Mainnet', value: 'false' }
   ];
 
-  constructor(private historyService: HistoryService) {}
+  constructor(
+    private historyService: HistoryService,
+    private tradingService: TradingService
+  ) {}
 
   ngOnInit(): void {
     this.loadTradeHistory();
     this.loadTradingStatistics();
     this.loadDailySummary();
+    this.loadLivePositions();
+    this.startLivePositionsRefresh();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   applyFilters(): void {
@@ -264,5 +302,84 @@ export class HistoryComponent implements OnInit {
       case 'HOLD': return 'warning';
       default: return 'info';
     }
+  }
+
+  // Live Positions Methods
+  private loadLivePositions(): void {
+    this.loadingLivePositions = true;
+    this.livePositionsError = null;
+    
+    this.tradingService.getLivePositions()
+      .pipe(take(1))
+      .subscribe({
+        next: (response) => {
+          this.loadingLivePositions = false;
+          if (response.success) {
+            this.livePositions = response.data.positions || [];
+            this.lastPositionsUpdate = new Date();
+            this.livePositionsError = null;
+          } else {
+            this.livePositions = [];
+            this.livePositionsError = response.error || 'Failed to load live positions';
+          }
+        },
+        error: (error) => {
+          this.loadingLivePositions = false;
+          this.livePositions = [];
+          this.livePositionsError = 'Network error loading live positions';
+          console.error('Error loading live positions:', error);
+        }
+      });
+  }
+
+  private startLivePositionsRefresh(): void {
+    // Refresh live positions every 5 seconds
+    interval(5000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.loadLivePositions();
+      });
+  }
+
+  refreshLivePositions(): void {
+    this.loadLivePositions();
+  }
+
+  getPositionSideSeverity(side: string): 'success' | 'danger' {
+    return side === 'LONG' ? 'success' : 'danger';
+  }
+
+  getPositionPnlClass(pnl: number): string {
+    if (pnl > 0) return 'text-green-600 font-bold';
+    if (pnl < 0) return 'text-red-600 font-bold';
+    return 'text-gray-600';
+  }
+
+  getPositionPnlPercentageClass(percentage: number): string {
+    if (percentage > 0) return 'text-green-600 font-medium';
+    if (percentage < 0) return 'text-red-600 font-medium';
+    return 'text-gray-600';
+  }
+
+  getTotalUnrealizedPnl(): number {
+    return this.livePositions.reduce((total, pos) => total + pos.unrealized_pnl, 0);
+  }
+
+  getTotalPositionValue(): number {
+    return this.livePositions.reduce((total, pos) => total + (pos.position_amt * pos.entry_price), 0);
+  }
+
+  getLivePositionsStats() {
+    const stats = {
+      totalPositions: this.livePositions.length,
+      longPositions: this.livePositions.filter(p => p.position_side === 'LONG').length,
+      shortPositions: this.livePositions.filter(p => p.position_side === 'SHORT').length,
+      totalUnrealizedPnl: this.getTotalUnrealizedPnl(),
+      totalPositionValue: this.getTotalPositionValue(),
+      profitablePositions: this.livePositions.filter(p => p.unrealized_pnl > 0).length,
+      losingPositions: this.livePositions.filter(p => p.unrealized_pnl < 0).length
+    };
+    
+    return stats;
   }
 }

@@ -136,6 +136,11 @@ export class TradingService {
     return this.http.get<TradeResult>(`${this.baseUrl}/positions`);
   }
 
+  // Get live Binance positions (including external positions)
+  getLivePositions(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.baseUrl}/live-positions`);
+  }
+
   closePosition(positionId: string, reason: string = 'manual'): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/close-position`, {
       position_id: positionId,
