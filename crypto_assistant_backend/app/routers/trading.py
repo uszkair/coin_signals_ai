@@ -176,27 +176,185 @@ async def close_position(close_request: ClosePositionRequest):
 
 
 @router.post("/close-all-positions")
-async def close_all_positions(reason: str = "manual_close_all"):
-    """Close all active trading positions"""
+async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession = Depends(get_db)):
+    """Close all active trading positions and save to history"""
     try:
         trader = initialize_global_trader()
-        positions = await trader.get_active_positions()
-        results = []
         
-        for position_id in positions.keys():
-            result = await close_trading_position(position_id, reason)
-            results.append({
-                "position_id": position_id,
-                "result": result
-            })
-        
-        return {
-            "success": True,
-            "data": {
-                "closed_positions": results,
-                "total_closed": len(results)
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
             }
-        }
+        
+        if not trader.use_futures:
+            return {
+                "success": False,
+                "error": "Position closing is only supported for Futures trading"
+            }
+        
+        # Get all active positions from Binance
+        try:
+            positions = trader.client.futures_position_information()
+            active_positions = [pos for pos in positions if float(pos.get('positionAmt', 0)) != 0]
+            
+            if not active_positions:
+                return {
+                    "success": True,
+                    "data": {
+                        "message": "No active positions to close",
+                        "closed_positions": [],
+                        "total_closed": 0
+                    }
+                }
+            
+            results = []
+            
+            for pos in active_positions:
+                symbol = pos.get('symbol')
+                position_amt = float(pos.get('positionAmt', 0))
+                entry_price = float(pos.get('entryPrice', 0))
+                
+                try:
+                    # Get current market price for P&L calculation
+                    try:
+                        current_price = await trader._get_current_price(symbol)
+                    except:
+                        current_price = entry_price  # Fallback
+                    
+                    # Determine order side (opposite of position)
+                    if position_amt > 0:
+                        # LONG position -> SELL to close
+                        side = 'SELL'
+                        quantity = abs(position_amt)
+                        position_side = 'BUY'  # Original position was BUY
+                    else:
+                        # SHORT position -> BUY to close
+                        side = 'BUY'
+                        quantity = abs(position_amt)
+                        position_side = 'SELL'  # Original position was SELL
+                    
+                    # Calculate P&L before closing
+                    if position_amt > 0:  # LONG position
+                        pnl = quantity * (current_price - entry_price)
+                    else:  # SHORT position
+                        pnl = quantity * (entry_price - current_price)
+                    
+                    # Calculate P&L percentage
+                    if quantity > 0 and entry_price > 0:
+                        pnl_percentage = (pnl / (quantity * entry_price)) * 100
+                    else:
+                        pnl_percentage = 0.0
+                    
+                    # Place market order to close position
+                    order_result = trader.client.futures_create_order(
+                        symbol=symbol,
+                        side=side,
+                        type='MARKET',
+                        quantity=quantity,
+                        reduceOnly=True  # This ensures we're closing, not opening new position
+                    )
+                    
+                    # Get actual exit price from order result
+                    exit_price = current_price
+                    if order_result.get('avgPrice'):
+                        exit_price = float(order_result.get('avgPrice'))
+                    elif order_result.get('price'):
+                        exit_price = float(order_result.get('price'))
+                    
+                    # Recalculate P&L with actual exit price
+                    if position_amt > 0:  # LONG position
+                        final_pnl = quantity * (exit_price - entry_price)
+                    else:  # SHORT position
+                        final_pnl = quantity * (entry_price - exit_price)
+                    
+                    # Recalculate P&L percentage
+                    if quantity > 0 and entry_price > 0:
+                        final_pnl_percentage = (final_pnl / (quantity * entry_price)) * 100
+                    else:
+                        final_pnl_percentage = 0.0
+                    
+                    # Save closed position to database as a manual trade
+                    try:
+                        # Create a synthetic signal for the closed position
+                        synthetic_signal = {
+                            'symbol': symbol,
+                            'signal': position_side,  # BUY or SELL (original position direction)
+                            'price': entry_price,
+                            'entry_price': entry_price,
+                            'stop_loss': None,
+                            'take_profit': None,
+                            'confidence': 100,  # Manual close, so 100% confidence
+                            'timestamp': datetime.now(),
+                            'signal_type': position_side,
+                            'source': 'emergency_stop',
+                            'decision_factors': f'Emergency stop - close all positions - {reason}'
+                        }
+                        
+                        # Save synthetic signal to database
+                        saved_signal = await DatabaseService.save_signal(db, synthetic_signal)
+                        
+                        # Save trading performance for the closed position
+                        trade_data = {
+                            "quantity": quantity,
+                            "position_size_usd": quantity * entry_price,
+                            "main_order_id": str(order_result.get('orderId')),
+                            "exit_price": exit_price,
+                            "exit_time": datetime.now(),
+                            "profit_loss": final_pnl,
+                            "profit_percentage": final_pnl_percentage,
+                            "result": "profit" if final_pnl > 0 else "loss" if final_pnl < 0 else "breakeven",
+                            "testnet_mode": trader.testnet,
+                            "close_reason": reason
+                        }
+                        
+                        await DatabaseService.save_trading_performance(db, saved_signal.id, trade_data)
+                        logger.info(f"✅ Emergency closed position saved to history: {symbol} - {trade_data['result']} - ${final_pnl:.2f}")
+                        
+                    except Exception as db_error:
+                        logger.error(f"Error saving emergency closed position to database: {db_error}")
+                        # Don't fail the entire operation if database save fails
+                    
+                    results.append({
+                        "symbol": symbol,
+                        "success": True,
+                        "side": side,
+                        "quantity": quantity,
+                        "entry_price": entry_price,
+                        "exit_price": exit_price,
+                        "pnl": final_pnl,
+                        "pnl_percentage": final_pnl_percentage,
+                        "order_id": order_result.get('orderId'),
+                        "saved_to_history": True
+                    })
+                    
+                except Exception as pos_error:
+                    logger.error(f"Error closing position for {symbol}: {pos_error}")
+                    results.append({
+                        "symbol": symbol,
+                        "success": False,
+                        "error": str(pos_error),
+                        "saved_to_history": False
+                    })
+            
+            successful_closes = len([r for r in results if r.get('success', False)])
+            
+            return {
+                "success": True,
+                "data": {
+                    "message": f"Emergency stop completed: {successful_closes}/{len(active_positions)} positions closed",
+                    "closed_positions": results,
+                    "total_closed": successful_closes,
+                    "total_attempted": len(active_positions)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error during emergency stop: {e}")
+            return {
+                "success": False,
+                "error": f"Failed during emergency stop: {str(e)}"
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -557,29 +715,28 @@ async def get_risk_assessment():
 
 
 @router.post("/emergency-stop")
-async def emergency_stop():
+async def emergency_stop(db: AsyncSession = Depends(get_db)):
     """Emergency stop - close all positions and disable trading"""
     try:
-        # Close all positions
-        trader = initialize_global_trader()
-        positions = await trader.get_active_positions()
-        closed_positions = []
+        # Use the close_all_positions function which now saves to history
+        result = await close_all_positions("emergency_stop", db)
         
-        for position_id in positions.keys():
-            result = await close_trading_position(position_id, "emergency_stop")
-            closed_positions.append(result)
-        
-        # Set daily trades to maximum to prevent new trades
-        trader.daily_trades = trader.max_daily_trades
-        
-        return {
-            "success": True,
-            "data": {
-                "message": "Emergency stop executed",
-                "closed_positions": len(closed_positions),
-                "trading_disabled": True
+        if result["success"]:
+            # Set daily trades to maximum to prevent new trades
+            trader = initialize_global_trader()
+            trader.daily_trades = trader.max_daily_trades
+            
+            return {
+                "success": True,
+                "data": {
+                    "message": "Emergency stop executed - all positions closed and saved to history",
+                    "closed_positions": result["data"]["total_closed"],
+                    "trading_disabled": True,
+                    "details": result["data"]
+                }
             }
-        }
+        else:
+            return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1497,6 +1654,171 @@ async def get_open_orders(symbol: Optional[str] = Query(None, description="Filte
                 "testnet": trader.testnet
             }
         }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/close-position-by-symbol")
+async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db: AsyncSession = Depends(get_db)):
+    """Close position by symbol (for Futures trading) and save to history"""
+    try:
+        trader = initialize_global_trader()
+        
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
+            }
+        
+        if not trader.use_futures:
+            return {
+                "success": False,
+                "error": "Position closing by symbol is only supported for Futures trading"
+            }
+        
+        # Get current position for the symbol
+        try:
+            positions = trader.client.futures_position_information(symbol=symbol)
+            active_position = None
+            
+            for pos in positions:
+                position_amt = float(pos.get('positionAmt', 0))
+                if position_amt != 0:
+                    active_position = pos
+                    break
+            
+            if not active_position:
+                return {
+                    "success": False,
+                    "error": f"No active position found for {symbol}"
+                }
+            
+            position_amt = float(active_position.get('positionAmt', 0))
+            entry_price = float(active_position.get('entryPrice', 0))
+            
+            # Get current market price for P&L calculation
+            try:
+                current_price = await trader._get_current_price(symbol)
+            except:
+                current_price = entry_price  # Fallback
+            
+            # Determine order side (opposite of position)
+            if position_amt > 0:
+                # LONG position -> SELL to close
+                side = 'SELL'
+                quantity = abs(position_amt)
+                position_side = 'BUY'  # Original position was BUY
+            else:
+                # SHORT position -> BUY to close
+                side = 'BUY'
+                quantity = abs(position_amt)
+                position_side = 'SELL'  # Original position was SELL
+            
+            # Calculate P&L before closing
+            if position_amt > 0:  # LONG position
+                pnl = quantity * (current_price - entry_price)
+            else:  # SHORT position
+                pnl = quantity * (entry_price - current_price)
+            
+            # Calculate P&L percentage
+            if quantity > 0 and entry_price > 0:
+                pnl_percentage = (pnl / (quantity * entry_price)) * 100
+            else:
+                pnl_percentage = 0.0
+            
+            # Place market order to close position
+            order_result = trader.client.futures_create_order(
+                symbol=symbol,
+                side=side,
+                type='MARKET',
+                quantity=quantity,
+                reduceOnly=True  # This ensures we're closing, not opening new position
+            )
+            
+            # Get actual exit price from order result
+            exit_price = current_price
+            if order_result.get('avgPrice'):
+                exit_price = float(order_result.get('avgPrice'))
+            elif order_result.get('price'):
+                exit_price = float(order_result.get('price'))
+            
+            # Recalculate P&L with actual exit price
+            if position_amt > 0:  # LONG position
+                final_pnl = quantity * (exit_price - entry_price)
+            else:  # SHORT position
+                final_pnl = quantity * (entry_price - exit_price)
+            
+            # Recalculate P&L percentage
+            if quantity > 0 and entry_price > 0:
+                final_pnl_percentage = (final_pnl / (quantity * entry_price)) * 100
+            else:
+                final_pnl_percentage = 0.0
+            
+            # Save closed position to database as a manual trade
+            try:
+                # Create a synthetic signal for the closed position
+                synthetic_signal = {
+                    'symbol': symbol,
+                    'signal': position_side,  # BUY or SELL (original position direction)
+                    'price': entry_price,
+                    'entry_price': entry_price,
+                    'stop_loss': None,
+                    'take_profit': None,
+                    'confidence': 100,  # Manual close, so 100% confidence
+                    'timestamp': datetime.now(),
+                    'signal_type': position_side,
+                    'source': 'manual_close',
+                    'decision_factors': f'Manual position close via UI - {reason}'
+                }
+                
+                # Save synthetic signal to database
+                saved_signal = await DatabaseService.save_signal(db, synthetic_signal)
+                
+                # Save trading performance for the closed position
+                trade_data = {
+                    "quantity": quantity,
+                    "position_size_usd": quantity * entry_price,
+                    "main_order_id": str(order_result.get('orderId')),
+                    "exit_price": exit_price,
+                    "exit_time": datetime.now(),
+                    "profit_loss": final_pnl,
+                    "profit_percentage": final_pnl_percentage,
+                    "result": "profit" if final_pnl > 0 else "loss" if final_pnl < 0 else "breakeven",
+                    "testnet_mode": trader.testnet,
+                    "close_reason": reason
+                }
+                
+                await DatabaseService.save_trading_performance(db, saved_signal.id, trade_data)
+                logger.info(f"✅ Closed position saved to history: {symbol} - {trade_data['result']} - ${final_pnl:.2f}")
+                
+            except Exception as db_error:
+                logger.error(f"Error saving closed position to database: {db_error}")
+                # Don't fail the entire operation if database save fails
+            
+            return {
+                "success": True,
+                "data": {
+                    "message": f"Position for {symbol} closed successfully",
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "entry_price": entry_price,
+                    "exit_price": exit_price,
+                    "pnl": final_pnl,
+                    "pnl_percentage": final_pnl_percentage,
+                    "order_id": order_result.get('orderId'),
+                    "reason": reason,
+                    "saved_to_history": True
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error closing position for {symbol}: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to close position for {symbol}: {str(e)}"
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

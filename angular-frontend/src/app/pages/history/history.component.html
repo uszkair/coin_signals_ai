@@ -217,14 +217,15 @@
             <!-- Emergency Stop Button -->
             <div *ngIf="livePositions.length > 0">
               <p-button
-                icon="pi pi-stop-circle"
-                label="🚨 VÉSZLEÁLLÍTÁS"
+                icon="pi pi-power-off"
+                label="Összes pozíció lezárása"
                 size="small"
                 severity="danger"
                 (onClick)="emergencyStopAllPositions()"
                 [loading]="loadingLivePositions"
                 pTooltip="Minden pozíció azonnali lezárása és kereskedés leállítása"
                 tooltipPosition="left"
+                class="bg-red-500 hover:bg-red-600 border-red-500 hover:border-red-600"
               ></p-button>
             </div>
           </div>
@@ -249,6 +250,7 @@
                   <th>Nem Realizált P&L</th>
                   <th>P&L %</th>
                   <th>Várható hozam</th>
+                  <th>Műveletek</th>
                 </tr>
               </ng-template>
               <ng-template pTemplate="body" let-position>
@@ -304,11 +306,24 @@
                       <span class="text-gray-400 dark:text-gray-500">-</span>
                     </ng-template>
                   </td>
+                  <td>
+                    <p-button
+                      icon="pi pi-times-circle"
+                      label="Lezárás"
+                      size="small"
+                      severity="secondary"
+                      (onClick)="closePosition(position.symbol)"
+                      [loading]="loadingClosePosition === position.symbol"
+                      pTooltip="Pozíció azonnali lezárása piaci áron"
+                      tooltipPosition="left"
+                      class="bg-orange-500 hover:bg-orange-600 border-orange-500 hover:border-orange-600 text-white"
+                    ></p-button>
+                  </td>
                 </tr>
               </ng-template>
               <ng-template pTemplate="emptymessage">
                 <tr>
-                  <td colspan="10" class="text-center py-8">
+                  <td colspan="11" class="text-center py-8">
                     <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
                     <p class="text-gray-500 dark:text-gray-400">Nincs nyitott pozíció</p>
                     <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">
@@ -497,3 +512,7 @@
     </p-tabView>
   </div>
 </div>
+
+<!-- PrimeNG Components -->
+<p-confirmDialog></p-confirmDialog>
+<p-toast></p-toast>

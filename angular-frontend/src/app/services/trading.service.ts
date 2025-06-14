@@ -153,6 +153,12 @@ export class TradingService {
     });
   }
 
+  closePositionBySymbol(symbol: string, reason: string = 'manual_close'): Observable<TradeResult> {
+    return this.http.post<TradeResult>(`${this.baseUrl}/close-position-by-symbol`, null, {
+      params: { symbol, reason }
+    });
+  }
+
   closeAllPositions(reason: string = 'manual_close_all'): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/close-all-positions`, { reason });
   }

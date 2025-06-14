@@ -15,6 +15,9 @@ import { CardModule } from 'primeng/card';
 import { TabViewModule } from 'primeng/tabview';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { HistoryService, TradeHistory } from '../../services/history.service';
 import { TradingService } from '../../services/trading.service';
@@ -56,7 +59,9 @@ interface FilterOptions {
     CardModule,
     TabViewModule,
     ProgressSpinnerModule,
-    TooltipModule
+    TooltipModule,
+    ConfirmDialogModule,
+    ToastModule
   ],
   templateUrl: './history.component.html',
   styleUrls: []
@@ -71,6 +76,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   loadingLivePositions = false;
   livePositionsError: string | null = null;
   lastPositionsUpdate: Date | null = null;
+  loadingClosePosition: string | null = null;
   
   // Filters
   selectedCoin: string | null = null;
@@ -114,7 +120,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
   constructor(
     private historyService: HistoryService,
-    private tradingService: TradingService
+    private tradingService: TradingService,
+    private confirmationService: ConfirmationService,
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -381,29 +389,52 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   emergencyStopAllPositions(): void {
-    if (confirm('⚠️ VÉSZLEÁLLÍTÁS ⚠️\n\nBiztos vagy benne, hogy le akarod zárni az ÖSSZES pozíciót és leállítani a kereskedést?\n\nEz a művelet VISSZAFORDÍTHATATLAN!')) {
-      this.loadingLivePositions = true;
-      
-      this.tradingService.emergencyStop()
-        .pipe(take(1))
-        .subscribe({
-          next: (response) => {
-            this.loadingLivePositions = false;
-            if (response.success) {
-              alert('✅ Vészleállítás sikeres!\n\nÖsszes pozíció lezárva és kereskedés leállítva.');
-              // Frissítjük a pozíciókat
-              this.loadLivePositions();
-            } else {
-              alert('❌ Vészleállítás sikertelen!\n\n' + (response.error || 'Ismeretlen hiba'));
+    this.confirmationService.confirm({
+      message: 'Biztosan le szeretnéd zárni az ÖSSZES pozíciót és leállítani a kereskedést? Ez a művelet visszafordíthatatlan!',
+      header: 'Összes pozíció lezárása',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Igen, lezárom mind',
+      rejectLabel: 'Mégse',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.loadingLivePositions = true;
+        
+        this.tradingService.emergencyStop()
+          .pipe(take(1))
+          .subscribe({
+            next: (response) => {
+              this.loadingLivePositions = false;
+              if (response.success) {
+                this.messageService.add({
+                  severity: 'success',
+                  summary: 'Sikeres leállítás',
+                  detail: 'Összes pozíció lezárva és kereskedés leállítva.',
+                  life: 5000
+                });
+                // Frissítjük a pozíciókat
+                this.loadLivePositions();
+              } else {
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'Hiba történt',
+                  detail: response.error || 'Ismeretlen hiba a leállítás során',
+                  life: 5000
+                });
+              }
+            },
+            error: (error) => {
+              this.loadingLivePositions = false;
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Hiba történt',
+                detail: error.message || 'Ismeretlen hiba a leállítás során',
+                life: 5000
+              });
+              console.error('Emergency stop error:', error);
             }
-          },
-          error: (error) => {
-            this.loadingLivePositions = false;
-            alert('❌ Hiba a vészleállítás során!\n\n' + error.message);
-            console.error('Emergency stop error:', error);
-          }
-        });
-    }
+          });
+      }
+    });
   }
 
   getPositionSideSeverity(side: string): 'success' | 'danger' {
@@ -472,5 +503,53 @@ export class HistoryComponent implements OnInit, OnDestroy {
   getExpectedReturnClass(expectedReturn: { usd: number, percentage: number } | null): string {
     if (!expectedReturn) return 'text-gray-400';
     return 'text-green-600 font-medium';
+  }
+
+  closePosition(symbol: string): void {
+    this.confirmationService.confirm({
+      message: `Biztosan le szeretnéd zárni a ${symbol} pozíciót? Ez a művelet azonnal lezárja a pozíciót a jelenlegi piaci áron.`,
+      header: 'Pozíció lezárása',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Igen, lezárom',
+      rejectLabel: 'Mégse',
+      accept: () => {
+        this.loadingClosePosition = symbol;
+        
+        this.tradingService.closePositionBySymbol(symbol, 'manual_close')
+          .pipe(take(1))
+          .subscribe({
+            next: (response) => {
+              this.loadingClosePosition = null;
+              if (response.success) {
+                this.messageService.add({
+                  severity: 'success',
+                  summary: 'Sikeres lezárás',
+                  detail: `${symbol} pozíció sikeresen lezárva! Order ID: ${response.data?.order_id || 'N/A'}`,
+                  life: 5000
+                });
+                // Frissítjük a pozíciókat
+                this.loadLivePositions();
+              } else {
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'Hiba történt',
+                  detail: response.error || 'Ismeretlen hiba a pozíció lezárásakor',
+                  life: 5000
+                });
+              }
+            },
+            error: (error) => {
+              this.loadingClosePosition = null;
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Hiba történt',
+                detail: error.message || 'Ismeretlen hiba a pozíció lezárásakor',
+                life: 5000
+              });
+              console.error('Close position error:', error);
+            }
+          });
+      }
+    });
   }
 }
