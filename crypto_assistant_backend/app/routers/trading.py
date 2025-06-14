@@ -12,6 +12,13 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+# Cache for P&L data to improve performance
+_pnl_cache = {
+    'data': None,
+    'timestamp': 0,
+    'cache_duration': 2  # Cache for 2 seconds
+}
+
 from app.services.binance_trading import (
     execute_automatic_trade,
     get_trading_account_status,
@@ -1243,8 +1250,18 @@ async def get_live_positions():
 
 @router.get("/live-positions/pnl-only")
 async def get_live_positions_pnl_only():
-    """Get only P&L data and exit prices for live positions (for efficient updates)"""
+    """Get only P&L data and exit prices for live positions (cached for speed)"""
     try:
+        # Check cache first
+        current_time = time.time()
+        if (_pnl_cache['data'] is not None and
+            current_time - _pnl_cache['timestamp'] < _pnl_cache['cache_duration']):
+            # Return cached data with updated timestamp
+            cached_response = _pnl_cache['data'].copy()
+            cached_response['data']['timestamp'] = int(current_time * 1000)
+            cached_response['data']['from_cache'] = True
+            return cached_response
+        
         trader = initialize_global_trader()
         
         if not trader.client:
@@ -1256,83 +1273,106 @@ async def get_live_positions_pnl_only():
         pnl_updates = []
         
         if trader.use_futures:
-            # Get Futures positions from Binance
             try:
+                # OPTIMIZATION 1: Get all active positions in one call
                 positions = trader.client.futures_position_information()
+                active_positions = [pos for pos in positions if float(pos.get('positionAmt', 0)) != 0]
                 
-                # Get current prices for active positions only
-                for pos in positions:
-                    position_amt = float(pos.get('positionAmt', 0))
-                    if position_amt != 0:
-                        symbol = pos.get('symbol')
-                        entry_price = float(pos.get('entryPrice', 0))
-                        
-                        # Get fresh mark price
+                if not active_positions:
+                    return {
+                        "success": True,
+                        "data": {
+                            "pnl_updates": [],
+                            "count": 0,
+                            "timestamp": int(time.time() * 1000)
+                        }
+                    }
+                
+                # OPTIMIZATION 2: Get all prices in one batch call
+                active_symbols = [pos.get('symbol') for pos in active_positions]
+                try:
+                    # Get all ticker prices in one call
+                    all_tickers = trader.client.futures_symbol_ticker()
+                    price_map = {ticker['symbol']: float(ticker['price']) for ticker in all_tickers}
+                except:
+                    # Fallback to individual calls if batch fails
+                    price_map = {}
+                    for symbol in active_symbols:
                         try:
                             ticker = trader.client.futures_symbol_ticker(symbol=symbol)
-                            current_price = float(ticker['price'])
+                            price_map[symbol] = float(ticker['price'])
                         except:
-                            current_price = float(pos.get('markPrice', 0))
-                        
-                        unrealized_pnl = float(pos.get('unRealizedProfit', 0))
-                        
-                        # Calculate percentage manually for accuracy
-                        if entry_price > 0 and position_amt != 0:
-                            if position_amt > 0:  # LONG position
-                                pnl_percentage = ((current_price - entry_price) / entry_price) * 100
-                            else:  # SHORT position
-                                pnl_percentage = ((entry_price - current_price) / entry_price) * 100
-                        else:
-                            pnl_percentage = 0.0
-                        
-                        # Get stop loss and take profit prices from open orders (lightweight check)
-                        stop_loss_price = None
-                        take_profit_price = None
-                        
-                        try:
-                            open_orders = trader.client.futures_get_open_orders(symbol=symbol)
-                            
-                            for order in open_orders:
-                                order_type = order.get('type', '')
-                                stop_price = float(order.get('stopPrice', 0)) if order.get('stopPrice') else None
-                                price = float(order.get('price', 0)) if order.get('price') else None
-                                side = order.get('side', '')
-                                
-                                # Check for stop loss orders (STOP_MARKET, STOP, STOP_LOSS_LIMIT)
-                                if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
-                                    trigger_price = stop_price or price
-                                    # For LONG positions, stop loss is SELL order below entry price
-                                    # For SHORT positions, stop loss is BUY order above entry price
-                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
-                                        stop_loss_price = trigger_price
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
-                                        stop_loss_price = trigger_price
-                                
-                                # Check for take profit orders (TAKE_PROFIT_MARKET, TAKE_PROFIT, LIMIT)
-                                elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
-                                    trigger_price = stop_price or price
-                                    # For LONG positions, take profit is SELL order above entry price
-                                    # For SHORT positions, take profit is BUY order below entry price
-                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
-                                        take_profit_price = trigger_price
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
-                                        take_profit_price = trigger_price
-                                        
-                        except Exception as order_error:
-                            # Don't log warnings for P&L-only updates to avoid spam
-                            pass
-                        
-                        pnl_updates.append({
-                            'symbol': symbol,
-                            'mark_price': current_price,
-                            'unrealized_pnl': unrealized_pnl,
-                            'pnl_percentage': pnl_percentage,
-                            'stop_loss_price': stop_loss_price,
-                            'take_profit_price': take_profit_price,
-                            'update_time': int(time.time() * 1000)
-                        })
+                            price_map[symbol] = 0
                 
-                # Sort P&L updates by symbol to maintain consistent order with main positions
+                # OPTIMIZATION 3: Get all open orders in one call
+                try:
+                    all_open_orders = trader.client.futures_get_open_orders()
+                    orders_by_symbol = {}
+                    for order in all_open_orders:
+                        symbol = order.get('symbol')
+                        if symbol not in orders_by_symbol:
+                            orders_by_symbol[symbol] = []
+                        orders_by_symbol[symbol].append(order)
+                except:
+                    orders_by_symbol = {}
+                
+                # Process each active position
+                for pos in active_positions:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    symbol = pos.get('symbol')
+                    entry_price = float(pos.get('entryPrice', 0))
+                    
+                    # Use cached price or fallback to position mark price
+                    current_price = price_map.get(symbol, float(pos.get('markPrice', 0)))
+                    unrealized_pnl = float(pos.get('unRealizedProfit', 0))
+                    
+                    # Calculate percentage manually for accuracy
+                    if entry_price > 0 and position_amt != 0:
+                        if position_amt > 0:  # LONG position
+                            pnl_percentage = ((current_price - entry_price) / entry_price) * 100
+                        else:  # SHORT position
+                            pnl_percentage = ((entry_price - current_price) / entry_price) * 100
+                    else:
+                        pnl_percentage = 0.0
+                    
+                    # Get stop loss and take profit from cached orders
+                    stop_loss_price = None
+                    take_profit_price = None
+                    
+                    symbol_orders = orders_by_symbol.get(symbol, [])
+                    for order in symbol_orders:
+                        order_type = order.get('type', '')
+                        stop_price = float(order.get('stopPrice', 0)) if order.get('stopPrice') else None
+                        price = float(order.get('price', 0)) if order.get('price') else None
+                        side = order.get('side', '')
+                        
+                        # Check for stop loss orders
+                        if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
+                            trigger_price = stop_price or price
+                            if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                                stop_loss_price = trigger_price
+                            elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                                stop_loss_price = trigger_price
+                        
+                        # Check for take profit orders
+                        elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
+                            trigger_price = stop_price or price
+                            if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                                take_profit_price = trigger_price
+                            elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                                take_profit_price = trigger_price
+                    
+                    pnl_updates.append({
+                        'symbol': symbol,
+                        'mark_price': current_price,
+                        'unrealized_pnl': unrealized_pnl,
+                        'pnl_percentage': pnl_percentage,
+                        'stop_loss_price': stop_loss_price,
+                        'take_profit_price': take_profit_price,
+                        'update_time': int(time.time() * 1000)
+                    })
+                
+                # Sort P&L updates by symbol to maintain consistent order
                 pnl_updates.sort(key=lambda x: x.get('symbol', ''))
                         
             except Exception as e:
@@ -1342,14 +1382,22 @@ async def get_live_positions_pnl_only():
                     "error": f"Failed to get Futures P&L data: {str(e)}"
                 }
         
-        return {
+        # Prepare response
+        response = {
             "success": True,
             "data": {
                 "pnl_updates": pnl_updates,
                 "count": len(pnl_updates),
-                "timestamp": int(time.time() * 1000)
+                "timestamp": int(time.time() * 1000),
+                "from_cache": False
             }
         }
+        
+        # Cache the response
+        _pnl_cache['data'] = response.copy()
+        _pnl_cache['timestamp'] = current_time
+        
+        return response
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
