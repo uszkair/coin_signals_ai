@@ -248,7 +248,7 @@
                   <th>Take Profit</th>
                   <th>Nem Realizált P&L</th>
                   <th>P&L %</th>
-                  <th>Tőkeáttétel</th>
+                  <th>Várható hozam</th>
                   <th>Típus</th>
                 </tr>
               </ng-template>
@@ -294,7 +294,16 @@
                     </span>
                   </td>
                   <td>
-                    <span class="font-medium">{{ position.leverage || 1 }}x</span>
+                    <span *ngIf="getExpectedReturn(position); else noExpectedReturn"
+                          [class]="getExpectedReturnClass(getExpectedReturn(position))"
+                          class="font-mono">
+                      +${{ getExpectedReturn(position)!.usd | number:'1.2-2' }}
+                      <br>
+                      <small class="text-xs opacity-75">(+{{ getExpectedReturn(position)!.percentage | number:'1.1-1' }}%)</small>
+                    </span>
+                    <ng-template #noExpectedReturn>
+                      <span class="text-gray-400 dark:text-gray-500">-</span>
+                    </ng-template>
                   </td>
                   <td>
                     <p-tag

@@ -452,4 +452,25 @@ export class HistoryComponent implements OnInit, OnDestroy {
       return timeB - timeA; // Newest first
     });
   }
+
+  getExpectedReturn(position: LivePosition): { usd: number, percentage: number } | null {
+    // Várható hozam számítása a take profit ár alapján
+    if (!position.take_profit_price || !position.entry_price || !position.position_amt) {
+      return null;
+    }
+
+    const priceDifference = position.take_profit_price - position.entry_price;
+    const expectedReturnUsd = Math.abs(priceDifference * position.position_amt);
+    const expectedReturnPercentage = (priceDifference / position.entry_price) * 100;
+
+    return {
+      usd: expectedReturnUsd,
+      percentage: Math.abs(expectedReturnPercentage)
+    };
+  }
+
+  getExpectedReturnClass(expectedReturn: { usd: number, percentage: number } | null): string {
+    if (!expectedReturn) return 'text-gray-400';
+    return 'text-green-600 font-medium';
+  }
 }
