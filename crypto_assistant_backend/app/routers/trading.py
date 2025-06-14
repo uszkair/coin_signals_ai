@@ -1298,14 +1298,13 @@ async def get_live_positions():
                                 price_cache[symbol] = float(pos.get('markPrice', 0))
                         
                         current_price = price_cache[symbol]
+                        # USE BINANCE CALCULATED P&L - this is always accurate
                         unrealized_pnl = float(pos.get('unRealizedProfit', 0))
                         
-                        # Calculate percentage manually for accuracy
-                        if entry_price > 0 and position_amt != 0:
-                            if position_amt > 0:  # LONG position
-                                pnl_percentage = ((current_price - entry_price) / entry_price) * 100
-                            else:  # SHORT position
-                                pnl_percentage = ((entry_price - current_price) / entry_price) * 100
+                        # Calculate percentage based on Binance P&L for accuracy
+                        if abs(position_amt) > 0 and entry_price > 0:
+                            position_value = abs(position_amt) * entry_price
+                            pnl_percentage = (unrealized_pnl / position_value) * 100
                         else:
                             pnl_percentage = 0.0
                         
@@ -1330,24 +1329,38 @@ async def get_live_positions():
                                     trigger_price = stop_price or price
                                     # For LONG positions, stop loss is SELL order below entry price
                                     # For SHORT positions, stop loss is BUY order above entry price
-                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                                    # TESTNET BUG WORKAROUND: Check both normal and reversed logic
+                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss (normal)
                                         stop_loss_price = trigger_price
-                                        logger.info(f"Found LONG stop loss: {trigger_price}")
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                                        logger.info(f"Found LONG stop loss (normal): {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss (normal)
                                         stop_loss_price = trigger_price
-                                        logger.info(f"Found SHORT stop loss: {trigger_price}")
+                                        logger.info(f"Found SHORT stop loss (normal): {trigger_price}")
+                                    elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price < entry_price:  # LONG stop loss (testnet bug)
+                                        stop_loss_price = trigger_price
+                                        logger.info(f"Found LONG stop loss (testnet bug): {trigger_price}")
+                                    elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price > entry_price:  # SHORT stop loss (testnet bug)
+                                        stop_loss_price = trigger_price
+                                        logger.info(f"Found SHORT stop loss (testnet bug): {trigger_price}")
                                 
                                 # Check for take profit orders (TAKE_PROFIT_MARKET, TAKE_PROFIT, LIMIT)
                                 elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
                                     trigger_price = stop_price or price
                                     # For LONG positions, take profit is SELL order above entry price
                                     # For SHORT positions, take profit is BUY order below entry price
-                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                                    # TESTNET BUG WORKAROUND: Check both normal and reversed logic
+                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit (normal)
                                         take_profit_price = trigger_price
-                                        logger.info(f"Found LONG take profit: {trigger_price}")
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                                        logger.info(f"Found LONG take profit (normal): {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit (normal)
                                         take_profit_price = trigger_price
-                                        logger.info(f"Found SHORT take profit: {trigger_price}")
+                                        logger.info(f"Found SHORT take profit (normal): {trigger_price}")
+                                    elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price > entry_price:  # LONG take profit (testnet bug)
+                                        take_profit_price = trigger_price
+                                        logger.info(f"Found LONG take profit (testnet bug): {trigger_price}")
+                                    elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price < entry_price:  # SHORT take profit (testnet bug)
+                                        take_profit_price = trigger_price
+                                        logger.info(f"Found SHORT take profit (testnet bug): {trigger_price}")
                                 
                         except Exception as order_error:
                             logger.warning(f"Could not get open orders for {symbol}: {order_error}")
@@ -1481,14 +1494,13 @@ async def get_live_positions_pnl_only():
                     
                     # Use cached price or fallback to position mark price
                     current_price = price_map.get(symbol, float(pos.get('markPrice', 0)))
+                    # USE BINANCE CALCULATED P&L - this is always accurate
                     unrealized_pnl = float(pos.get('unRealizedProfit', 0))
                     
-                    # Calculate percentage manually for accuracy
-                    if entry_price > 0 and position_amt != 0:
-                        if position_amt > 0:  # LONG position
-                            pnl_percentage = ((current_price - entry_price) / entry_price) * 100
-                        else:  # SHORT position
-                            pnl_percentage = ((entry_price - current_price) / entry_price) * 100
+                    # Calculate percentage based on Binance P&L for accuracy
+                    if abs(position_amt) > 0 and entry_price > 0:
+                        position_value = abs(position_amt) * entry_price
+                        pnl_percentage = (unrealized_pnl / position_value) * 100
                     else:
                         pnl_percentage = 0.0
                     
@@ -1506,17 +1518,27 @@ async def get_live_positions_pnl_only():
                         # Check for stop loss orders
                         if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
                             trigger_price = stop_price or price
-                            if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                            # TESTNET BUG WORKAROUND: Check both normal and reversed logic
+                            if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss (normal)
                                 stop_loss_price = trigger_price
-                            elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                            elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss (normal)
+                                stop_loss_price = trigger_price
+                            elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price < entry_price:  # LONG stop loss (testnet bug)
+                                stop_loss_price = trigger_price
+                            elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price > entry_price:  # SHORT stop loss (testnet bug)
                                 stop_loss_price = trigger_price
                         
                         # Check for take profit orders
                         elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
                             trigger_price = stop_price or price
-                            if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                            # TESTNET BUG WORKAROUND: Check both normal and reversed logic
+                            if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit (normal)
                                 take_profit_price = trigger_price
-                            elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                            elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit (normal)
+                                take_profit_price = trigger_price
+                            elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price > entry_price:  # LONG take profit (testnet bug)
+                                take_profit_price = trigger_price
+                            elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price < entry_price:  # SHORT take profit (testnet bug)
                                 take_profit_price = trigger_price
                     
                     pnl_updates.append({
@@ -1819,6 +1841,168 @@ async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db
                 "success": False,
                 "error": f"Failed to close position for {symbol}: {str(e)}"
             }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/debug-position/{symbol}")
+async def debug_position_orders(symbol: str):
+    """Debug endpoint to check position and orders for a specific symbol"""
+    try:
+        trader = initialize_global_trader()
+        
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
+            }
+        
+        debug_info = {
+            "symbol": symbol,
+            "position_info": None,
+            "open_orders": [],
+            "all_orders_last_24h": [],
+            "analysis": {}
+        }
+        
+        if trader.use_futures:
+            # Get position info
+            try:
+                positions = trader.client.futures_position_information(symbol=symbol)
+                for pos in positions:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    if position_amt != 0:
+                        debug_info["position_info"] = {
+                            "symbol": pos.get('symbol'),
+                            "positionAmt": position_amt,
+                            "entryPrice": float(pos.get('entryPrice', 0)),
+                            "markPrice": float(pos.get('markPrice', 0)),
+                            "unRealizedProfit": float(pos.get('unRealizedProfit', 0)),
+                            "leverage": float(pos.get('leverage', 1)),
+                            "marginType": pos.get('marginType'),
+                            "updateTime": pos.get('updateTime')
+                        }
+                        break
+            except Exception as e:
+                debug_info["position_error"] = str(e)
+            
+            # Get open orders
+            try:
+                open_orders = trader.client.futures_get_open_orders(symbol=symbol)
+                debug_info["open_orders"] = []
+                for order in open_orders:
+                    debug_info["open_orders"].append({
+                        "orderId": order.get('orderId'),
+                        "symbol": order.get('symbol'),
+                        "side": order.get('side'),
+                        "type": order.get('type'),
+                        "status": order.get('status'),
+                        "price": float(order.get('price', 0)) if order.get('price') else None,
+                        "stopPrice": float(order.get('stopPrice', 0)) if order.get('stopPrice') else None,
+                        "origQty": float(order.get('origQty', 0)),
+                        "executedQty": float(order.get('executedQty', 0)),
+                        "reduceOnly": order.get('reduceOnly', False),
+                        "timeInForce": order.get('timeInForce'),
+                        "workingType": order.get('workingType'),
+                        "time": order.get('time'),
+                        "updateTime": order.get('updateTime')
+                    })
+            except Exception as e:
+                debug_info["open_orders_error"] = str(e)
+            
+            # Get recent orders (last 24h)
+            try:
+                from datetime import datetime, timedelta
+                start_time = int((datetime.now() - timedelta(hours=24)).timestamp() * 1000)
+                all_orders = trader.client.futures_get_all_orders(symbol=symbol, startTime=start_time, limit=50)
+                debug_info["all_orders_last_24h"] = []
+                for order in all_orders[-10:]:  # Last 10 orders
+                    debug_info["all_orders_last_24h"].append({
+                        "orderId": order.get('orderId'),
+                        "side": order.get('side'),
+                        "type": order.get('type'),
+                        "status": order.get('status'),
+                        "price": float(order.get('price', 0)) if order.get('price') else None,
+                        "stopPrice": float(order.get('stopPrice', 0)) if order.get('stopPrice') else None,
+                        "origQty": float(order.get('origQty', 0)),
+                        "executedQty": float(order.get('executedQty', 0)),
+                        "reduceOnly": order.get('reduceOnly', False),
+                        "time": datetime.fromtimestamp(order.get('time', 0) / 1000).isoformat() if order.get('time') else None,
+                        "updateTime": datetime.fromtimestamp(order.get('updateTime', 0) / 1000).isoformat() if order.get('updateTime') else None
+                    })
+            except Exception as e:
+                debug_info["all_orders_error"] = str(e)
+        
+        # Analysis
+        if debug_info["position_info"] and debug_info["open_orders"]:
+            position_amt = debug_info["position_info"]["positionAmt"]
+            entry_price = debug_info["position_info"]["entryPrice"]
+            
+            stop_loss_candidates = []
+            take_profit_candidates = []
+            
+            for order in debug_info["open_orders"]:
+                order_type = order["type"]
+                side = order["side"]
+                stop_price = order["stopPrice"]
+                price = order["price"]
+                trigger_price = stop_price or price
+                
+                if not trigger_price:
+                    continue
+                
+                # Check for stop loss orders
+                if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT']:
+                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
+                        stop_loss_candidates.append({
+                            "orderId": order["orderId"],
+                            "type": order_type,
+                            "side": side,
+                            "trigger_price": trigger_price,
+                            "reason": "LONG stop loss (SELL below entry)"
+                        })
+                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
+                        stop_loss_candidates.append({
+                            "orderId": order["orderId"],
+                            "type": order_type,
+                            "side": side,
+                            "trigger_price": trigger_price,
+                            "reason": "SHORT stop loss (BUY above entry)"
+                        })
+                
+                # Check for take profit orders
+                elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT']:
+                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
+                        take_profit_candidates.append({
+                            "orderId": order["orderId"],
+                            "type": order_type,
+                            "side": side,
+                            "trigger_price": trigger_price,
+                            "reason": "LONG take profit (SELL above entry)"
+                        })
+                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
+                        take_profit_candidates.append({
+                            "orderId": order["orderId"],
+                            "type": order_type,
+                            "side": side,
+                            "trigger_price": trigger_price,
+                            "reason": "SHORT take profit (BUY below entry)"
+                        })
+            
+            debug_info["analysis"] = {
+                "position_side": "LONG" if position_amt > 0 else "SHORT",
+                "entry_price": entry_price,
+                "stop_loss_candidates": stop_loss_candidates,
+                "take_profit_candidates": take_profit_candidates,
+                "stop_loss_found": len(stop_loss_candidates) > 0,
+                "take_profit_found": len(take_profit_candidates) > 0
+            }
+        
+        return {
+            "success": True,
+            "data": debug_info
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

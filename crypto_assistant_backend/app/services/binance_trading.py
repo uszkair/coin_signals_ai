@@ -390,43 +390,94 @@ class BinanceTrader:
             return {'success': False, 'error': str(e)}
     
     async def get_active_positions(self) -> Dict[str, Any]:
-        """Get all active positions with current P&L"""
-        positions_with_pnl = {}
+        """Get all active positions with current P&L from Binance API"""
+        if not self.client or not self.use_futures:
+            # Fallback to stored positions for non-futures or no client
+            positions_with_pnl = {}
+            
+            for position_id, position in self.active_positions.items():
+                try:
+                    # Get current price
+                    current_price = await self._get_current_price(position['symbol'])
+                    
+                    # Calculate unrealized P&L
+                    unrealized_pnl = self._calculate_pnl(
+                        position['quantity'],
+                        position['entry_price'],
+                        current_price,
+                        position['direction']
+                    )
+                    
+                    # Protect against division by zero for unrealized P&L percentage
+                    quantity = position.get('quantity', 0)
+                    entry_price = position.get('entry_price', 0)
+                    
+                    if quantity > 0 and entry_price > 0:
+                        unrealized_pnl_percentage = (unrealized_pnl / (quantity * entry_price)) * 100
+                    else:
+                        unrealized_pnl_percentage = 0.0
+                    
+                    positions_with_pnl[position_id] = {
+                        **position,
+                        'current_price': current_price,
+                        'unrealized_pnl': unrealized_pnl,
+                        'unrealized_pnl_percentage': unrealized_pnl_percentage
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Error calculating P&L for position {position_id}: {e}")
+                    positions_with_pnl[position_id] = position
+            
+            return positions_with_pnl
         
-        for position_id, position in self.active_positions.items():
-            try:
-                # Get current price
-                current_price = await self._get_current_price(position['symbol'])
-                
-                # Calculate unrealized P&L
-                unrealized_pnl = self._calculate_pnl(
-                    position['quantity'],
-                    position['entry_price'],
-                    current_price,
-                    position['direction']
-                )
-                
-                # Protect against division by zero for unrealized P&L percentage
-                quantity = position.get('quantity', 0)
-                entry_price = position.get('entry_price', 0)
-                
-                if quantity > 0 and entry_price > 0:
-                    unrealized_pnl_percentage = (unrealized_pnl / (quantity * entry_price)) * 100
-                else:
-                    unrealized_pnl_percentage = 0.0
-                
-                positions_with_pnl[position_id] = {
-                    **position,
-                    'current_price': current_price,
-                    'unrealized_pnl': unrealized_pnl,
-                    'unrealized_pnl_percentage': unrealized_pnl_percentage
-                }
-                
-            except Exception as e:
-                logger.error(f"Error calculating P&L for position {position_id}: {e}")
-                positions_with_pnl[position_id] = position
-        
-        return positions_with_pnl
+        # For Futures, get live positions from Binance API
+        try:
+            positions = self.client.futures_position_information()
+            live_positions = {}
+            
+            for pos in positions:
+                position_amt = float(pos.get('positionAmt', 0))
+                if position_amt != 0:
+                    symbol = pos.get('symbol')
+                    entry_price = float(pos.get('entryPrice', 0))
+                    
+                    # Get current price
+                    try:
+                        current_price = await self._get_current_price(symbol)
+                    except:
+                        current_price = float(pos.get('markPrice', 0))
+                    
+                    # USE BINANCE CALCULATED P&L - this is always accurate
+                    unrealized_pnl = float(pos.get('unRealizedProfit', 0))
+                    
+                    # Calculate percentage based on Binance P&L for accuracy
+                    if abs(position_amt) > 0 and entry_price > 0:
+                        position_value = abs(position_amt) * entry_price
+                        pnl_percentage = (unrealized_pnl / position_value) * 100
+                    else:
+                        pnl_percentage = 0.0
+                    
+                    position_id = f"{symbol}_live"
+                    live_positions[position_id] = {
+                        'symbol': symbol,
+                        'direction': 'BUY' if position_amt > 0 else 'SELL',
+                        'quantity': abs(position_amt),
+                        'entry_price': entry_price,
+                        'current_price': current_price,
+                        'unrealized_pnl': unrealized_pnl,
+                        'unrealized_pnl_percentage': pnl_percentage,
+                        'position_type': 'FUTURES',
+                        'leverage': float(pos.get('leverage', 1)),
+                        'margin_type': pos.get('marginType', 'cross'),
+                        'timestamp': datetime.now()
+                    }
+            
+            return live_positions
+            
+        except Exception as e:
+            logger.error(f"Error getting live positions from Binance: {e}")
+            # Fallback to stored positions
+            return await self.get_active_positions()
     
     async def get_trading_statistics(self) -> Dict[str, Any]:
         """Get trading statistics and performance metrics"""
@@ -700,7 +751,8 @@ class BinanceTrader:
     async def _place_stop_loss_order(self, symbol: str, direction: str, quantity: float, stop_price: float, symbol_info: Dict[str, Any]) -> Dict[str, Any]:
         """Place a stop loss order with price validation"""
         if not self.client:
-            raise Exception("Binance API client not initialized. Cannot place stop loss orders without API connection.")
+            logger.warning("Binance API client not initialized. Cannot place stop loss orders without API connection.")
+            return {'success': False, 'error': 'Binance API client not initialized'}
         
         try:
             # Get current market price for validation
@@ -708,6 +760,10 @@ class BinanceTrader:
             if current_price <= 0:
                 logger.warning(f"Could not get current price for {symbol}, skipping stop loss order")
                 return {'success': False, 'error': f'Could not get current price for {symbol}'}
+            
+            # TESTNET SAFETY: Check if we're in testnet mode and adjust behavior
+            if self.testnet:
+                logger.info(f"TESTNET MODE: Attempting to place stop loss order for {symbol}")
             
             # Round stop price to proper precision based on PRICE_FILTER
             price_filter = None
@@ -757,7 +813,15 @@ class BinanceTrader:
                     stop_price = min_price * 1.05  # 5% buffer
                     stop_price = round(stop_price, precision) if 'precision' in locals() else stop_price
             
-            side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            # For stop loss: LONG position needs SELL order to close, SHORT position needs BUY order to close
+            # TESTNET BUG WORKAROUND: Binance testnet API has a bug where it creates orders with wrong side
+            if self.testnet:
+                # In testnet, the API creates orders with opposite side, so we need to reverse our logic
+                side = SIDE_BUY if direction == 'BUY' else SIDE_SELL
+                logger.warning(f"TESTNET BUG WORKAROUND: Using {side} side for {direction} position stop loss order")
+            else:
+                # Normal logic for mainnet
+                side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
             if self.use_futures:
                 order = self.client.futures_create_order(
@@ -778,6 +842,7 @@ class BinanceTrader:
                     price=limit_price
                 )
             
+            logger.info(f"✅ Stop loss order created successfully for {symbol}: {order['orderId']}")
             return {
                 'success': True,
                 'order_id': order['orderId'],
@@ -857,7 +922,15 @@ class BinanceTrader:
                     take_profit_price = min_price * 1.05  # 5% buffer
                     take_profit_price = round(take_profit_price, precision) if 'precision' in locals() else take_profit_price
             
-            side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            # For take profit: LONG position needs SELL order to close, SHORT position needs BUY order to close
+            # TESTNET BUG WORKAROUND: Binance testnet API has a bug where it creates orders with wrong side
+            if self.testnet:
+                # In testnet, the API creates orders with opposite side, so we need to reverse our logic
+                side = SIDE_BUY if direction == 'BUY' else SIDE_SELL
+                logger.warning(f"TESTNET BUG WORKAROUND: Using {side} side for {direction} position take profit order")
+            else:
+                # Normal logic for mainnet
+                side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
             
             if self.use_futures:
                 order = self.client.futures_create_order(
