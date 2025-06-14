@@ -1170,13 +1170,17 @@ class BinanceTrader:
         try:
             from app.services.database_service import DatabaseService
             
-            # First save the signal if it doesn't exist
+            # Check if signal already has an ID (already saved)
             signal_id = signal.get("id")
             if not signal_id:
+                # Signal not yet saved, save it now for the trade
                 from app.database import AsyncSessionLocal
                 async with AsyncSessionLocal() as db:
                     saved_signal = await DatabaseService.save_signal(db, signal)
                     signal_id = saved_signal.id
+                    print(f"✅ Signal saved to database for trade: {signal['symbol']}")
+            else:
+                print(f"📊 Using existing signal ID {signal_id} for trade: {signal['symbol']}")
             
             from app.database import AsyncSessionLocal
             async with AsyncSessionLocal() as db:

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, takeUntil, take, interval } from 'rxjs';
+import { Subject, takeUntil, take, interval, forkJoin } from 'rxjs';
 
 // PrimeNG imports
 import { DropdownModule } from 'primeng/dropdown';
@@ -325,9 +325,52 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loading = true;
     }
     
-    // Load signals for all symbols to populate the list
+    // First try to load existing signals from database
     const symbols = this.symbolOptions.map(option => option.value);
     this.signalService.getMultipleSignals(symbols, '1h')
+      .pipe(take(1))
+      .subscribe({
+        next: (existingSignals) => {
+          // If we have recent signals (less than 30 minutes old), use them
+          const recentSignals = existingSignals.filter(signal => {
+            const signalTime = new Date(signal.timestamp).getTime();
+            const now = new Date().getTime();
+            const thirtyMinutesAgo = now - (30 * 60 * 1000);
+            return signalTime > thirtyMinutesAgo;
+          });
+          
+          if (recentSignals.length === symbols.length) {
+            // We have recent signals for all symbols
+            this.allSignals = recentSignals.sort((a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+            this.applyFilters();
+            this.connectionStatus = 'connected';
+            this.loading = false;
+            
+            if (!this.chartLocked && this.filteredSignals.length > 0 && !this.selectedSignal) {
+              this.selectedSignal = this.filteredSignals[0];
+            }
+          } else {
+            // Generate fresh signals for all symbols and save them
+            this.generateFreshSignals(symbols, silent);
+          }
+        },
+        error: (error) => {
+          console.error('Error loading existing signals:', error);
+          // Fallback to generating fresh signals
+          this.generateFreshSignals(symbols, silent);
+        }
+      });
+  }
+
+  private generateFreshSignals(symbols: string[], silent: boolean): void {
+    const signalRequests = symbols.map(symbol =>
+      this.signalService.getCurrentSignal(symbol, '1h', true) // save_to_db = true
+    );
+    
+    // Use forkJoin to wait for all signals to be generated
+    forkJoin(signalRequests)
       .pipe(take(1))
       .subscribe({
         next: (signals) => {
@@ -349,13 +392,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }
         },
         error: (error) => {
-          console.error('Error loading signals:', error);
+          console.error('Error generating fresh signals:', error);
           this.connectionStatus = 'disconnected';
           this.loading = false;
           this.messageService.add({
             severity: 'error',
             summary: 'Hiba',
-            detail: 'Nem sikerült betölteni a szignálokat'
+            detail: 'Nem sikerült generálni a szignálokat'
           });
         }
       });

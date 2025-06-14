@@ -55,4 +55,8 @@ export class SignalService {
     return this.http.get<Signal[]>(`${this.apiUrl}/signals/?symbols=${symbolsParam}&interval=${interval}`);
   }
 
+  getCurrentSignal(symbol: string, interval: string = '1h', saveToDb: boolean = true): Observable<Signal> {
+    return this.http.get<Signal>(`${this.apiUrl}/signals/current?symbol=${symbol}&interval=${interval}&save_to_db=${saveToDb}`);
+  }
+
 }
