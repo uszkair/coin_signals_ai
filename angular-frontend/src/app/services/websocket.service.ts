@@ -4,7 +4,7 @@ import { environment } from '../../environments/environment';
 import { Signal } from './signal.service';
 
 export interface WebSocketMessage {
-  type: 'signal' | 'notification' | 'status';
+  type: 'signal' | 'notification' | 'status' | 'position_update';
   data: any;
 }
 
@@ -110,6 +110,19 @@ export class WebSocketService {
     return new Observable(observer => {
       const subscription = this.messages$.subscribe(message => {
         if (message.type === 'notification') {
+          observer.next(message.data);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    });
+  }
+
+  // Subscribe to position updates
+  onPositionUpdate(): Observable<any> {
+    return new Observable(observer => {
+      const subscription = this.messages$.subscribe(message => {
+        if (message.type === 'position_update') {
           observer.next(message.data);
         }
       });

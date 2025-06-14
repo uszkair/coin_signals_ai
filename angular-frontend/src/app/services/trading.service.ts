@@ -141,6 +141,11 @@ export class TradingService {
     return this.http.get<TradeResult>(`${this.baseUrl}/live-positions`);
   }
 
+  // Get only P&L data for live positions (for efficient updates)
+  getLivePositionsPnlOnly(): Observable<TradeResult> {
+    return this.http.get<TradeResult>(`${this.baseUrl}/live-positions/pnl-only`);
+  }
+
   closePosition(positionId: string, reason: string = 'manual'): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/close-position`, {
       position_id: positionId,

@@ -4,6 +4,7 @@ Endpoints for automatic trading functionality
 """
 
 import logging
+import time
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
@@ -1114,29 +1115,61 @@ async def get_live_positions():
             try:
                 positions = trader.client.futures_position_information()
                 
+                # Get current prices for all symbols to ensure fresh data
+                price_cache = {}
+                
                 # Filter only active positions (non-zero position amount)
                 for pos in positions:
                     position_amt = float(pos.get('positionAmt', 0))
                     if position_amt != 0:
                         symbol = pos.get('symbol')
                         entry_price = float(pos.get('entryPrice', 0))
-                        mark_price = float(pos.get('markPrice', 0))
+                        
+                        # Get fresh mark price from API instead of relying on position data
+                        if symbol not in price_cache:
+                            try:
+                                ticker = trader.client.futures_symbol_ticker(symbol=symbol)
+                                price_cache[symbol] = float(ticker['price'])
+                            except:
+                                price_cache[symbol] = float(pos.get('markPrice', 0))
+                        
+                        current_price = price_cache[symbol]
                         unrealized_pnl = float(pos.get('unRealizedProfit', 0))
-                        percentage = float(pos.get('percentage', 0))
+                        
+                        # Calculate percentage manually for accuracy
+                        if entry_price > 0 and position_amt != 0:
+                            if position_amt > 0:  # LONG position
+                                pnl_percentage = ((current_price - entry_price) / entry_price) * 100
+                            else:  # SHORT position
+                                pnl_percentage = ((entry_price - current_price) / entry_price) * 100
+                        else:
+                            pnl_percentage = 0.0
                         
                         live_positions.append({
                             'symbol': symbol,
                             'position_side': 'LONG' if position_amt > 0 else 'SHORT',
                             'position_amt': abs(position_amt),
                             'entry_price': entry_price,
-                            'mark_price': mark_price,
+                            'mark_price': current_price,
                             'unrealized_pnl': unrealized_pnl,
-                            'pnl_percentage': percentage,
+                            'pnl_percentage': pnl_percentage,
                             'position_type': 'FUTURES',
                             'leverage': float(pos.get('leverage', 1)),
                             'margin_type': pos.get('marginType', 'cross'),
                             'update_time': pos.get('updateTime')
                         })
+                
+                # Sort positions by update_time (newest first) - represents position creation/modification time
+                def safe_sort_key(pos):
+                    update_time = pos.get('update_time', 0)
+                    if update_time is None:
+                        return 0
+                    try:
+                        return -int(update_time)
+                    except (ValueError, TypeError):
+                        return 0
+                
+                live_positions.sort(key=safe_sort_key)
                         
             except Exception as e:
                 logger.error(f"Error getting Futures positions: {e}")
@@ -1156,6 +1189,81 @@ async def get_live_positions():
                 "count": len(live_positions),
                 "account_type": "FUTURES" if trader.use_futures else "SPOT",
                 "testnet": trader.testnet
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/live-positions/pnl-only")
+async def get_live_positions_pnl_only():
+    """Get only P&L data for live positions (for efficient updates)"""
+    try:
+        trader = initialize_global_trader()
+        
+        if not trader.client:
+            return {
+                "success": False,
+                "error": "Binance API client not initialized"
+            }
+        
+        pnl_updates = []
+        
+        if trader.use_futures:
+            # Get Futures positions from Binance
+            try:
+                positions = trader.client.futures_position_information()
+                
+                # Get current prices for active positions only
+                for pos in positions:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    if position_amt != 0:
+                        symbol = pos.get('symbol')
+                        entry_price = float(pos.get('entryPrice', 0))
+                        
+                        # Get fresh mark price
+                        try:
+                            ticker = trader.client.futures_symbol_ticker(symbol=symbol)
+                            current_price = float(ticker['price'])
+                        except:
+                            current_price = float(pos.get('markPrice', 0))
+                        
+                        unrealized_pnl = float(pos.get('unRealizedProfit', 0))
+                        
+                        # Calculate percentage manually for accuracy
+                        if entry_price > 0 and position_amt != 0:
+                            if position_amt > 0:  # LONG position
+                                pnl_percentage = ((current_price - entry_price) / entry_price) * 100
+                            else:  # SHORT position
+                                pnl_percentage = ((entry_price - current_price) / entry_price) * 100
+                        else:
+                            pnl_percentage = 0.0
+                        
+                        pnl_updates.append({
+                            'symbol': symbol,
+                            'mark_price': current_price,
+                            'unrealized_pnl': unrealized_pnl,
+                            'pnl_percentage': pnl_percentage,
+                            'update_time': int(time.time() * 1000)
+                        })
+                
+                # Sort P&L updates by symbol to maintain consistent order with main positions
+                pnl_updates.sort(key=lambda x: x.get('symbol', ''))
+                        
+            except Exception as e:
+                logger.error(f"Error getting Futures P&L data: {e}")
+                return {
+                    "success": False,
+                    "error": f"Failed to get Futures P&L data: {str(e)}"
+                }
+        
+        return {
+            "success": True,
+            "data": {
+                "pnl_updates": pnl_updates,
+                "count": len(pnl_updates),
+                "timestamp": int(time.time() * 1000)
             }
         }
         

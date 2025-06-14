@@ -210,8 +210,22 @@
               </div>
               <div class="flex items-center text-sm">
                 <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                <span class="text-gray-600 dark:text-gray-400">5 másodpercenként frissül</span>
+                <span class="text-gray-600 dark:text-gray-400">3 másodpercenként frissül</span>
               </div>
+            </div>
+            
+            <!-- Emergency Stop Button -->
+            <div *ngIf="livePositions.length > 0">
+              <p-button
+                icon="pi pi-stop-circle"
+                label="🚨 VÉSZLEÁLLÍTÁS"
+                size="small"
+                severity="danger"
+                (onClick)="emergencyStopAllPositions()"
+                [loading]="loadingLivePositions"
+                pTooltip="Minden pozíció azonnali lezárása és kereskedés leállítása"
+                tooltipPosition="left"
+              ></p-button>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { take, interval, takeUntil, Subject } from 'rxjs';
+import { take, takeUntil, Subject, interval } from 'rxjs';
 
 // PrimeNG imports
 import { TableModule } from 'primeng/table';
@@ -120,7 +120,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.loadTradingStatistics();
     this.loadDailySummary();
     this.loadLivePositions();
-    this.startLivePositionsRefresh();
+    this.startSmartPnlRefresh();
   }
 
   ngOnDestroy(): void {
@@ -316,6 +316,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
           this.loadingLivePositions = false;
           if (response.success) {
             this.livePositions = response.data.positions || [];
+            // Additional frontend sorting to ensure consistent order
+            this.sortLivePositions();
             this.lastPositionsUpdate = new Date();
             this.livePositionsError = null;
           } else {
@@ -332,17 +334,72 @@ export class HistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-  private startLivePositionsRefresh(): void {
-    // Refresh live positions every 5 seconds
-    interval(5000)
+  private startSmartPnlRefresh(): void {
+    // Smart P&L refresh: only update changing values every 3 seconds
+    interval(3000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.loadLivePositions();
+        this.updatePositionsPnl();
+      });
+  }
+
+  private updatePositionsPnl(): void {
+    // Only update P&L data to avoid visual disruption
+    this.tradingService.getLivePositionsPnlOnly()
+      .pipe(take(1))
+      .subscribe({
+        next: (response) => {
+          if (response.success && response.data.pnl_updates) {
+            // Update only P&L values in existing positions
+            response.data.pnl_updates.forEach((update: any) => {
+              const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
+              if (existingPosition) {
+                // Smoothly update only the changing values
+                existingPosition.mark_price = update.mark_price;
+                existingPosition.unrealized_pnl = update.unrealized_pnl;
+                existingPosition.pnl_percentage = update.pnl_percentage;
+                existingPosition.update_time = update.update_time;
+              }
+            });
+            this.lastPositionsUpdate = new Date();
+          }
+        },
+        error: (error) => {
+          console.error('Error updating P&L:', error);
+          // Fallback to full refresh if P&L-only fails
+          this.loadLivePositions();
+        }
       });
   }
 
   refreshLivePositions(): void {
     this.loadLivePositions();
+  }
+
+  emergencyStopAllPositions(): void {
+    if (confirm('⚠️ VÉSZLEÁLLÍTÁS ⚠️\n\nBiztos vagy benne, hogy le akarod zárni az ÖSSZES pozíciót és leállítani a kereskedést?\n\nEz a művelet VISSZAFORDÍTHATATLAN!')) {
+      this.loadingLivePositions = true;
+      
+      this.tradingService.emergencyStop()
+        .pipe(take(1))
+        .subscribe({
+          next: (response) => {
+            this.loadingLivePositions = false;
+            if (response.success) {
+              alert('✅ Vészleállítás sikeres!\n\nÖsszes pozíció lezárva és kereskedés leállítva.');
+              // Frissítjük a pozíciókat
+              this.loadLivePositions();
+            } else {
+              alert('❌ Vészleállítás sikertelen!\n\n' + (response.error || 'Ismeretlen hiba'));
+            }
+          },
+          error: (error) => {
+            this.loadingLivePositions = false;
+            alert('❌ Hiba a vészleállítás során!\n\n' + error.message);
+            console.error('Emergency stop error:', error);
+          }
+        });
+    }
   }
 
   getPositionSideSeverity(side: string): 'success' | 'danger' {
@@ -381,5 +438,14 @@ export class HistoryComponent implements OnInit, OnDestroy {
     };
     
     return stats;
+  }
+
+  private sortLivePositions(): void {
+    // Sort positions by update_time (newest first) - represents position creation/modification time
+    this.livePositions.sort((a, b) => {
+      const timeA = a.update_time || 0;
+      const timeB = b.update_time || 0;
+      return timeB - timeA; // Newest first
+    });
   }
 }

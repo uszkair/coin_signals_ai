@@ -89,6 +89,7 @@ async def startup_event():
         logger.info("📊 Scheduler will monitor markets continuously (auto-trading can be enabled/disabled via settings)")
     except Exception as e:
         logger.error(f"Failed to start auto-trading scheduler: {e}")
+    
 
 
 @app.on_event("shutdown")
