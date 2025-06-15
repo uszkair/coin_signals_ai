@@ -700,7 +700,7 @@ class BinanceTrader:
             return None
         except Exception as e:
             logger.error(f"Error getting symbol info for {symbol}: {e}")
-            return self._simulate_symbol_info(symbol)
+            raise Exception(f"Cannot get symbol info for {symbol} without valid API connection: {e}")
     
     def _calculate_quantity(self, position_size_usd: float, price: float, symbol_info: Dict[str, Any]) -> float:
         """Calculate order quantity with proper precision"""
@@ -1273,101 +1273,6 @@ class BinanceTrader:
         else:
             return 'LOW'
     
-    # Simulation methods for testing without real API
-    def _simulate_account_info(self) -> Dict[str, Any]:
-        """Simulate account info for testing"""
-        return {
-            'account_type': 'SPOT',
-            'can_trade': True,
-            'can_withdraw': True,
-            'can_deposit': True,
-            'balances': {
-                'USDT': {'free': 10000.0, 'locked': 0.0, 'total': 10000.0},
-                'BTC': {'free': 0.1, 'locked': 0.0, 'total': 0.1}
-            },
-            'total_wallet_balance': 10000.0,
-            'maker_commission': 10,
-            'taker_commission': 10,
-            'testnet': self.testnet
-        }
-    
-    def _simulate_symbol_info(self, symbol: str) -> Dict[str, Any]:
-        """Simulate symbol info for testing"""
-        # Different precision for different symbols
-        if symbol == 'BTCUSDT':
-            step_size = '0.001'
-            min_qty = '0.001'
-        elif symbol == 'ETHUSDT':
-            step_size = '0.001'
-            min_qty = '0.001'
-        else:
-            step_size = '0.01'
-            min_qty = '0.01'
-        
-        return {
-            'symbol': symbol,
-            'status': 'TRADING',
-            'filters': [
-                {
-                    'filterType': 'LOT_SIZE',
-                    'stepSize': step_size,
-                    'minQty': min_qty,
-                    'maxQty': '10000.00000000'
-                },
-                {
-                    'filterType': 'PRICE_FILTER',
-                    'tickSize': '0.01000000',
-                    'minPrice': '0.01000000',
-                    'maxPrice': '1000000.00000000'
-                },
-                {
-                    'filterType': 'MIN_NOTIONAL',
-                    'minNotional': '5.00000000'
-                }
-            ]
-        }
-    
-    def _simulate_order(self, symbol: str, side: str, quantity: float, order_type: str) -> Dict[str, Any]:
-        """Simulate order execution for testing"""
-        
-        return {
-            'success': True,
-            'order_id': f'SIM_{random.randint(100000, 999999)}',
-            'symbol': symbol,
-            'side': side,
-            'quantity': quantity,
-            'price': 50000.0 + random.uniform(-100, 100),  # Simulate price
-            'commission': quantity * 0.001,  # 0.1% commission
-            'status': 'FILLED',
-            'type': order_type
-        }
-    
-    def _simulate_order_status(self, symbol: str, order_id: str) -> Dict[str, Any]:
-        """Simulate order status for testing"""
-        
-        # Simulate different order statuses
-        statuses = ['NEW', 'PARTIALLY_FILLED', 'FILLED', 'CANCELED', 'REJECTED']
-        status = random.choice(statuses)
-        
-        original_qty = 0.1
-        executed_qty = original_qty if status == 'FILLED' else (original_qty * 0.5 if status == 'PARTIALLY_FILLED' else 0)
-        
-        return {
-            'success': True,
-            'order_id': order_id,
-            'symbol': symbol,
-            'status': status,
-            'side': 'BUY',
-            'type': 'MARKET',
-            'original_qty': original_qty,
-            'executed_qty': executed_qty,
-            'cumulative_quote_qty': executed_qty * 50000,
-            'price': 50000.0 + random.uniform(-100, 100),
-            'avg_price': 50000.0 + random.uniform(-50, 50) if executed_qty > 0 else None,
-            'time': datetime.now(),
-            'update_time': datetime.now(),
-            'time_in_force': 'GTC'
-        }
     
     async def _save_successful_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:
         """Save successful trade to signal performance"""
