@@ -117,7 +117,7 @@ class BinanceTrader:
         
         # Initialize client based on mode
         if not self.api_key or not self.api_secret:
-            logger.warning("Binance API credentials not found. Trading will be simulated.")
+            logger.error("Binance API credentials not found. Trading operations will fail.")
             self.client = None
         else:
             try:
@@ -620,7 +620,9 @@ class BinanceTrader:
         else:
             # Use percentage of portfolio
             account_info = await self.get_account_info()
-            total_balance = account_info.get('total_wallet_balance', 10000)  # Default for simulation
+            total_balance = account_info.get('total_wallet_balance', 0)  # Require real balance
+            if total_balance <= 0:
+                raise Exception("No wallet balance available - cannot calculate position size")
             base_size = total_balance * self.max_position_size
         
         # Adjust based on confidence (optional)

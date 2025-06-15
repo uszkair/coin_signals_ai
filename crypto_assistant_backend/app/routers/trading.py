@@ -798,7 +798,7 @@ async def get_real_order_history(symbol: Optional[str] = None, limit: int = 100)
 
 @router.get("/wallet-balance")
 async def get_wallet_balance():
-    """Get wallet balance from Binance API or simulated data"""
+    """Get wallet balance from Binance API"""
     try:
         # Debug logging
         trader = initialize_global_trader()
@@ -828,46 +828,7 @@ async def get_wallet_balance():
                     "testnet": trader.testnet
                 }
         
-        # If in testnet mode, use the simulated data directly
-        if trader.testnet:
-            # Use the total_wallet_balance from simulated account info
-            total_balance = account_info.get('total_wallet_balance', 10000.0)
-            balances = account_info.get('balances', {})
-            
-            # Convert balances format for frontend
-            significant_balances = []
-            for asset, balance_info in balances.items():
-                if balance_info['total'] > 0:
-                    # For simulated data, calculate USDT value
-                    if asset in ['USDT', 'BUSD', 'USDC']:
-                        usdt_value = balance_info['total']
-                    elif asset == 'BTC':
-                        usdt_value = balance_info['total'] * 50000  # Simulated BTC price
-                    elif asset == 'ETH':
-                        usdt_value = balance_info['total'] * 3000   # Simulated ETH price
-                    else:
-                        usdt_value = balance_info['total'] * 100    # Default simulated price
-                    
-                    significant_balances.append({
-                        'asset': asset,
-                        'free': balance_info['free'],
-                        'locked': balance_info['locked'],
-                        'total': balance_info['total'],
-                        'usdt_value': usdt_value
-                    })
-            
-            return {
-                "success": True,
-                "data": {
-                    "total_balance_usdt": total_balance,
-                    "balances": significant_balances,
-                    "account_type": account_info.get('account_type'),
-                    "can_trade": account_info.get('can_trade'),
-                    "testnet": account_info.get('testnet', True)
-                }
-            }
-        
-        # Mainnet mode - calculate real balance with live prices
+        # Calculate real balance with live prices
         balances = account_info.get('balances', {})
         total_balance_usdt = 0
         

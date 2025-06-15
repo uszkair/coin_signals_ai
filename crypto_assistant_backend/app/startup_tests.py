@@ -79,7 +79,7 @@ async def test_trading_service() -> Dict[str, Any]:
         # Create trader instance
         trader = BinanceTrader()
         
-        # Get account info (will be simulated if no API keys)
+        # Get account info (requires valid API keys)
         account_info = await trader.get_account_info()
         
         return {

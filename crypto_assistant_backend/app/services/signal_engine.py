@@ -23,85 +23,7 @@ class TradeResult:
         self.profit_usd = profit_usd
         self.profit_percent = profit_percent
 
-async def simulate_trade(entry: float, direction: str, candle: dict,
-                         symbol: str = "BTCUSDT", rr_ratio: float = 2.0, days_ahead: int = 7) -> TradeResult:
-    # Calculate proper ATR from multiple candles for better accuracy
-    try:
-        # Get recent candles for better ATR calculation
-        recent_candles = await get_historical_data(symbol=symbol, interval="1h", days=7)
-        if len(recent_candles) >= 14:
-            # Calculate 14-period ATR
-            atr_values = []
-            for i in range(1, min(15, len(recent_candles))):
-                curr = recent_candles[i]
-                prev = recent_candles[i-1]
-                tr = max(
-                    curr["high"] - curr["low"],
-                    abs(curr["high"] - prev["close"]),
-                    abs(curr["low"] - prev["close"])
-                )
-                atr_values.append(tr)
-            atr = sum(atr_values) / len(atr_values)
-        else:
-            atr = candle["high"] - candle["low"]
-    except:
-        atr = candle["high"] - candle["low"]
-    
-    # More realistic stop loss and take profit distances
-    sl_distance = atr * 1.0  # Increased from 0.5 to 1.0
-    tp_distance = sl_distance * rr_ratio  # Now 2.0 instead of 1.5
-
-    stop_loss = entry - sl_distance if direction == "BUY" else entry + sl_distance
-    take_profit = entry + tp_distance if direction == "BUY" else entry - tp_distance
-
-    try:
-        future_candles = await get_historical_data(symbol=symbol, interval="1h", days=days_ahead)
-        if not future_candles or len(future_candles) < 24:  # Need at least 1 day of data
-            print(f"Insufficient future data for {symbol}: got {len(future_candles) if future_candles else 0} candles")
-            # Return breakeven if no sufficient data - this is honest
-            return TradeResult(entry, stop_loss, take_profit, entry, None, "breakeven", 0.0, 0.0)
-    except Exception as e:
-        print(f"Error getting future candles for {symbol}: {e}")
-        # Return breakeven if data fetch fails - this is honest
-        return TradeResult(entry, stop_loss, take_profit, entry, None, "breakeven", 0.0, 0.0)
-    for fc in future_candles:
-        low = fc["low"]
-        high = fc["high"]
-        ts = fc["timestamp"]
-
-        if direction == "BUY":
-            if low <= stop_loss:
-                return TradeResult(entry, stop_loss, take_profit, stop_loss, ts, "stop_loss_hit", -sl_distance, -sl_distance / entry * 100)
-            elif high >= take_profit:
-                return TradeResult(entry, stop_loss, take_profit, take_profit, ts, "take_profit_hit", tp_distance, tp_distance / entry * 100)
-        else:  # SELL
-            if high >= stop_loss:
-                return TradeResult(entry, stop_loss, take_profit, stop_loss, ts, "stop_loss_hit", -sl_distance, -sl_distance / entry * 100)
-            elif low <= take_profit:
-                return TradeResult(entry, stop_loss, take_profit, take_profit, ts, "take_profit_hit", tp_distance, tp_distance / entry * 100)
-
-    # No exit found in available data - use REAL final price from data
-    print(f"No exit found for {symbol} {direction} trade in {days_ahead} days - using final market price")
-    
-    # Calculate REAL price movement from entry to last available candle
-    if future_candles:
-        last_candle = future_candles[-1]
-        final_price = last_candle["close"]
-        
-        # Calculate actual profit/loss based on real market movement
-        if direction == "BUY":
-            profit_pct = ((final_price - entry) / entry) * 100
-        else:  # SELL
-            profit_pct = ((entry - final_price) / entry) * 100
-        
-        profit_usd = (profit_pct / 100) * entry
-        result_type = "profit" if profit_pct > 0 else "loss" if profit_pct < 0 else "breakeven"
-        
-        return TradeResult(entry, stop_loss, take_profit, final_price, last_candle["timestamp"], result_type, profit_usd, profit_pct)
-    else:
-        # No data available - honest breakeven
-        return TradeResult(entry, stop_loss, take_profit, entry, None, "breakeven", 0.0, 0.0)
-
+# simulate_trade function removed - no simulation code allowed in live trading system
 
 # === GET CURRENT SIGNAL (for /api/signal/current) ===
 from app.services.indicators import compute_indicators
@@ -411,7 +333,7 @@ async def get_current_signal(symbol: str, interval: str):
     else:
         direction = "HOLD"
 
-    # Calculate stop loss and take profit for live trading (without simulation)
+    # Calculate stop loss and take profit for live trading
     entry_price = float(latest["close"])
     
     # Calculate ATR for stop loss/take profit calculation
