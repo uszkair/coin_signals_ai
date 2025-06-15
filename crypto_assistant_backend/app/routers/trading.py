@@ -1341,38 +1341,24 @@ async def get_live_positions():
                                     trigger_price = stop_price or price
                                     # For LONG positions, stop loss is SELL order below entry price
                                     # For SHORT positions, stop loss is BUY order above entry price
-                                    # TESTNET BUG WORKAROUND: Check both normal and reversed logic
-                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss (normal)
+                                    if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
                                         stop_loss_price = trigger_price
-                                        logger.info(f"Found LONG stop loss (normal): {trigger_price}")
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss (normal)
+                                        logger.info(f"Found LONG stop loss: {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
                                         stop_loss_price = trigger_price
-                                        logger.info(f"Found SHORT stop loss (normal): {trigger_price}")
-                                    elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price < entry_price:  # LONG stop loss (testnet bug)
-                                        stop_loss_price = trigger_price
-                                        logger.info(f"Found LONG stop loss (testnet bug): {trigger_price}")
-                                    elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price > entry_price:  # SHORT stop loss (testnet bug)
-                                        stop_loss_price = trigger_price
-                                        logger.info(f"Found SHORT stop loss (testnet bug): {trigger_price}")
+                                        logger.info(f"Found SHORT stop loss: {trigger_price}")
                                 
                                 # Check for take profit orders (TAKE_PROFIT_MARKET, TAKE_PROFIT, LIMIT)
                                 elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
                                     trigger_price = stop_price or price
                                     # For LONG positions, take profit is SELL order above entry price
                                     # For SHORT positions, take profit is BUY order below entry price
-                                    # TESTNET BUG WORKAROUND: Check both normal and reversed logic
-                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit (normal)
+                                    if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
                                         take_profit_price = trigger_price
-                                        logger.info(f"Found LONG take profit (normal): {trigger_price}")
-                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit (normal)
+                                        logger.info(f"Found LONG take profit: {trigger_price}")
+                                    elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
                                         take_profit_price = trigger_price
-                                        logger.info(f"Found SHORT take profit (normal): {trigger_price}")
-                                    elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price > entry_price:  # LONG take profit (testnet bug)
-                                        take_profit_price = trigger_price
-                                        logger.info(f"Found LONG take profit (testnet bug): {trigger_price}")
-                                    elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price < entry_price:  # SHORT take profit (testnet bug)
-                                        take_profit_price = trigger_price
-                                        logger.info(f"Found SHORT take profit (testnet bug): {trigger_price}")
+                                        logger.info(f"Found SHORT take profit: {trigger_price}")
                                 
                         except Exception as order_error:
                             logger.warning(f"Could not get open orders for {symbol}: {order_error}")
@@ -1520,27 +1506,21 @@ async def get_live_positions_pnl_only():
                         # Check for stop loss orders
                         if order_type in ['STOP_MARKET', 'STOP', 'STOP_LOSS_LIMIT'] and (stop_price or price):
                             trigger_price = stop_price or price
-                            # TESTNET BUG WORKAROUND: Check both normal and reversed logic
-                            if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss (normal)
+                            # For LONG positions, stop loss is SELL order below entry price
+                            # For SHORT positions, stop loss is BUY order above entry price
+                            if position_amt > 0 and side == 'SELL' and trigger_price < entry_price:  # LONG stop loss
                                 stop_loss_price = trigger_price
-                            elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss (normal)
-                                stop_loss_price = trigger_price
-                            elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price < entry_price:  # LONG stop loss (testnet bug)
-                                stop_loss_price = trigger_price
-                            elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price > entry_price:  # SHORT stop loss (testnet bug)
+                            elif position_amt < 0 and side == 'BUY' and trigger_price > entry_price:  # SHORT stop loss
                                 stop_loss_price = trigger_price
                         
                         # Check for take profit orders
                         elif order_type in ['TAKE_PROFIT_MARKET', 'TAKE_PROFIT', 'TAKE_PROFIT_LIMIT', 'LIMIT'] and (stop_price or price):
                             trigger_price = stop_price or price
-                            # TESTNET BUG WORKAROUND: Check both normal and reversed logic
-                            if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit (normal)
+                            # For LONG positions, take profit is SELL order above entry price
+                            # For SHORT positions, take profit is BUY order below entry price
+                            if position_amt > 0 and side == 'SELL' and trigger_price > entry_price:  # LONG take profit
                                 take_profit_price = trigger_price
-                            elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit (normal)
-                                take_profit_price = trigger_price
-                            elif trader.testnet and position_amt > 0 and side == 'BUY' and trigger_price > entry_price:  # LONG take profit (testnet bug)
-                                take_profit_price = trigger_price
-                            elif trader.testnet and position_amt < 0 and side == 'SELL' and trigger_price < entry_price:  # SHORT take profit (testnet bug)
+                            elif position_amt < 0 and side == 'BUY' and trigger_price < entry_price:  # SHORT take profit
                                 take_profit_price = trigger_price
                     
                     pnl_updates.append({

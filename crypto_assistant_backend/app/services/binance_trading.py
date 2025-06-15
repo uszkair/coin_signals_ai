@@ -903,14 +903,9 @@ class BinanceTrader:
                     stop_price = round(stop_price, precision) if 'precision' in locals() else stop_price
             
             # For stop loss: LONG position needs SELL order to close, SHORT position needs BUY order to close
-            # TESTNET BUG WORKAROUND: Binance testnet API has a bug where it creates orders with wrong side
-            if self.testnet:
-                # In testnet, the API creates orders with opposite side, so we need to reverse our logic
-                side = SIDE_BUY if direction == 'BUY' else SIDE_SELL
-                logger.warning(f"TESTNET BUG WORKAROUND: Using {side} side for {direction} position stop loss order")
-            else:
-                # Normal logic for mainnet
-                side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            # Normal logic (same for both testnet and mainnet)
+            side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            logger.info(f"Stop loss order: {direction} position -> {side} order to close")
             
             if self.use_futures:
                 order = self.client.futures_create_order(
@@ -1012,14 +1007,9 @@ class BinanceTrader:
                     take_profit_price = round(take_profit_price, precision) if 'precision' in locals() else take_profit_price
             
             # For take profit: LONG position needs SELL order to close, SHORT position needs BUY order to close
-            # TESTNET BUG WORKAROUND: Binance testnet API has a bug where it creates orders with wrong side
-            if self.testnet:
-                # In testnet, the API creates orders with opposite side, so we need to reverse our logic
-                side = SIDE_BUY if direction == 'BUY' else SIDE_SELL
-                logger.warning(f"TESTNET BUG WORKAROUND: Using {side} side for {direction} position take profit order")
-            else:
-                # Normal logic for mainnet
-                side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            # Normal logic (same for both testnet and mainnet)
+            side = SIDE_SELL if direction == 'BUY' else SIDE_BUY
+            logger.info(f"Take profit order: {direction} position -> {side} order to close")
             
             if self.use_futures:
                 order = self.client.futures_create_order(
