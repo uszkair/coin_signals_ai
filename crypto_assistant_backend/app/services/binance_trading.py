@@ -331,6 +331,23 @@ class BinanceTrader:
             except Exception as notification_error:
                 logger.error(f"❌ Failed to send new position notification: {notification_error}")
             
+            # Broadcast new position via WebSocket
+            try:
+                from app.routers.websocket import broadcast_position_status
+                await broadcast_position_status({
+                    'action': 'opened',
+                    'symbol': symbol,
+                    'position_id': position_id,
+                    'direction': direction,
+                    'entry_price': main_order.get('price', entry_price),
+                    'position_size_usd': position_size_usd,
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit
+                })
+                logger.info(f"✅ New position broadcasted via WebSocket for {symbol}")
+            except Exception as ws_error:
+                logger.error(f"❌ Failed to broadcast new position via WebSocket: {ws_error}")
+            
             # Update position table
             try:
                 from app.services.position_service import update_position_table
@@ -419,6 +436,21 @@ class BinanceTrader:
                     logger.info(f"✅ Position closed notification sent for {symbol}")
                 except Exception as notification_error:
                     logger.error(f"❌ Failed to send position closed notification: {notification_error}")
+                
+                # Broadcast position closure via WebSocket
+                try:
+                    from app.routers.websocket import broadcast_position_status
+                    await broadcast_position_status({
+                        'action': 'closed',
+                        'symbol': symbol,
+                        'position_id': position_id,
+                        'reason': reason,
+                        'pnl': pnl,
+                        'pnl_percentage': pnl_percentage
+                    })
+                    logger.info(f"✅ Position closure broadcasted via WebSocket for {symbol}")
+                except Exception as ws_error:
+                    logger.error(f"❌ Failed to broadcast position closure via WebSocket: {ws_error}")
                 
                 # Remove position from table
                 try:

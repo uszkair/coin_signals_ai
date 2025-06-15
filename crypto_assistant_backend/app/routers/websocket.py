@@ -215,3 +215,25 @@ async def broadcast_trade_update(trade_data: Dict):
     })
     
     await manager.broadcast(message)
+
+# Function to broadcast position updates
+async def broadcast_position_update(position_data: Dict):
+    """Broadcast live position P&L update to all connected clients"""
+    message = json.dumps({
+        "type": "position_update",
+        "data": position_data,
+        "timestamp": asyncio.get_event_loop().time()
+    })
+    
+    await manager.broadcast(message)
+
+# Function to broadcast position status changes
+async def broadcast_position_status(status_data: Dict):
+    """Broadcast position status changes (opened/closed) to all connected clients"""
+    message = json.dumps({
+        "type": "position_status",
+        "data": status_data,
+        "timestamp": asyncio.get_event_loop().time()
+    })
+    
+    await manager.broadcast(message)

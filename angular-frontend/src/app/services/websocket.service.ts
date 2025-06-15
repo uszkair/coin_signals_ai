@@ -4,8 +4,39 @@ import { environment } from '../../environments/environment';
 import { Signal } from './signal.service';
 
 export interface WebSocketMessage {
-  type: 'signal' | 'notification' | 'status' | 'position_update';
+  type: 'signal' | 'notification' | 'status' | 'position_update' | 'position_status' | 'connection' | 'error' | 'pong';
   data: any;
+}
+
+export interface PositionUpdate {
+  symbol: string;
+  position_side: string;
+  position_amt: number;
+  entry_price: number;
+  mark_price: number;
+  unrealized_pnl: number;
+  pnl_percentage: number;
+  stop_loss_price?: number;
+  take_profit_price?: number;
+  position_type: string;
+  leverage?: number;
+  margin_type?: string;
+  update_time: number;
+}
+
+export interface PositionUpdateData {
+  pnl_updates: PositionUpdate[];
+  count: number;
+  timestamp: number;
+}
+
+export interface PositionStatusData {
+  action: 'opened' | 'closed';
+  symbol: string;
+  position_id?: string;
+  reason?: string;
+  pnl?: number;
+  pnl_percentage?: number;
 }
 
 @Injectable({
@@ -119,16 +150,82 @@ export class WebSocketService {
   }
 
   // Subscribe to position updates
-  onPositionUpdate(): Observable<any> {
+  onPositionUpdate(): Observable<PositionUpdateData> {
     return new Observable(observer => {
       const subscription = this.messages$.subscribe(message => {
         if (message.type === 'position_update') {
-          observer.next(message.data);
+          observer.next(message.data as PositionUpdateData);
         }
       });
       
       return () => subscription.unsubscribe();
     });
+  }
+
+  // Subscribe to position status changes (opened/closed)
+  onPositionStatus(): Observable<PositionStatusData> {
+    return new Observable(observer => {
+      const subscription = this.messages$.subscribe(message => {
+        if (message.type === 'position_status') {
+          observer.next(message.data as PositionStatusData);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    });
+  }
+
+  // Send message to server
+  sendMessage(message: any): void {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    } else {
+      console.warn('WebSocket is not connected. Cannot send message:', message);
+    }
+  }
+
+  // Subscribe to specific symbol updates
+  subscribeToSymbol(symbol: string): void {
+    this.sendMessage({
+      type: 'subscribe',
+      symbol: symbol
+    });
+  }
+
+  // Unsubscribe from specific symbol updates
+  unsubscribeFromSymbol(symbol: string): void {
+    this.sendMessage({
+      type: 'unsubscribe',
+      symbol: symbol
+    });
+  }
+
+  // Send ping to keep connection alive
+  ping(): void {
+    this.sendMessage({
+      type: 'ping'
+    });
+  }
+
+  // Get connection status
+  getStatus(): void {
+    this.sendMessage({
+      type: 'get_status'
+    });
+  }
+
+  // Manually disconnect
+  disconnect(): void {
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+  }
+
+  // Manually reconnect
+  reconnect(): void {
+    this.disconnect();
+    this.connect();
   }
 
 }

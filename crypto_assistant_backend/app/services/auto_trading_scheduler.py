@@ -347,6 +347,9 @@ class AutoTradingScheduler:
             
             logger.debug(f"Monitoring {len(active_positions)} active positions...")
             
+            # Prepare position data for WebSocket broadcast
+            position_updates = []
+            
             from app.database import AsyncSessionLocal
             async with AsyncSessionLocal() as db:
                 for position_id, position in active_positions.items():
@@ -394,6 +397,20 @@ class AutoTradingScheduler:
                             
                             if close_result.get('success'):
                                 logger.info(f"Position {position_id} closed successfully: P&L = ${close_result.get('pnl', 0):.2f}")
+                                
+                                # Broadcast position closure via WebSocket
+                                try:
+                                    from app.routers.websocket import broadcast_position_status
+                                    await broadcast_position_status({
+                                        'action': 'closed',
+                                        'symbol': symbol,
+                                        'position_id': position_id,
+                                        'reason': close_reason,
+                                        'pnl': close_result.get('pnl', 0),
+                                        'pnl_percentage': close_result.get('pnl_percentage', 0)
+                                    })
+                                except Exception as ws_error:
+                                    logger.error(f"Failed to broadcast position closure: {ws_error}")
                             else:
                                 logger.error(f"Failed to close position {position_id}: {close_result.get('error')}")
                         
@@ -411,9 +428,39 @@ class AutoTradingScheduler:
                                         'profit_percentage': unrealized_pnl_percentage
                                     }
                                     await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                        
+                        # Collect position data for WebSocket broadcast
+                        position_updates.append({
+                            'symbol': symbol,
+                            'position_side': direction,
+                            'position_amt': position.get('quantity', 0),
+                            'entry_price': entry_price,
+                            'mark_price': current_price,
+                            'unrealized_pnl': position.get('unrealized_pnl', 0),
+                            'pnl_percentage': position.get('unrealized_pnl_percentage', 0),
+                            'stop_loss_price': position.get('stop_loss'),
+                            'take_profit_price': position.get('take_profit'),
+                            'position_type': position.get('position_type', 'FUTURES'),
+                            'leverage': position.get('leverage', 1),
+                            'margin_type': position.get('margin_type', 'cross'),
+                            'update_time': int(asyncio.get_event_loop().time() * 1000)
+                        })
                     
                     except Exception as e:
                         logger.error(f"Error monitoring position {position_id}: {e}")
+                
+                # Broadcast position updates via WebSocket
+                if position_updates:
+                    try:
+                        from app.routers.websocket import broadcast_position_update
+                        await broadcast_position_update({
+                            'pnl_updates': position_updates,
+                            'count': len(position_updates),
+                            'timestamp': int(asyncio.get_event_loop().time() * 1000)
+                        })
+                        logger.debug(f"Broadcasted {len(position_updates)} position updates via WebSocket")
+                    except Exception as ws_error:
+                        logger.error(f"Failed to broadcast position updates: {ws_error}")
                 
                 # Also refresh pending orders that might not be in active positions
                 await self._refresh_pending_orders()

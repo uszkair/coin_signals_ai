@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { take, takeUntil, Subject, interval } from 'rxjs';
+import { take, takeUntil, Subject } from 'rxjs';
 
 // PrimeNG imports
 import { TableModule } from 'primeng/table';
@@ -21,6 +21,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { HistoryService, TradeHistory } from '../../services/history.service';
 import { TradingService } from '../../services/trading.service';
+import { WebSocketService, PositionUpdateData, PositionStatusData } from '../../services/websocket.service';
 
 interface LivePosition {
   symbol: string;
@@ -122,7 +123,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
     private historyService: HistoryService,
     private tradingService: TradingService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private webSocketService: WebSocketService
   ) {}
 
   ngOnInit(): void {
@@ -130,7 +132,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.loadTradingStatistics();
     this.loadDailySummary();
     this.loadLivePositions();
-    this.startSmartPnlRefresh();
+    this.setupWebSocketSubscriptions();
   }
 
   ngOnDestroy(): void {
@@ -331,10 +333,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
             this.lastPositionsUpdate = new Date();
             this.livePositionsError = null;
             
-            // Immediately update with fresh P&L data for perfect sync
-            setTimeout(() => {
-              this.updatePositionsPnl();
-            }, 100); // Small delay to ensure positions are loaded
+            // WebSocket will handle real-time updates automatically
+            console.log('Live positions loaded, WebSocket will provide real-time updates');
           } else {
             this.livePositions = [];
             this.livePositionsError = response.error || 'Failed to load live positions';
@@ -349,47 +349,139 @@ export class HistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-  private startSmartPnlRefresh(): void {
-    // Smart P&L refresh: only update changing values every 1 second for better sync
-    interval(1000)
+  private setupWebSocketSubscriptions(): void {
+    // Subscribe to position updates via WebSocket
+    this.webSocketService.onPositionUpdate()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.updatePositionsPnl();
+      .subscribe({
+        next: (positionData: PositionUpdateData) => {
+          this.handlePositionUpdates(positionData);
+        },
+        error: (error) => {
+          console.error('WebSocket position update error:', error);
+          // Fallback to polling if WebSocket fails
+          this.fallbackToPolling();
+        }
+      });
+
+    // Subscribe to position status changes (opened/closed)
+    this.webSocketService.onPositionStatus()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (statusData: PositionStatusData) => {
+          this.handlePositionStatusChange(statusData);
+        },
+        error: (error) => {
+          console.error('WebSocket position status error:', error);
+        }
+      });
+
+    // Monitor WebSocket connection status
+    this.webSocketService.connectionStatus$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(status => {
+        if (status === 'disconnected') {
+          console.warn('WebSocket disconnected, falling back to polling');
+          this.fallbackToPolling();
+        } else if (status === 'connected') {
+          console.log('WebSocket connected, real-time position updates enabled');
+        }
       });
   }
 
-  private updatePositionsPnl(): void {
-    // Only update P&L data and exit prices to avoid visual disruption
+  private handlePositionUpdates(positionData: PositionUpdateData): void {
+    if (positionData.pnl_updates && positionData.pnl_updates.length > 0) {
+      // Update existing positions with fresh data from WebSocket
+      positionData.pnl_updates.forEach((update) => {
+        const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
+        if (existingPosition) {
+          // Update with real-time data from Binance via WebSocket
+          existingPosition.mark_price = update.mark_price;
+          existingPosition.unrealized_pnl = update.unrealized_pnl;
+          existingPosition.pnl_percentage = update.pnl_percentage;
+          existingPosition.stop_loss_price = update.stop_loss_price;
+          existingPosition.take_profit_price = update.take_profit_price;
+          existingPosition.update_time = update.update_time;
+        } else {
+          // New position detected, add it to the list
+          this.livePositions.push(update);
+        }
+      });
+      
+      // Sort positions to maintain consistent order
+      this.sortLivePositions();
+      this.lastPositionsUpdate = new Date();
+      
+      console.log(`Real-time update: ${positionData.pnl_updates.length} positions updated via WebSocket`);
+    }
+  }
+
+  private handlePositionStatusChange(statusData: PositionStatusData): void {
+    if (statusData.action === 'closed') {
+      // Remove closed position from the list
+      this.livePositions = this.livePositions.filter(pos => pos.symbol !== statusData.symbol);
+      
+      this.messageService.add({
+        severity: statusData.pnl && statusData.pnl > 0 ? 'success' : 'warn',
+        summary: 'Pozíció lezárva',
+        detail: `${statusData.symbol} pozíció automatikusan lezárva: ${statusData.reason || 'ismeretlen ok'}. P&L: $${statusData.pnl?.toFixed(2) || '0.00'}`,
+        life: 5000
+      });
+      
+      console.log(`Position ${statusData.symbol} closed via WebSocket:`, statusData);
+    } else if (statusData.action === 'opened') {
+      // Refresh positions to include the new one
+      this.loadLivePositions();
+      
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Új pozíció',
+        detail: `${statusData.symbol} pozíció megnyitva`,
+        life: 3000
+      });
+    }
+  }
+
+  private fallbackToPolling(): void {
+    // Fallback to periodic polling if WebSocket fails
+    console.warn('Falling back to polling for position updates');
+    
+    // Simple polling every 5 seconds as fallback
+    setTimeout(() => {
+      // Check if we should continue polling by subscribing to connection status
+      this.webSocketService.connectionStatus$.pipe(take(1)).subscribe(status => {
+        if (status !== 'connected') {
+          this.updatePositionsPnlFallback();
+          this.fallbackToPolling(); // Continue polling
+        }
+      });
+    }, 5000);
+  }
+
+  private updatePositionsPnlFallback(): void {
+    // Fallback P&L update using HTTP polling
     this.tradingService.getLivePositionsPnlOnly()
       .pipe(take(1))
       .subscribe({
         next: (response) => {
           if (response.success && response.data.pnl_updates) {
-            // Update only P&L values and exit prices in existing positions
             response.data.pnl_updates.forEach((update: any) => {
               const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
               if (existingPosition) {
-                // Force update with fresh Binance data - ensure perfect sync
                 existingPosition.mark_price = update.mark_price;
-                existingPosition.unrealized_pnl = update.unrealized_pnl; // Direct from Binance API
-                existingPosition.pnl_percentage = update.pnl_percentage; // Calculated from Binance P&L
+                existingPosition.unrealized_pnl = update.unrealized_pnl;
+                existingPosition.pnl_percentage = update.pnl_percentage;
                 existingPosition.stop_loss_price = update.stop_loss_price;
                 existingPosition.take_profit_price = update.take_profit_price;
                 existingPosition.update_time = update.update_time;
               }
             });
             this.lastPositionsUpdate = new Date();
-            
-            // Log for debugging sync issues
-            console.log('P&L updated from Binance:', response.data.pnl_updates.length, 'positions');
-          } else {
-            console.warn('No P&L updates received from Binance API');
+            console.log('Fallback P&L update:', response.data.pnl_updates.length, 'positions');
           }
         },
         error: (error) => {
-          console.error('Error updating P&L:', error);
-          // Fallback to full refresh if P&L-only fails
-          this.loadLivePositions();
+          console.error('Fallback P&L update error:', error);
         }
       });
   }
