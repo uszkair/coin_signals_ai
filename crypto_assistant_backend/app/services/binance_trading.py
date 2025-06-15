@@ -308,6 +308,37 @@ class BinanceTrader:
                     signal, position_size_usd, quantity, main_order, stop_loss_order, take_profit_order
                 )
             
+            # Send notification for new position
+            try:
+                from app.services.notification_service import notify_new_position
+                position_notification_data = {
+                    'symbol': symbol,
+                    'direction': direction,
+                    'quantity': quantity,
+                    'entry_price': main_order.get('price', entry_price),
+                    'position_size_usd': position_size_usd,
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit,
+                    'main_order_id': main_order.get('order_id'),
+                    'stop_loss_order_id': stop_loss_order.get('order_id'),
+                    'take_profit_order_id': take_profit_order.get('order_id'),
+                    'testnet': self.testnet,
+                    'confidence': confidence,
+                    'position_id': position_id
+                }
+                await notify_new_position(position_notification_data)
+                logger.info(f"✅ New position notification sent for {symbol}")
+            except Exception as notification_error:
+                logger.error(f"❌ Failed to send new position notification: {notification_error}")
+            
+            # Update position table
+            try:
+                from app.services.position_service import update_position_table
+                await update_position_table(position_notification_data)
+                logger.info(f"✅ Position table updated for {symbol}")
+            except Exception as table_error:
+                logger.error(f"❌ Failed to update position table: {table_error}")
+            
             return {
                 'success': True,
                 'position_id': position_id,
@@ -370,6 +401,32 @@ class BinanceTrader:
                     pnl_percentage,
                     reason
                 )
+                
+                # Send notification for closed position
+                try:
+                    from app.services.notification_service import notify_position_closed
+                    closed_position_data = {
+                        'symbol': symbol,
+                        'direction': direction,
+                        'entry_price': entry_price,
+                        'exit_price': exit_price,
+                        'pnl': pnl,
+                        'pnl_percentage': pnl_percentage,
+                        'reason': reason,
+                        'position_id': position_id
+                    }
+                    await notify_position_closed(closed_position_data)
+                    logger.info(f"✅ Position closed notification sent for {symbol}")
+                except Exception as notification_error:
+                    logger.error(f"❌ Failed to send position closed notification: {notification_error}")
+                
+                # Remove position from table
+                try:
+                    from app.services.position_service import remove_position_from_table
+                    await remove_position_from_table(closed_position_data)
+                    logger.info(f"✅ Position removed from table for {symbol}")
+                except Exception as table_error:
+                    logger.error(f"❌ Failed to remove position from table: {table_error}")
                 
                 # Remove from active positions
                 del self.active_positions[position_id]

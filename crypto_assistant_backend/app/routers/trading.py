@@ -311,6 +311,24 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
                         await DatabaseService.save_trading_performance(db, saved_signal.id, trade_data)
                         logger.info(f"✅ Emergency closed position saved to history: {symbol} - {trade_data['result']} - ${final_pnl:.2f}")
                         
+                        # Send notification for closed position
+                        try:
+                            from app.services.notification_service import notify_position_closed
+                            closed_position_data = {
+                                'symbol': symbol,
+                                'direction': position_side,
+                                'entry_price': entry_price,
+                                'exit_price': exit_price,
+                                'pnl': final_pnl,
+                                'pnl_percentage': final_pnl_percentage,
+                                'reason': reason,
+                                'position_id': f"{symbol}_emergency"
+                            }
+                            await notify_position_closed(closed_position_data, db)
+                            logger.info(f"✅ Emergency position closed notification sent for {symbol}")
+                        except Exception as notification_error:
+                            logger.error(f"❌ Failed to send emergency position closed notification: {notification_error}")
+                        
                     except Exception as db_error:
                         logger.error(f"Error saving emergency closed position to database: {db_error}")
                         # Don't fail the entire operation if database save fails
@@ -2003,6 +2021,28 @@ async def debug_position_orders(symbol: str):
             "success": True,
             "data": debug_info
         }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/positions/refresh-table")
+async def refresh_position_table():
+    """Refresh the position table with current data"""
+    try:
+        from app.services.position_service import refresh_position_table
+        result = await refresh_position_table()
+        
+        if result:
+            return {
+                "success": True,
+                "message": "Position table refreshed successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Failed to refresh position table"
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

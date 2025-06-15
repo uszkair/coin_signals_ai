@@ -31,6 +31,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/backtest/backtest.component').then(m => m.BacktestComponent)
   },
   {
+    path: 'notifications',
+    loadComponent: () => import('./pages/notifications/notifications.component').then(m => m.NotificationsComponent)
+  },
+  {
     path: '**',
     redirectTo: '/dashboard'
   }

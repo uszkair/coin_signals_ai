@@ -5,6 +5,7 @@ import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { AIService, SmartAlert } from '../../services/ai.service';
+import { NotificationService, TradingNotification } from '../../services/notification.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -15,14 +16,29 @@ import { Subscription } from 'rxjs';
 })
 export class SmartNotificationsComponent implements OnInit, OnDestroy {
   alerts: SmartAlert[] = [];
+  tradingNotifications: TradingNotification[] = [];
   private subscription = new Subscription();
 
-  constructor(private aiService: AIService) {}
+  constructor(
+    private aiService: AIService,
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.subscription.add(
       this.aiService.smartAlerts$.subscribe(alerts => {
         this.alerts = alerts;
+      })
+    );
+
+    // Subscribe to trading notifications (show only recent unread ones)
+    this.subscription.add(
+      this.notificationService.notifications$.subscribe(notifications => {
+        // Show only unread notifications from the last hour
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        this.tradingNotifications = notifications
+          .filter(n => !n.is_read && new Date(n.created_at) > oneHourAgo)
+          .slice(0, 3); // Show max 3 recent notifications
       })
     );
   }
@@ -37,6 +53,16 @@ export class SmartNotificationsComponent implements OnInit, OnDestroy {
 
   clearAllAlerts(): void {
     this.aiService.clearAllAlerts();
+  }
+
+  dismissTradingNotification(notification: TradingNotification): void {
+    this.notificationService.markNotificationAsRead(notification.id);
+  }
+
+  clearAllTradingNotifications(): void {
+    this.tradingNotifications.forEach(notification => {
+      this.notificationService.markNotificationAsRead(notification.id);
+    });
   }
 
   getSeverityColor(severity: string): string {
@@ -121,6 +147,66 @@ export class SmartNotificationsComponent implements OnInit, OnDestroy {
         return 'Trading Opportunity';
       default:
         return 'Smart Alert';
+    }
+  }
+
+  getTradingNotificationIcon(type: string): string {
+    switch (type) {
+      case 'new_position':
+        return 'pi-plus-circle';
+      case 'position_closed':
+        return 'pi-check-circle';
+      case 'trade_error':
+        return 'pi-exclamation-triangle';
+      case 'position_update':
+        return 'pi-refresh';
+      default:
+        return 'pi-bell';
+    }
+  }
+
+  getTradingNotificationTitle(type: string): string {
+    switch (type) {
+      case 'new_position':
+        return 'Új pozíció';
+      case 'position_closed':
+        return 'Pozíció lezárva';
+      case 'trade_error':
+        return 'Kereskedési hiba';
+      case 'position_update':
+        return 'Pozíció frissítés';
+      default:
+        return 'Értesítés';
+    }
+  }
+
+  getTradingNotificationColor(priority: string): string {
+    switch (priority) {
+      case 'critical':
+        return 'border-red-200 bg-red-50';
+      case 'high':
+        return 'border-orange-200 bg-orange-50';
+      case 'medium':
+        return 'border-blue-200 bg-blue-50';
+      case 'low':
+        return 'border-gray-200 bg-gray-50';
+      default:
+        return 'border-gray-200 bg-gray-50';
+    }
+  }
+
+  getTradingNotificationTextColor(priority: string): string {
+    switch (priority) {
+      case 'critical':
+        return 'text-red-800';
+      case 'high':
+        return 'text-orange-800';
+      case 'medium':
+        return 'text-blue-800';
+      case 'low':
+        return 'text-gray-800';
+      default:
+        return 'text-gray-800';
     }
   }
 }

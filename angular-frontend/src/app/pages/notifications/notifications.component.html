@@ -1,0 +1,259 @@
+<div class="p-6 max-w-7xl mx-auto">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+        <i class="pi pi-bell mr-2"></i>
+        Értesítések
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400 mt-1">
+        Kereskedési értesítések és pozíció frissítések
+      </p>
+    </div>
+    
+    <div class="flex items-center space-x-3">
+      <p-button
+        *ngIf="unreadCount > 0"
+        (onClick)="markAllAsRead()"
+        label="Összes olvasottnak jelölés"
+        icon="pi pi-check"
+        severity="secondary"
+        size="small">
+      </p-button>
+      
+      <p-button
+        (onClick)="cleanupOldNotifications()"
+        label="Régi törlése"
+        icon="pi pi-trash"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        pTooltip="7 napnál régebbi olvasott értesítések törlése">
+      </p-button>
+      
+      <p-button
+        (onClick)="loadData()"
+        icon="pi pi-refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        pTooltip="Frissítés">
+      </p-button>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div *ngIf="stats" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <p-card styleClass="text-center">
+      <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+        {{ stats.total_notifications }}
+      </div>
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        Összes értesítés
+      </div>
+    </p-card>
+    
+    <p-card styleClass="text-center">
+      <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
+        {{ stats.unread_notifications }}
+      </div>
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        Olvasatlan
+      </div>
+    </p-card>
+    
+    <p-card styleClass="text-center">
+      <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+        {{ stats.read_notifications }}
+      </div>
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        Olvasott
+      </div>
+    </p-card>
+    
+    <p-card styleClass="text-center">
+      <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
+        {{ stats.by_type['new_position'] || 0 }}
+      </div>
+      <div class="text-sm text-gray-600 dark:text-gray-400">
+        Új pozíciók
+      </div>
+    </p-card>
+  </div>
+
+  <!-- Filters -->
+  <p-card styleClass="mb-6">
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="flex items-center space-x-2">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Típus:</label>
+        <p-dropdown
+          [(ngModel)]="selectedType"
+          [options]="typeOptions"
+          optionLabel="label"
+          placeholder="Válassz típust"
+          (onChange)="onFilterChange()"
+          styleClass="w-48">
+        </p-dropdown>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Prioritás:</label>
+        <p-dropdown
+          [(ngModel)]="selectedPriority"
+          [options]="priorityOptions"
+          optionLabel="label"
+          placeholder="Válassz prioritást"
+          (onChange)="onFilterChange()"
+          styleClass="w-48">
+        </p-dropdown>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <p-button
+          [label]="showUnreadOnly ? 'Csak olvasatlanok' : 'Összes'"
+          [icon]="showUnreadOnly ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          [severity]="showUnreadOnly ? 'info' : 'secondary'"
+          [outlined]="!showUnreadOnly"
+          size="small"
+          (onClick)="toggleUnreadFilter()">
+        </p-button>
+      </div>
+    </div>
+  </p-card>
+
+  <!-- Notifications Table -->
+  <p-card>
+    <p-table 
+      [value]="notifications" 
+      [loading]="loading"
+      [paginator]="true" 
+      [rows]="20"
+      [rowsPerPageOptions]="[10, 20, 50]"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Megjelenítve {first} - {last} / {totalRecords} értesítés"
+      [globalFilterFields]="['title', 'message', 'notification_type']"
+      styleClass="p-datatable-sm">
+      
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 3rem">
+            <i class="pi pi-bell"></i>
+          </th>
+          <th>Típus</th>
+          <th>Cím</th>
+          <th>Üzenet</th>
+          <th>Prioritás</th>
+          <th>Időpont</th>
+          <th>Állapot</th>
+          <th style="width: 8rem">Műveletek</th>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="body" let-notification let-rowIndex="rowIndex">
+        <tr [ngClass]="getRowClass(notification)">
+          <td>
+            <i [class]="getNotificationIcon(notification.notification_type)" 
+               [ngClass]="{
+                 'text-red-500': notification.priority === 'critical',
+                 'text-orange-500': notification.priority === 'high',
+                 'text-blue-500': notification.priority === 'medium',
+                 'text-gray-500': notification.priority === 'low'
+               }"></i>
+          </td>
+          
+          <td>
+            <p-tag 
+              [value]="getTypeLabel(notification.notification_type)"
+              [severity]="getNotificationColor(notification.priority)"
+              [icon]="getNotificationIcon(notification.notification_type)">
+            </p-tag>
+          </td>
+          
+          <td>
+            <div class="font-medium">{{ notification.title }}</div>
+            <div *ngIf="notification.data?.symbol" class="text-sm text-gray-500">
+              {{ notification.data.symbol }}
+            </div>
+          </td>
+          
+          <td>
+            <div class="max-w-md">
+              {{ notification.message }}
+              <div *ngIf="notification.data?.pnl !== undefined" class="text-sm mt-1">
+                <span [ngClass]="{
+                  'text-green-600': notification.data.pnl > 0,
+                  'text-red-600': notification.data.pnl < 0,
+                  'text-gray-600': notification.data.pnl === 0
+                }">
+                  P&L: {{ formatCurrency(notification.data.pnl) }}
+                </span>
+              </div>
+            </div>
+          </td>
+          
+          <td>
+            <p-tag 
+              [value]="getPriorityLabel(notification.priority)"
+              [severity]="getNotificationColor(notification.priority)">
+            </p-tag>
+          </td>
+          
+          <td>
+            <div class="text-sm">
+              {{ formatTimeAgo(notification.created_at) }}
+            </div>
+            <div class="text-xs text-gray-500">
+              {{ notification.created_at | date:'short':'hu' }}
+            </div>
+          </td>
+          
+          <td>
+            <div class="flex items-center">
+              <i *ngIf="notification.is_read" 
+                 class="pi pi-check-circle text-green-500 mr-1"></i>
+              <i *ngIf="!notification.is_read" 
+                 class="pi pi-circle text-gray-400 mr-1"></i>
+              <span class="text-sm">
+                {{ notification.is_read ? 'Olvasott' : 'Olvasatlan' }}
+              </span>
+            </div>
+          </td>
+          
+          <td>
+            <div class="flex space-x-1">
+              <p-button
+                *ngIf="!notification.is_read"
+                (onClick)="markAsRead(notification)"
+                icon="pi pi-check"
+                size="small"
+                severity="secondary"
+                [outlined]="true"
+                pTooltip="Olvasottnak jelölés">
+              </p-button>
+              
+              <p-button
+                icon="pi pi-info-circle"
+                size="small"
+                severity="info"
+                [outlined]="true"
+                pTooltip="Részletek">
+              </p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+      
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="8" class="text-center py-8">
+            <div class="text-gray-500 dark:text-gray-400">
+              <i class="pi pi-bell text-4xl mb-4 block"></i>
+              <p class="text-lg font-medium">Nincsenek értesítések</p>
+              <p class="text-sm">Az új kereskedési értesítések itt fognak megjelenni.</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-card>
+</div>

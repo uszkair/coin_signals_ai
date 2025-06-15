@@ -27,6 +27,21 @@
       </a>
       
       <a
+        routerLink="/notifications"
+        routerLinkActive="bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300"
+        class="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      >
+        <div class="flex items-center">
+          <i class="pi pi-bell mr-3"></i>
+          Értesítések
+        </div>
+        <span *ngIf="unreadCount > 0"
+              class="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+          {{ unreadCount }}
+        </span>
+      </a>
+      
+      <a
         routerLink="/portfolio"
         routerLinkActive="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
         class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

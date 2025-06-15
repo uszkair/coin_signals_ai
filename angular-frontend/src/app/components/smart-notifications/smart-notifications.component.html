@@ -1,7 +1,9 @@
-<!-- Smart Notifications Panel - Only show when there are active alerts -->
+<!-- Smart Notifications Panel - Show when there are active alerts only (trading notifications disabled) -->
 <div *ngIf="alerts.length > 0" class="fixed top-20 right-4 w-80 space-y-3 z-40 max-h-96 overflow-y-auto">
   
-  <!-- Alert Cards -->
+  <!-- Trading Notifications - DISABLED -->
+  
+  <!-- AI Alert Cards -->
   <p-card
     *ngFor="let alert of alerts; let i = index"
     [style]="{'padding': '0'}"
@@ -77,10 +79,11 @@
   </p-card>
   
   <!-- Clear All Button -->
-  <div *ngIf="alerts.length > 1" class="text-center pt-2">
+  <div *ngIf="alerts.length > 1" class="text-center pt-2 space-y-2">
     <p-button
+      *ngIf="alerts.length > 1"
       (onClick)="clearAllAlerts()"
-      label="Clear all notifications"
+      label="Clear all AI alerts"
       [text]="true"
       size="small"
       severity="secondary">

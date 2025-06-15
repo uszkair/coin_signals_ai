@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
 
-from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest, settings
+from app.routers import signal, history, portfolio, ai, trading, ml_ai, auto_trading, websocket, backtest, settings, notifications
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +33,7 @@ app.include_router(auto_trading.router)  # Auto-trading endpoints
 app.include_router(websocket.router)  # WebSocket endpoints
 app.include_router(backtest.router)  # Backtest endpoints
 app.include_router(settings.router)  # Settings endpoints
+app.include_router(notifications.router, prefix="/api/notifications")  # Notifications endpoints
 
 
 @app.on_event("startup")
