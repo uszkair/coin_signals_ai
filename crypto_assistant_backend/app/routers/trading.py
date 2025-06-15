@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 _pnl_cache = {
     'data': None,
     'timestamp': 0,
-    'cache_duration': 2  # Cache for 2 seconds
+    'cache_duration': 0.5  # Cache for 0.5 seconds for better sync
 }
 
 from app.services.binance_trading import (
@@ -1438,17 +1438,11 @@ async def get_live_positions():
 
 @router.get("/live-positions/pnl-only")
 async def get_live_positions_pnl_only():
-    """Get only P&L data and exit prices for live positions (cached for speed)"""
+    """Get only P&L data and exit prices for live positions (NO CACHE for perfect sync)"""
     try:
-        # Check cache first
+        # DISABLE CACHE for perfect Binance synchronization
         current_time = time.time()
-        if (_pnl_cache['data'] is not None and
-            current_time - _pnl_cache['timestamp'] < _pnl_cache['cache_duration']):
-            # Return cached data with updated timestamp
-            cached_response = _pnl_cache['data'].copy()
-            cached_response['data']['timestamp'] = int(current_time * 1000)
-            cached_response['data']['from_cache'] = True
-            return cached_response
+        # Skip cache check - always get fresh data from Binance
         
         trader = initialize_global_trader()
         
@@ -1579,21 +1573,19 @@ async def get_live_positions_pnl_only():
                     "error": f"Failed to get Futures P&L data: {str(e)}"
                 }
         
-        # Prepare response
+        # Prepare response (NO CACHE for perfect sync)
         response = {
             "success": True,
             "data": {
                 "pnl_updates": pnl_updates,
                 "count": len(pnl_updates),
                 "timestamp": int(time.time() * 1000),
-                "from_cache": False
+                "from_cache": False,
+                "fresh_from_binance": True  # Always fresh data
             }
         }
         
-        # Cache the response
-        _pnl_cache['data'] = response.copy()
-        _pnl_cache['timestamp'] = current_time
-        
+        # NO CACHE - always return fresh Binance data for perfect synchronization
         return response
         
     except Exception as e:

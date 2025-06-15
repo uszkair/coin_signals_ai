@@ -330,6 +330,11 @@ export class HistoryComponent implements OnInit, OnDestroy {
             this.sortLivePositions();
             this.lastPositionsUpdate = new Date();
             this.livePositionsError = null;
+            
+            // Immediately update with fresh P&L data for perfect sync
+            setTimeout(() => {
+              this.updatePositionsPnl();
+            }, 100); // Small delay to ensure positions are loaded
           } else {
             this.livePositions = [];
             this.livePositionsError = response.error || 'Failed to load live positions';
@@ -345,8 +350,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
   }
 
   private startSmartPnlRefresh(): void {
-    // Smart P&L refresh: only update changing values every 3 seconds
-    interval(3000)
+    // Smart P&L refresh: only update changing values every 1 second for better sync
+    interval(1000)
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.updatePositionsPnl();
@@ -364,16 +369,21 @@ export class HistoryComponent implements OnInit, OnDestroy {
             response.data.pnl_updates.forEach((update: any) => {
               const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
               if (existingPosition) {
-                // Smoothly update only the changing values
+                // Force update with fresh Binance data - ensure perfect sync
                 existingPosition.mark_price = update.mark_price;
-                existingPosition.unrealized_pnl = update.unrealized_pnl;
-                existingPosition.pnl_percentage = update.pnl_percentage;
+                existingPosition.unrealized_pnl = update.unrealized_pnl; // Direct from Binance API
+                existingPosition.pnl_percentage = update.pnl_percentage; // Calculated from Binance P&L
                 existingPosition.stop_loss_price = update.stop_loss_price;
                 existingPosition.take_profit_price = update.take_profit_price;
                 existingPosition.update_time = update.update_time;
               }
             });
             this.lastPositionsUpdate = new Date();
+            
+            // Log for debugging sync issues
+            console.log('P&L updated from Binance:', response.data.pnl_updates.length, 'positions');
+          } else {
+            console.warn('No P&L updates received from Binance API');
           }
         },
         error: (error) => {
@@ -386,6 +396,54 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
   refreshLivePositions(): void {
     this.loadLivePositions();
+  }
+
+  forceSyncWithBinance(): void {
+    // Force immediate sync with Binance by clearing any cache and refreshing
+    this.loadingLivePositions = true;
+    this.livePositionsError = null;
+    
+    // First get fresh P&L data
+    this.tradingService.getLivePositionsPnlOnly()
+      .pipe(take(1))
+      .subscribe({
+        next: (pnlResponse) => {
+          if (pnlResponse.success && pnlResponse.data.pnl_updates) {
+            // Update P&L immediately
+            pnlResponse.data.pnl_updates.forEach((update: any) => {
+              const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
+              if (existingPosition) {
+                existingPosition.mark_price = update.mark_price;
+                existingPosition.unrealized_pnl = update.unrealized_pnl;
+                existingPosition.pnl_percentage = update.pnl_percentage;
+                existingPosition.stop_loss_price = update.stop_loss_price;
+                existingPosition.take_profit_price = update.take_profit_price;
+                existingPosition.update_time = update.update_time;
+              }
+            });
+            
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Szinkronizáció sikeres',
+              detail: `${pnlResponse.data.pnl_updates.length} pozíció frissítve a Binance adatokkal`,
+              life: 3000
+            });
+          }
+          
+          // Then refresh full positions to ensure complete sync
+          this.loadLivePositions();
+        },
+        error: (error) => {
+          this.loadingLivePositions = false;
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Szinkronizációs hiba',
+            detail: 'Nem sikerült szinkronizálni a Binance-szel',
+            life: 5000
+          });
+          console.error('Force sync error:', error);
+        }
+      });
   }
 
   emergencyStopAllPositions(): void {

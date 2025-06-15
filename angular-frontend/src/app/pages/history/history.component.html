@@ -205,12 +205,25 @@
                 (onClick)="refreshLivePositions()"
                 [loading]="loadingLivePositions"
               ></p-button>
+              
+              <p-button
+                icon="pi pi-sync"
+                label="🔄 Binance Szinkronizáció"
+                size="small"
+                severity="info"
+                (onClick)="forceSyncWithBinance()"
+                [loading]="loadingLivePositions"
+                pTooltip="Azonnali szinkronizáció a Binance-szel a pontos P&L értékekért"
+                tooltipPosition="top"
+                class="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 text-white"
+              ></p-button>
+              
               <div *ngIf="lastPositionsUpdate" class="text-sm text-gray-500 dark:text-gray-400">
                 Utolsó frissítés: {{ lastPositionsUpdate | date:'HH:mm:ss' }}
               </div>
               <div class="flex items-center text-sm">
                 <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                <span class="text-gray-600 dark:text-gray-400">3 másodpercenként frissül</span>
+                <span class="text-gray-600 dark:text-gray-400">1 másodpercenként frissül</span>
               </div>
             </div>
             
