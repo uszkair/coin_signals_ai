@@ -12,12 +12,6 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# Cache for P&L data to improve performance
-_pnl_cache = {
-    'data': None,
-    'timestamp': 0,
-    'cache_duration': 0.5  # Cache for 0.5 seconds for better sync
-}
 
 from app.services.binance_trading import (
     execute_automatic_trade,
@@ -1438,12 +1432,8 @@ async def get_live_positions():
 
 @router.get("/live-positions/pnl-only")
 async def get_live_positions_pnl_only():
-    """Get only P&L data and exit prices for live positions (NO CACHE for perfect sync)"""
+    """Get only P&L data and exit prices for live positions with fresh Binance data"""
     try:
-        # DISABLE CACHE for perfect Binance synchronization
-        current_time = time.time()
-        # Skip cache check - always get fresh data from Binance
-        
         trader = initialize_global_trader()
         
         if not trader.client:
@@ -1573,20 +1563,14 @@ async def get_live_positions_pnl_only():
                     "error": f"Failed to get Futures P&L data: {str(e)}"
                 }
         
-        # Prepare response (NO CACHE for perfect sync)
-        response = {
+        return {
             "success": True,
             "data": {
                 "pnl_updates": pnl_updates,
                 "count": len(pnl_updates),
-                "timestamp": int(time.time() * 1000),
-                "from_cache": False,
-                "fresh_from_binance": True  # Always fresh data
+                "timestamp": int(time.time() * 1000)
             }
         }
-        
-        # NO CACHE - always return fresh Binance data for perfect synchronization
-        return response
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

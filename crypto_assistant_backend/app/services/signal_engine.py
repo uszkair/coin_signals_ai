@@ -3,9 +3,12 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import random
+import logging
 from app.utils.price_data import get_historical_data, get_current_price
 from app.services.trading_settings_service import get_trading_settings_service
 from app.database import get_db
+
+logger = logging.getLogger(__name__)
 
 class TradeResult:
     def __init__(self, entry_price: float, stop_loss: float, take_profit: float, 
@@ -432,10 +435,29 @@ async def get_current_signal(symbol: str, interval: str):
     except:
         atr = latest["high"] - latest["low"]
     
-    # Calculate stop loss and take profit levels for live trading
-    sl_distance = atr * 1.0
-    tp_distance = sl_distance * 2.0
+    # Get user settings for stop loss and take profit calculation
+    try:
+        db = next(get_db())
+        settings_service = get_trading_settings_service(db)
+        sl_tp_settings = settings_service.get_stop_loss_take_profit_settings()
+        
+        if sl_tp_settings['use_atr_based_sl_tp']:
+            # Use ATR-based calculation with user-defined multipliers
+            sl_distance = atr * sl_tp_settings['atr_multiplier_sl']
+            tp_distance = atr * sl_tp_settings['atr_multiplier_tp']
+        else:
+            # Use percentage-based calculation
+            sl_distance = entry_price * sl_tp_settings['stop_loss_percentage']
+            tp_distance = entry_price * sl_tp_settings['take_profit_percentage']
+        
+        db.close()
+    except Exception as e:
+        logger.warning(f"Could not get user settings, using defaults: {e}")
+        # Fallback to default values
+        sl_distance = atr * 1.0
+        tp_distance = atr * 2.0
     
+    # Calculate stop loss and take profit levels for live trading
     if direction == "BUY":
         stop_loss = entry_price - sl_distance
         take_profit = entry_price + tp_distance

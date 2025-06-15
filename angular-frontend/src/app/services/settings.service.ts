@@ -150,6 +150,19 @@ export class SettingsService {
     return this.updateCategorySettings('trading_environment', settings);
   }
 
+  // Stop Loss/Take Profit Settings
+  getStopLossTakeProfitSettings(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/stop-loss-take-profit`);
+  }
+
+  updateStopLossTakeProfitSettings(settings: any): Observable<any> {
+    const request = this.http.put(`${this.apiUrl}/stop-loss-take-profit`, settings);
+    request.subscribe(() => {
+      this.loadSettings(); // Reload settings after update
+    });
+    return request;
+  }
+
   // Get current settings from cache
   getCurrentSettings(): any {
     return this.settingsSubject.value;

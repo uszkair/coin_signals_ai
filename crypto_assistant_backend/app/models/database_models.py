@@ -184,6 +184,13 @@ class TradingSettings(Base):
     max_daily_trades = Column(Integer, default=10)
     daily_loss_limit = Column(DECIMAL(5, 4), default=0.05)  # 5% default
     
+    # Stop Loss and Take Profit settings (percentage based)
+    stop_loss_percentage = Column(DECIMAL(5, 4), default=0.02)  # 2% default
+    take_profit_percentage = Column(DECIMAL(5, 4), default=0.04)  # 4% default
+    use_atr_based_sl_tp = Column(Boolean, default=False)  # Use ATR or percentage
+    atr_multiplier_sl = Column(DECIMAL(5, 2), default=1.0)  # ATR multiplier for stop loss
+    atr_multiplier_tp = Column(DECIMAL(5, 2), default=2.0)  # ATR multiplier for take profit
+    
     # Trading environment
     testnet_mode = Column(Boolean, default=True)
     use_futures = Column(Boolean, default=True)
@@ -319,6 +326,11 @@ class TradingSettings(Base):
             "default_position_size_usd": float(self.default_position_size_usd) if self.default_position_size_usd else None,
             "max_daily_trades": self.max_daily_trades,
             "daily_loss_limit": float(self.daily_loss_limit) if self.daily_loss_limit else 0.05,
+            "stop_loss_percentage": float(self.stop_loss_percentage) if self.stop_loss_percentage else 0.02,
+            "take_profit_percentage": float(self.take_profit_percentage) if self.take_profit_percentage else 0.04,
+            "use_atr_based_sl_tp": self.use_atr_based_sl_tp,
+            "atr_multiplier_sl": float(self.atr_multiplier_sl) if self.atr_multiplier_sl else 1.0,
+            "atr_multiplier_tp": float(self.atr_multiplier_tp) if self.atr_multiplier_tp else 2.0,
             "testnet_mode": self.testnet_mode,
             "use_futures": self.use_futures,
             "technical_indicator_weights": self.technical_indicator_weights or {},

@@ -157,6 +157,19 @@ export class SettingsComponent implements OnInit {
     }
   };
 
+  // Stop Loss/Take Profit Settings
+  stopLossTakeProfitSettings = {
+    stop_loss_percentage: 0.05,  // 5%
+    take_profit_percentage: 0.10, // 10%
+    use_atr_based_sl_tp: false,
+    atr_multiplier_sl: 1.5,
+    atr_multiplier_tp: 2.0
+  };
+
+  // Display values for percentage inputs (converted to percentage for UI)
+  stopLossPercentageDisplay: number = 5.0;
+  takeProfitPercentageDisplay: number = 10.0;
+
   // Loading states for new settings
   loadingTechnicalSettings = false;
   savingTechnicalSettings = false;
@@ -164,6 +177,8 @@ export class SettingsComponent implements OnInit {
   savingAIMLSettings = false;
   loadingNotificationSettings = false;
   savingNotificationSettings = false;
+  loadingStopLossTakeProfit = false;
+  savingStopLossTakeProfit = false;
 
   // Dropdown options
   maTypeOptions = [
@@ -196,6 +211,7 @@ export class SettingsComponent implements OnInit {
     this.loadTradingMode();
     this.loadTradingEnvironment();
     this.loadAdvancedSettings();
+    this.loadStopLossTakeProfitSettings();
   }
 
   loadAllConfigs(): void {
@@ -882,6 +898,86 @@ export class SettingsComponent implements OnInit {
   resetTradingEnvironmentSettings(): void {
     this.useTestnet = true;
     this.showSuccess('Alaphelyzetbe állítva', 'A kereskedési környezet visszaállítva testnet módra');
+  }
+
+  // Stop Loss/Take Profit Settings Methods
+  loadStopLossTakeProfitSettings(): void {
+    this.loadingStopLossTakeProfit = true;
+    
+    this.settingsService.getStopLossTakeProfitSettings().subscribe({
+      next: (response) => {
+        this.loadingStopLossTakeProfit = false;
+        if (response.success) {
+          const data = response.data;
+          this.stopLossTakeProfitSettings = {
+            stop_loss_percentage: data.stop_loss_percentage || 0.05,
+            take_profit_percentage: data.take_profit_percentage || 0.10,
+            use_atr_based_sl_tp: data.use_atr_based_sl_tp || false,
+            atr_multiplier_sl: data.atr_multiplier_sl || 1.5,
+            atr_multiplier_tp: data.atr_multiplier_tp || 2.0
+          };
+          
+          // Update display values (convert to percentage)
+          this.stopLossPercentageDisplay = this.stopLossTakeProfitSettings.stop_loss_percentage * 100;
+          this.takeProfitPercentageDisplay = this.stopLossTakeProfitSettings.take_profit_percentage * 100;
+        }
+      },
+      error: (error) => {
+        this.loadingStopLossTakeProfit = false;
+        this.showError('Stop Loss/Take Profit beállítások betöltése sikertelen', error.message);
+      }
+    });
+  }
+
+  onStopLossTakeProfitModeChange(): void {
+    // This method is called when the radio button selection changes
+    console.log('Stop Loss/Take Profit mode changed to:', this.stopLossTakeProfitSettings.use_atr_based_sl_tp ? 'ATR' : 'Percentage');
+  }
+
+  saveStopLossTakeProfitSettings(): void {
+    this.savingStopLossTakeProfit = true;
+
+    // Convert percentage display values back to decimal
+    const settingsToSave = {
+      stop_loss_percentage: this.stopLossPercentageDisplay / 100,
+      take_profit_percentage: this.takeProfitPercentageDisplay / 100,
+      use_atr_based_sl_tp: this.stopLossTakeProfitSettings.use_atr_based_sl_tp,
+      atr_multiplier_sl: this.stopLossTakeProfitSettings.atr_multiplier_sl,
+      atr_multiplier_tp: this.stopLossTakeProfitSettings.atr_multiplier_tp
+    };
+
+    this.settingsService.updateStopLossTakeProfitSettings(settingsToSave).subscribe({
+      next: (response) => {
+        this.savingStopLossTakeProfit = false;
+        if (response.success) {
+          // Update local settings
+          this.stopLossTakeProfitSettings = settingsToSave;
+          this.showSuccess('Stop Loss/Take Profit beállítások mentve', 'A beállítások sikeresen frissítve');
+        } else {
+          this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.savingStopLossTakeProfit = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+      }
+    });
+  }
+
+  resetStopLossTakeProfitSettings(): void {
+    this.stopLossTakeProfitSettings = {
+      stop_loss_percentage: 0.05,  // 5%
+      take_profit_percentage: 0.10, // 10%
+      use_atr_based_sl_tp: false,
+      atr_multiplier_sl: 1.5,
+      atr_multiplier_tp: 2.0
+    };
+
+    // Update display values
+    this.stopLossPercentageDisplay = 5.0;
+    this.takeProfitPercentageDisplay = 10.0;
+
+    this.showSuccess('Alaphelyzetbe állítva', 'A Stop Loss/Take Profit beállítások visszaállítva az alapértékekre');
   }
 
 }

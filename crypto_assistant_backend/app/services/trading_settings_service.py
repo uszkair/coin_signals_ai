@@ -71,14 +71,24 @@ class TradingSettingsService:
                 'use_futures': getattr(settings, 'use_futures', False),
                 'max_daily_trades': getattr(settings, 'max_daily_trades', 10),
                 'daily_loss_limit': getattr(settings, 'daily_loss_limit', 0.05),
-                'max_position_size': getattr(settings, 'max_position_size', 0.02)
+                'max_position_size': getattr(settings, 'max_position_size', 0.02),
+                'stop_loss_percentage': getattr(settings, 'stop_loss_percentage', 0.02),
+                'take_profit_percentage': getattr(settings, 'take_profit_percentage', 0.04),
+                'use_atr_based_sl_tp': getattr(settings, 'use_atr_based_sl_tp', False),
+                'atr_multiplier_sl': getattr(settings, 'atr_multiplier_sl', 1.0),
+                'atr_multiplier_tp': getattr(settings, 'atr_multiplier_tp', 2.0)
             }
         return {
             'testnet_mode': True,
             'use_futures': False,
             'max_daily_trades': 10,
             'daily_loss_limit': 0.05,
-            'max_position_size': 0.02
+            'max_position_size': 0.02,
+            'stop_loss_percentage': 0.02,
+            'take_profit_percentage': 0.04,
+            'use_atr_based_sl_tp': False,
+            'atr_multiplier_sl': 1.0,
+            'atr_multiplier_tp': 2.0
         }
     
     def update_risk_management_settings(self, settings_data: Dict[str, Any], user_id: str = "default"):
@@ -293,6 +303,43 @@ class TradingSettingsService:
             'language': 'hu',
             'decimal_places': 6
         }
+    
+    def get_stop_loss_take_profit_settings(self, user_id: str = "default") -> Dict[str, Any]:
+        """Get stop loss and take profit settings"""
+        settings = self.get_settings(user_id)
+        if settings:
+            return {
+                'stop_loss_percentage': float(getattr(settings, 'stop_loss_percentage', 0.02)),
+                'take_profit_percentage': float(getattr(settings, 'take_profit_percentage', 0.04)),
+                'use_atr_based_sl_tp': getattr(settings, 'use_atr_based_sl_tp', False),
+                'atr_multiplier_sl': float(getattr(settings, 'atr_multiplier_sl', 1.0)),
+                'atr_multiplier_tp': float(getattr(settings, 'atr_multiplier_tp', 2.0))
+            }
+        return {
+            'stop_loss_percentage': 0.02,
+            'take_profit_percentage': 0.04,
+            'use_atr_based_sl_tp': False,
+            'atr_multiplier_sl': 1.0,
+            'atr_multiplier_tp': 2.0
+        }
+    
+    def update_stop_loss_take_profit_settings(self, settings_data: Dict[str, Any], user_id: str = "default"):
+        """Update stop loss and take profit settings"""
+        # Map the settings to the correct database column names
+        db_settings = {}
+        
+        if 'stop_loss_percentage' in settings_data:
+            db_settings['stop_loss_percentage'] = settings_data['stop_loss_percentage']
+        if 'take_profit_percentage' in settings_data:
+            db_settings['take_profit_percentage'] = settings_data['take_profit_percentage']
+        if 'use_atr_based_sl_tp' in settings_data:
+            db_settings['use_atr_based_sl_tp'] = settings_data['use_atr_based_sl_tp']
+        if 'atr_multiplier_sl' in settings_data:
+            db_settings['atr_multiplier_sl'] = settings_data['atr_multiplier_sl']
+        if 'atr_multiplier_tp' in settings_data:
+            db_settings['atr_multiplier_tp'] = settings_data['atr_multiplier_tp']
+        
+        return self.update_settings(user_id, db_settings)
 
 
 # Helper function to get settings service instance

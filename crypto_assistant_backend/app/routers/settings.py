@@ -61,7 +61,7 @@ async def get_settings_category(
             "technical_analysis": ["rsi_settings", "macd_settings", "bollinger_settings", "ma_settings", "volume_settings", "candlestick_settings"],
             "ai_ml": "ai_ml_settings",
             "auto_trading": ["auto_trading_enabled", "monitored_symbols", "check_interval", "min_signal_confidence"],
-            "risk_management": ["max_daily_trades", "daily_loss_limit", "position_size_mode", "max_position_size", "default_position_size_usd"],
+            "risk_management": ["max_daily_trades", "daily_loss_limit", "position_size_mode", "max_position_size", "default_position_size_usd", "stop_loss_percentage", "take_profit_percentage", "use_atr_based_sl_tp", "atr_multiplier_sl", "atr_multiplier_tp"],
             "notifications": "notification_settings",
             "backtesting": "backtest_settings",
             "data_history": "data_history_settings",
@@ -106,7 +106,7 @@ async def update_settings_category(
             "technical_analysis": ["rsi_settings", "macd_settings", "bollinger_settings", "ma_settings", "volume_settings", "candlestick_settings"],
             "ai_ml": "ai_ml_settings",
             "auto_trading": ["auto_trading_enabled", "monitored_symbols", "check_interval", "min_signal_confidence"],
-            "risk_management": ["max_daily_trades", "daily_loss_limit", "position_size_mode", "max_position_size", "default_position_size_usd"],
+            "risk_management": ["max_daily_trades", "daily_loss_limit", "position_size_mode", "max_position_size", "default_position_size_usd", "stop_loss_percentage", "take_profit_percentage", "use_atr_based_sl_tp", "atr_multiplier_sl", "atr_multiplier_tp"],
             "notifications": "notification_settings",
             "backtesting": "backtest_settings",
             "data_history": "data_history_settings",
@@ -164,6 +164,11 @@ async def get_default_settings():
             "default_position_size_usd": None,
             "max_daily_trades": 10,
             "daily_loss_limit": 0.05,
+            "stop_loss_percentage": 0.02,
+            "take_profit_percentage": 0.04,
+            "use_atr_based_sl_tp": False,
+            "atr_multiplier_sl": 1.0,
+            "atr_multiplier_tp": 2.0,
             "testnet_mode": True,
             "use_futures": True,
             "technical_indicator_weights": {
@@ -269,4 +274,37 @@ async def get_default_settings():
         return defaults
     except Exception as e:
         logger.error(f"Error getting default settings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/stop-loss-take-profit")
+async def get_stop_loss_take_profit_settings(
+    user_id: str = "default",
+    db: Session = Depends(get_sync_db)
+):
+    """Get stop loss and take profit settings"""
+    try:
+        settings_service = TradingSettingsService(db)
+        sl_tp_settings = settings_service.get_stop_loss_take_profit_settings(user_id)
+        return {"success": True, "data": sl_tp_settings}
+    except Exception as e:
+        logger.error(f"Error getting stop loss/take profit settings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/stop-loss-take-profit")
+async def update_stop_loss_take_profit_settings(
+    settings_data: Dict[str, Any],
+    user_id: str = "default",
+    db: Session = Depends(get_sync_db)
+):
+    """Update stop loss and take profit settings"""
+    try:
+        settings_service = TradingSettingsService(db)
+        updated_settings = settings_service.update_stop_loss_take_profit_settings(settings_data, user_id)
+        return {
+            "success": True,
+            "message": "Stop loss/take profit settings updated successfully",
+            "data": settings_service.get_stop_loss_take_profit_settings(user_id)
+        }
+    except Exception as e:
+        logger.error(f"Error updating stop loss/take profit settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))

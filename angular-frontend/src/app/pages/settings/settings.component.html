@@ -426,6 +426,257 @@
       </p-card>
     </p-tabPanel>
 
+    <!-- Stop Loss/Take Profit Tab -->
+    <p-tabPanel header="Stop Loss/Take Profit" leftIcon="pi pi-shield">
+      <p-card header="Stop Loss és Take Profit Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- Mode Selection -->
+          <div class="col-12">
+            <div class="field">
+              <label class="text-lg font-semibold mb-3 block">Számítási Mód</label>
+              
+              <div class="flex flex-column gap-4">
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="slTpMode"
+                    [value]="false"
+                    [(ngModel)]="stopLossTakeProfitSettings.use_atr_based_sl_tp"
+                    inputId="percentage"
+                    (onClick)="onStopLossTakeProfitModeChange()">
+                  </p-radioButton>
+                  <label for="percentage" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">📊 Százalékos Alapú</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Fix százalékos értékek a belépési árhoz képest. Egyszerű és kiszámítható.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="slTpMode"
+                    [value]="true"
+                    [(ngModel)]="stopLossTakeProfitSettings.use_atr_based_sl_tp"
+                    inputId="atr"
+                    (onClick)="onStopLossTakeProfitModeChange()">
+                  </p-radioButton>
+                  <label for="atr" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">📈 ATR Alapú (Haladó)</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Average True Range alapú dinamikus számítás. Alkalmazkodik a piaci volatilitáshoz.
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Percentage Mode Settings -->
+          <div class="col-12" *ngIf="!stopLossTakeProfitSettings.use_atr_based_sl_tp">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-percentage mr-2"></i>Százalékos Beállítások
+            </h4>
+            
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="stopLossPercentage" class="block text-900 font-medium mb-2">
+                    <i class="pi pi-arrow-down text-red-500 mr-2"></i>Stop Loss Százalék (%)
+                  </label>
+                  <p-inputNumber
+                    id="stopLossPercentage"
+                    [(ngModel)]="stopLossPercentageDisplay"
+                    [min]="0.1"
+                    [max]="20"
+                    [step]="0.1"
+                    suffix="%"
+                    placeholder="pl. 5.0"
+                    styleClass="w-full">
+                  </p-inputNumber>
+                  <small class="text-600">
+                    Veszteség limit a belépési árhoz képest (0.1% - 20%)
+                  </small>
+                </div>
+              </div>
+
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="takeProfitPercentage" class="block text-900 font-medium mb-2">
+                    <i class="pi pi-arrow-up text-green-500 mr-2"></i>Take Profit Százalék (%)
+                  </label>
+                  <p-inputNumber
+                    id="takeProfitPercentage"
+                    [(ngModel)]="takeProfitPercentageDisplay"
+                    [min]="0.1"
+                    [max]="50"
+                    [step]="0.1"
+                    suffix="%"
+                    placeholder="pl. 10.0"
+                    styleClass="w-full">
+                  </p-inputNumber>
+                  <small class="text-600">
+                    Profit cél a belépési árhoz képest (0.1% - 50%)
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-blue-50 border-left-3 border-blue-500 p-3 mt-3" *ngIf="stopLossPercentageDisplay && takeProfitPercentageDisplay">
+              <div class="text-blue-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>Példa számítás (BTC $50,000 belépési ár):</strong>
+              </div>
+              <div class="text-blue-800 mt-2">
+                Stop Loss: <strong>${{ (50000 * (1 - stopLossPercentageDisplay / 100)) | number:'1.2-2' }}</strong>
+                ({{ stopLossPercentageDisplay }}% veszteség)<br>
+                Take Profit: <strong>${{ (50000 * (1 + takeProfitPercentageDisplay / 100)) | number:'1.2-2' }}</strong>
+                ({{ takeProfitPercentageDisplay }}% profit)
+              </div>
+            </div>
+          </div>
+
+          <!-- ATR Mode Settings -->
+          <div class="col-12" *ngIf="stopLossTakeProfitSettings.use_atr_based_sl_tp">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-chart-line mr-2"></i>ATR Alapú Beállítások
+            </h4>
+            
+            <div class="grid">
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="atrStopLoss" class="block text-900 font-medium mb-2">
+                    <i class="pi pi-arrow-down text-red-500 mr-2"></i>ATR Stop Loss Szorzó
+                  </label>
+                  <p-inputNumber
+                    id="atrStopLoss"
+                    [(ngModel)]="stopLossTakeProfitSettings.atr_multiplier_sl"
+                    [min]="0.1"
+                    [max]="5.0"
+                    [step]="0.1"
+                    suffix="x"
+                    placeholder="pl. 1.5"
+                    styleClass="w-full">
+                  </p-inputNumber>
+                  <small class="text-600">
+                    ATR szorzó a stop loss számításához (0.1x - 5.0x)
+                  </small>
+                </div>
+              </div>
+
+              <div class="col-12 md:col-6">
+                <div class="field">
+                  <label for="atrTakeProfit" class="block text-900 font-medium mb-2">
+                    <i class="pi pi-arrow-up text-green-500 mr-2"></i>ATR Take Profit Szorzó
+                  </label>
+                  <p-inputNumber
+                    id="atrTakeProfit"
+                    [(ngModel)]="stopLossTakeProfitSettings.atr_multiplier_tp"
+                    [min]="0.1"
+                    [max]="10.0"
+                    [step]="0.1"
+                    suffix="x"
+                    placeholder="pl. 2.0"
+                    styleClass="w-full">
+                  </p-inputNumber>
+                  <small class="text-600">
+                    ATR szorzó a take profit számításához (0.1x - 10.0x)
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-yellow-50 border-left-3 border-yellow-500 p-3 mt-3">
+              <div class="text-yellow-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>Mi az ATR?</strong>
+              </div>
+              <div class="text-yellow-800 mt-2 text-sm">
+                Az Average True Range (ATR) egy technikai indikátor, amely az elmúlt 14 periódus átlagos ármozgását méri.<br>
+                <strong>Előnyök:</strong>
+                <ul class="mt-2 ml-4">
+                  <li>• Automatikusan alkalmazkodik a piaci volatilitáshoz</li>
+                  <li>• Nagyobb volatilitás = nagyobb stop loss/take profit távolság</li>
+                  <li>• Kisebb volatilitás = szűkebb stop loss/take profit távolság</li>
+                  <li>• Csökkenti a hamis kilépések számát</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Current Settings Summary -->
+          <div class="col-12">
+            <div class="bg-gray-50 border-round p-4">
+              <h4 class="text-900 font-semibold mb-3">
+                <i class="pi pi-eye mr-2"></i>Jelenlegi Beállítások Összefoglalója
+              </h4>
+              <div class="grid">
+                <div class="col-12 md:col-4">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl mb-2">
+                      {{ stopLossTakeProfitSettings.use_atr_based_sl_tp ? '📈' : '📊' }}
+                    </div>
+                    <div class="font-bold text-lg text-blue-600">
+                      {{ stopLossTakeProfitSettings.use_atr_based_sl_tp ? 'ATR Alapú' : 'Százalékos' }}
+                    </div>
+                    <div class="text-600">Számítási mód</div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-4">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl font-bold text-red-600">
+                      {{ stopLossTakeProfitSettings.use_atr_based_sl_tp ?
+                          (stopLossTakeProfitSettings.atr_multiplier_sl + 'x') :
+                          (stopLossPercentageDisplay + '%') }}
+                    </div>
+                    <div class="text-600">Stop Loss</div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-4">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl font-bold text-green-600">
+                      {{ stopLossTakeProfitSettings.use_atr_based_sl_tp ?
+                          (stopLossTakeProfitSettings.atr_multiplier_tp + 'x') :
+                          (takeProfitPercentageDisplay + '%') }}
+                    </div>
+                    <div class="text-600">Take Profit</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end">
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingStopLossTakeProfit"
+                (onClick)="saveStopLossTakeProfitSettings()">
+              </p-button>
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                styleClass="p-button-secondary ml-2"
+                (onClick)="resetStopLossTakeProfitSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
     <!-- Trading Environment Tab -->
     <p-tabPanel header="Kereskedési Környezet" leftIcon="pi pi-globe">
       <p-card header="Testnet vs Éles Kereskedés" styleClass="mb-4">
