@@ -429,17 +429,38 @@ class AutoTradingScheduler:
                                     }
                                     await DatabaseService.update_trading_performance(db, performance.id, update_data)
                         
+                        # Calculate expected profit and loss
+                        quantity = position.get('quantity', 0)
+                        expected_profit = 0
+                        max_loss = 0
+                        
+                        if quantity > 0 and entry_price > 0:
+                            if direction == 'BUY':
+                                # For BUY positions
+                                if take_profit > 0:
+                                    expected_profit = quantity * (take_profit - entry_price)
+                                if stop_loss > 0:
+                                    max_loss = abs(quantity * (entry_price - stop_loss))
+                            elif direction == 'SELL':
+                                # For SELL positions
+                                if take_profit > 0:
+                                    expected_profit = quantity * (entry_price - take_profit)
+                                if stop_loss > 0:
+                                    max_loss = abs(quantity * (stop_loss - entry_price))
+                        
                         # Collect position data for WebSocket broadcast
                         position_updates.append({
                             'symbol': symbol,
                             'position_side': direction,
-                            'position_amt': position.get('quantity', 0),
+                            'position_amt': quantity,
                             'entry_price': entry_price,
                             'mark_price': current_price,
                             'unrealized_pnl': position.get('unrealized_pnl', 0),
                             'pnl_percentage': position.get('unrealized_pnl_percentage', 0),
-                            'stop_loss_price': position.get('stop_loss'),
-                            'take_profit_price': position.get('take_profit'),
+                            'stop_loss_price': stop_loss,
+                            'take_profit_price': take_profit,
+                            'expected_profit': expected_profit,
+                            'max_loss': max_loss,
                             'position_type': position.get('position_type', 'FUTURES'),
                             'leverage': position.get('leverage', 1),
                             'margin_type': position.get('margin_type', 'cross'),
