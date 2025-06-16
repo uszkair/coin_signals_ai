@@ -203,7 +203,19 @@ class AutoTradingScheduler:
                     'result': result
                 }
             else:
-                logger.error(f"Auto-trade failed for {symbol}: {result}")
+                # Log the rejection reason for better debugging
+                rejection_reason = result.get('rejection_reason', 'unknown')
+                logger.warning(f"Auto-trade rejected for {symbol}: {result.get('error', 'Unknown error')} (reason: {rejection_reason})")
+                
+                # Note: Rejected trades are now automatically saved to history by the trading service
+                # Store signal to prevent duplicates even for rejected trades
+                self.last_signals[symbol] = {
+                    'signal': signal,
+                    'timestamp': datetime.now(),
+                    'result': result,
+                    'rejected': True,
+                    'rejection_reason': rejection_reason
+                }
                 
         except Exception as e:
             logger.error(f"Error executing auto-trade for {symbol}: {e}")

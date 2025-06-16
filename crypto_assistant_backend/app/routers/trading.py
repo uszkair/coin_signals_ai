@@ -92,6 +92,26 @@ async def execute_trade(trade_request: TradeRequest):
         # Execute trade
         result = await execute_automatic_trade(signal, trade_request.position_size_usd)
         
+        # Check if trade was rejected and return appropriate response
+        if not result.get('success', False):
+            return {
+                "success": False,
+                "error": result.get('error', 'Unknown error'),
+                "data": {
+                    "trade_result": result,
+                    "signal_used": {
+                        "symbol": signal['symbol'],
+                        "signal": signal['signal'],
+                        "confidence": signal['confidence'],
+                        "entry_price": signal['entry_price'],
+                        "stop_loss": signal['stop_loss'],
+                        "take_profit": signal['take_profit']
+                    },
+                    "saved_to_history": True,  # Rejected trades are now saved to history
+                    "rejection_reason": result.get('rejection_reason', 'unknown')
+                }
+            }
+        
         return {
             "success": True,
             "data": {
@@ -125,6 +145,18 @@ async def execute_signal_trade(request: ExecuteSignalRequest):
     """
     try:
         result = await execute_automatic_trade(request.signal, request.position_size_usd)
+        
+        # Check if trade was rejected and return appropriate response
+        if not result.get('success', False):
+            return {
+                "success": False,
+                "error": result.get('error', 'Unknown error'),
+                "data": {
+                    "trade_result": result,
+                    "saved_to_history": True,  # Rejected trades are now saved to history
+                    "rejection_reason": result.get('rejection_reason', 'unknown')
+                }
+            }
         
         return {
             "success": True,

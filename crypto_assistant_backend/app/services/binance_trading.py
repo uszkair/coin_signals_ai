@@ -250,6 +250,9 @@ class BinanceTrader:
         # Pre-trade validation
         validation_result = await self._validate_trade(signal, position_size_usd)
         if not validation_result['valid']:
+            # Save rejected trade to history with failed_order status
+            if save_to_history:
+                await self._save_rejected_trade_to_history(signal, position_size_usd, validation_result.get('rejection_reason', 'validation_failed'), validation_result['error'])
             return validation_result
         
         # Calculate position size
@@ -636,21 +639,21 @@ class BinanceTrader:
         """Validate trade before execution"""
         # Check daily limits
         if self.daily_trades >= self.max_daily_trades:
-            return {'valid': False, 'error': 'Daily trade limit reached'}
+            return {'valid': False, 'error': 'Daily trade limit reached', 'rejection_reason': 'daily_limit_exceeded'}
         
         if self.daily_pnl <= -self.daily_loss_limit:
-            return {'valid': False, 'error': 'Daily loss limit reached'}
+            return {'valid': False, 'error': 'Daily loss limit reached', 'rejection_reason': 'daily_loss_limit_exceeded'}
         
         # Check signal quality
         confidence = signal.get('confidence', 0)
         if confidence < 60:
-            return {'valid': False, 'error': f'Signal confidence too low: {confidence}%'}
+            return {'valid': False, 'error': f'Signal confidence too low: {confidence}%', 'rejection_reason': 'low_confidence'}
         
         # Check required fields
         required_fields = ['symbol', 'signal', 'entry_price', 'stop_loss', 'take_profit']
         for field in required_fields:
             if field not in signal:
-                return {'valid': False, 'error': f'Missing required field: {field}'}
+                return {'valid': False, 'error': f'Missing required field: {field}', 'rejection_reason': 'missing_required_field'}
         
         return {'valid': True}
     
@@ -1422,6 +1425,43 @@ class BinanceTrader:
                 
         except Exception as e:
             logger.error(f"Error saving failed trade to performance: {e}")
+    
+    async def _save_rejected_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, rejection_reason: str, error_message: str):
+        """Save rejected trade to signal performance with failed_order status"""
+        try:
+            from app.services.database_service import DatabaseService
+            
+            # First save the signal if it doesn't exist
+            signal_id = signal.get("id")
+            if not signal_id:
+                from app.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
+                    saved_signal = await DatabaseService.save_signal(db, signal)
+                    signal_id = saved_signal.id
+                    logger.info(f"✅ Signal saved to database for rejected trade: {signal['symbol']}")
+            else:
+                logger.info(f"📊 Using existing signal ID {signal_id} for rejected trade: {signal['symbol']}")
+            
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                # Calculate estimated quantity for display purposes
+                estimated_quantity = 0
+                if position_size_usd and signal.get('entry_price'):
+                    estimated_quantity = position_size_usd / float(signal['entry_price'])
+                
+                trade_data = {
+                    "quantity": estimated_quantity,
+                    "position_size_usd": position_size_usd,
+                    "result": "failed_order",
+                    "failure_reason": f"Trade rejected: {rejection_reason} - {error_message}",
+                    "testnet_mode": self.testnet
+                }
+                
+                await DatabaseService.save_trading_performance(db, signal_id, trade_data)
+                logger.info(f"✅ Rejected trade saved to history: {signal['symbol']} - {rejection_reason}")
+                
+        except Exception as e:
+            logger.error(f"Error saving rejected trade to performance: {e}")
     
     async def _save_completed_trade_to_history(self, position: Dict[str, Any], exit_price: float, pnl: float, pnl_percentage: float, reason: str):
         """Save completed trade to database (only when trade is actually finished)"""
