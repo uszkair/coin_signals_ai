@@ -24,7 +24,8 @@ class ConnectionManager:
         """Accept a new WebSocket connection"""
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+        logger.info(f"🔗 WebSocket CONNECTED. Total connections: {len(self.active_connections)}")
+        print(f"🔗 WebSocket CONNECTED. Total connections: {len(self.active_connections)}")
     
     def disconnect(self, websocket: WebSocket):
         """Remove a WebSocket connection"""
@@ -36,7 +37,8 @@ class ConnectionManager:
             if websocket in connections:
                 connections.remove(websocket)
         
-        logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
+        logger.info(f"❌ WebSocket DISCONNECTED. Total connections: {len(self.active_connections)}")
+        print(f"❌ WebSocket DISCONNECTED. Total connections: {len(self.active_connections)}")
     
     async def send_personal_message(self, message: str, websocket: WebSocket):
         """Send a message to a specific WebSocket"""
@@ -48,6 +50,9 @@ class ConnectionManager:
     
     async def broadcast(self, message: str):
         """Broadcast a message to all connected WebSockets"""
+        logger.info(f"📡 WebSocket BROADCASTING to {len(self.active_connections)} connections")
+        print(f"📡 WebSocket BROADCASTING to {len(self.active_connections)} connections")
+        
         disconnected = []
         for connection in self.active_connections:
             try:
@@ -102,12 +107,16 @@ async def websocket_endpoint(websocket: WebSocket):
     
     try:
         # Send welcome message
-        await manager.send_personal_message(json.dumps({
+        welcome_message = {
             "type": "connection",
             "status": "connected",
             "message": "WebSocket connection established",
             "timestamp": asyncio.get_event_loop().time()
-        }), websocket)
+        }
+        logger.info(f"📤 WebSocket WELCOME MESSAGE: {json.dumps(welcome_message, indent=2)}")
+        print(f"📤 WebSocket WELCOME MESSAGE: {json.dumps(welcome_message, indent=2)}")
+        
+        await manager.send_personal_message(json.dumps(welcome_message), websocket)
         
         while True:
             # Wait for messages from client
@@ -137,6 +146,10 @@ async def websocket_endpoint(websocket: WebSocket):
 async def handle_websocket_message(websocket: WebSocket, message: Dict):
     """Handle incoming WebSocket messages"""
     message_type = message.get("type")
+    
+    # Console log for incoming WebSocket messages
+    logger.info(f"📨 WebSocket INCOMING MESSAGE: {json.dumps(message, indent=2)}")
+    print(f"📨 WebSocket INCOMING MESSAGE: {json.dumps(message, indent=2)}")
     
     if message_type == "subscribe":
         # Subscribe to symbol updates
@@ -184,56 +197,81 @@ async def handle_websocket_message(websocket: WebSocket, message: Dict):
 # Function to broadcast price updates (can be called from other parts of the application)
 async def broadcast_price_update(symbol: str, price: float, change_24h: float = None):
     """Broadcast price update to all subscribers of a symbol"""
-    message = json.dumps({
+    message_data = {
         "type": "price_update",
         "symbol": symbol,
         "price": price,
         "change_24h": change_24h,
         "timestamp": asyncio.get_event_loop().time()
-    })
+    }
+    message = json.dumps(message_data)
+    
+    # Console log for outgoing price updates
+    logger.info(f"📤 WebSocket PRICE UPDATE: {json.dumps(message_data, indent=2)}")
+    print(f"📤 WebSocket PRICE UPDATE: {json.dumps(message_data, indent=2)}")
     
     await manager.send_to_subscribers(symbol, message)
 
 # Function to broadcast trading signals
 async def broadcast_signal(signal_data: Dict):
     """Broadcast trading signal to all connected clients"""
-    message = json.dumps({
+    message_data = {
         "type": "signal",
         "data": signal_data,
         "timestamp": asyncio.get_event_loop().time()
-    })
+    }
+    message = json.dumps(message_data)
+    
+    # Console log for outgoing signals
+    logger.info(f"📤 WebSocket SIGNAL BROADCAST: {json.dumps(message_data, indent=2)}")
+    print(f"📤 WebSocket SIGNAL BROADCAST: {json.dumps(message_data, indent=2)}")
     
     await manager.broadcast(message)
 
 # Function to broadcast trade execution updates
 async def broadcast_trade_update(trade_data: Dict):
     """Broadcast trade execution update to all connected clients"""
-    message = json.dumps({
+    message_data = {
         "type": "trade_update",
         "data": trade_data,
         "timestamp": asyncio.get_event_loop().time()
-    })
+    }
+    message = json.dumps(message_data)
+    
+    # Console log for outgoing trade updates
+    logger.info(f"📤 WebSocket TRADE UPDATE: {json.dumps(message_data, indent=2)}")
+    print(f"📤 WebSocket TRADE UPDATE: {json.dumps(message_data, indent=2)}")
     
     await manager.broadcast(message)
 
 # Function to broadcast position updates
 async def broadcast_position_update(position_data: Dict):
     """Broadcast live position P&L update to all connected clients"""
-    message = json.dumps({
+    message_data = {
         "type": "position_update",
         "data": position_data,
         "timestamp": asyncio.get_event_loop().time()
-    })
+    }
+    message = json.dumps(message_data)
+    
+    # Console log for outgoing position updates
+    logger.info(f"📤 WebSocket POSITION UPDATE: {json.dumps(message_data, indent=2)}")
+    print(f"📤 WebSocket POSITION UPDATE: {json.dumps(message_data, indent=2)}")
     
     await manager.broadcast(message)
 
 # Function to broadcast position status changes
 async def broadcast_position_status(status_data: Dict):
     """Broadcast position status changes (opened/closed) to all connected clients"""
-    message = json.dumps({
+    message_data = {
         "type": "position_status",
         "data": status_data,
         "timestamp": asyncio.get_event_loop().time()
-    })
+    }
+    message = json.dumps(message_data)
+    
+    # Console log for outgoing position status changes
+    logger.info(f"📤 WebSocket POSITION STATUS: {json.dumps(message_data, indent=2)}")
+    print(f"📤 WebSocket POSITION STATUS: {json.dumps(message_data, indent=2)}")
     
     await manager.broadcast(message)
