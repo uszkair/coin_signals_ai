@@ -583,14 +583,21 @@ class DatabaseService:
             )
             failed_orders = failed_orders_result.scalar()
             
-            # Total P&L (only from completed trades)
-            completed_trades_query = base_query.where(SignalPerformance.result != 'pending')
+            # Open positions
+            open_positions_query = base_query.where(SignalPerformance.result == 'open')
+            open_positions_result = await db.execute(
+                select(func.count(SignalPerformance.id)).select_from(open_positions_query.subquery())
+            )
+            open_positions = open_positions_result.scalar()
+            
+            # Total P&L (only from completed trades, excluding pending and open)
+            completed_trades_query = base_query.where(SignalPerformance.result.notin_(['pending', 'open']))
             pnl_result = await db.execute(
                 select(func.sum(SignalPerformance.profit_loss)).select_from(completed_trades_query.subquery())
             )
             total_pnl = pnl_result.scalar() or 0
             
-            # Win rate (only from completed trades, excluding pending)
+            # Win rate (only from completed trades, excluding pending and OPEN)
             completed_trades_count = successful_trades + failed_trades + failed_orders
             win_rate = (successful_trades / completed_trades_count * 100) if completed_trades_count > 0 else 0
             
@@ -599,6 +606,7 @@ class DatabaseService:
                 "successful_trades": successful_trades,
                 "failed_trades": failed_trades,
                 "failed_orders": failed_orders,
+                "open_positions": open_positions,
                 "win_rate": round(win_rate, 2),
                 "total_pnl_usd": float(total_pnl),
                 "period_days": days
@@ -611,6 +619,7 @@ class DatabaseService:
                 "successful_trades": 0,
                 "failed_trades": 0,
                 "failed_orders": 0,
+                "open_positions": 0,
                 "win_rate": 0,
                 "total_pnl_usd": 0,
                 "period_days": days
@@ -644,14 +653,14 @@ class DatabaseService:
 
     @staticmethod
     async def get_pending_trading_performances(db: AsyncSession, limit: int = 100) -> List[SignalPerformance]:
-        """Get all pending trading performances with order IDs for status refresh"""
+        """Get all pending/open trading performances with order IDs for status refresh"""
         try:
-            # Use only existing columns to avoid migration issues
+            # Include both 'pending' and 'OPEN' statuses
             query = select(SignalPerformance).options(
                 selectinload(SignalPerformance.signal)
             ).where(
                 and_(
-                    SignalPerformance.result == 'pending',
+                    SignalPerformance.result.in_(['pending', 'open']),
                     SignalPerformance.main_order_id.isnot(None)
                 )
             ).order_by(desc(SignalPerformance.created_at)).limit(limit)
@@ -659,5 +668,5 @@ class DatabaseService:
             result = await db.execute(query)
             return result.scalars().all()
         except Exception as e:
-            print(f"❌ Error getting pending trading performances: {str(e)}")
+            print(f"❌ Error getting pending/open trading performances: {str(e)}")
             return []

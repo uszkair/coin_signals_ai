@@ -302,9 +302,10 @@ class BinanceTrader:
             # Update daily tracking
             self.daily_trades += 1
             
-            # NOTE: We don't save trades to history when they start (pending state)
-            # Trades are only saved when they complete (profit/loss/breakeven)
-            trade_history_id = None
+            # SAVE OPEN POSITION TO PERFORMANCE TABLE IMMEDIATELY
+            trade_history_id = await self._save_open_position_to_history(
+                signal, position_size_usd, quantity, main_order, stop_loss_order, take_profit_order
+            )
             
             # Send notification for new position
             try:
@@ -408,9 +409,9 @@ class BinanceTrader:
                 # Update daily P&L
                 self.daily_pnl += pnl
                 
-                # Save completed trade to history (only when position actually closes)
-                await self._save_completed_trade_to_history(
-                    position,
+                # Update existing OPEN position to CLOSED status
+                await self._update_position_to_closed(
+                    position.get('main_order_id'),
                     exit_price,
                     pnl,
                     pnl_percentage,
@@ -1274,6 +1275,43 @@ class BinanceTrader:
             return 'LOW'
     
     
+    async def _save_open_position_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:
+        """Save open position to signal performance with OPEN status"""
+        try:
+            from app.services.database_service import DatabaseService
+            
+            # Check if signal already has an ID (already saved)
+            signal_id = signal.get("id")
+            if not signal_id:
+                # Signal not yet saved, save it now for the trade
+                from app.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
+                    saved_signal = await DatabaseService.save_signal(db, signal)
+                    signal_id = saved_signal.id
+                    logger.info(f"✅ Signal saved to database for open position: {signal['symbol']}")
+            else:
+                logger.info(f"📊 Using existing signal ID {signal_id} for open position: {signal['symbol']}")
+            
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                trade_data = {
+                    "quantity": quantity,
+                    "position_size_usd": position_size_usd,
+                    "main_order_id": str(main_order.get("order_id")) if main_order.get("order_id") else None,
+                    "stop_loss_order_id": str(stop_loss_order.get("order_id")) if stop_loss_order.get("order_id") else None,
+                    "take_profit_order_id": str(take_profit_order.get("order_id")) if take_profit_order.get("order_id") else None,
+                    "result": "open",  # New status for open positions
+                    "testnet_mode": self.testnet
+                }
+                
+                performance = await DatabaseService.save_trading_performance(db, signal_id, trade_data)
+                logger.info(f"✅ Open position saved to performance table: Signal {signal_id}, Order {trade_data['main_order_id']}, Status: OPEN")
+                return performance.id
+                
+        except Exception as e:
+            logger.error(f"Error saving open position to performance: {e}")
+            return None
+    
     async def _save_successful_trade_to_history(self, signal: Dict[str, Any], position_size_usd: float, quantity: float, main_order: Dict, stop_loss_order: Dict, take_profit_order: Dict) -> Optional[int]:
         """Save successful trade to signal performance"""
         try:
@@ -1427,6 +1465,50 @@ class BinanceTrader:
                     
         except Exception as e:
             logger.error(f"Error updating performance on exit: {e}")
+
+    async def _update_position_to_closed(self, main_order_id: str, exit_price: float, pnl: float, pnl_percentage: float, reason: str):
+        """Update existing OPEN position to CLOSED status"""
+        try:
+            from app.services.database_service import DatabaseService
+            
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                # Find the performance entry by order ID
+                performance = await DatabaseService.find_performance_by_order_id(db, main_order_id)
+                
+                if performance:
+                    # Determine trade result
+                    if pnl > 0:
+                        trade_result = "profit"
+                    elif pnl < 0:
+                        trade_result = "loss"
+                    else:
+                        trade_result = "breakeven"
+                    
+                    # Update the existing OPEN position
+                    update_data = {
+                        "exit_price": exit_price,
+                        "exit_time": datetime.now(),
+                        "profit_loss": pnl,
+                        "profit_percentage": pnl_percentage,
+                        "result": trade_result  # Change from OPEN to profit/loss/breakeven
+                    }
+                    
+                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                    logger.info(f"✅ Position updated from OPEN to {trade_result}: Signal {performance.signal_id} - ${pnl:.2f}")
+                else:
+                    logger.warning(f"❌ Performance not found for order ID: {main_order_id} - creating new entry")
+                    # Fallback: create new entry if not found
+                    await self._save_completed_trade_to_history({
+                        'symbol': 'UNKNOWN',
+                        'direction': 'UNKNOWN',
+                        'entry_price': exit_price,  # Best guess
+                        'quantity': 0,
+                        'main_order_id': main_order_id
+                    }, exit_price, pnl, pnl_percentage, reason)
+                    
+        except Exception as e:
+            logger.error(f"Error updating position to closed: {e}")
 
 
 # Global trader instance - will be initialized from database settings
