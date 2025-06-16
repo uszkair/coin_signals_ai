@@ -509,12 +509,20 @@ class BinanceTrader:
                         **position,
                         'current_price': current_price,
                         'unrealized_pnl': unrealized_pnl,
-                        'unrealized_pnl_percentage': unrealized_pnl_percentage
+                        'unrealized_pnl_percentage': unrealized_pnl_percentage,
+                        # Ensure stop_loss and take_profit are included from stored position
+                        'stop_loss': position.get('stop_loss', 0.0),
+                        'take_profit': position.get('take_profit', 0.0)
                     }
                     
                 except Exception as e:
                     logger.error(f"Error calculating P&L for position {position_id}: {e}")
-                    positions_with_pnl[position_id] = position
+                    # Even on error, ensure stop_loss and take_profit are included
+                    positions_with_pnl[position_id] = {
+                        **position,
+                        'stop_loss': position.get('stop_loss', 0.0),
+                        'take_profit': position.get('take_profit', 0.0)
+                    }
             
             return positions_with_pnl
         
@@ -545,6 +553,39 @@ class BinanceTrader:
                     else:
                         pnl_percentage = 0.0
                     
+                    # GET STOP LOSS AND TAKE PROFIT ORDERS FOR THIS SYMBOL
+                    stop_loss_price = 0.0
+                    take_profit_price = 0.0
+                    
+                    try:
+                        # Get all open orders for this symbol
+                        open_orders = self.client.futures_get_open_orders(symbol=symbol)
+                        
+                        for order in open_orders:
+                            order_type = order.get('type', '')
+                            stop_price = float(order.get('stopPrice', 0))
+                            
+                            # Identify stop loss orders
+                            if order_type == 'STOP_MARKET' and stop_price > 0:
+                                # For LONG positions (BUY), stop loss is SELL order below entry price
+                                # For SHORT positions (SELL), stop loss is BUY order above entry price
+                                if position_amt > 0 and order.get('side') == 'SELL' and stop_price < entry_price:
+                                    stop_loss_price = stop_price
+                                elif position_amt < 0 and order.get('side') == 'BUY' and stop_price > entry_price:
+                                    stop_loss_price = stop_price
+                            
+                            # Identify take profit orders
+                            elif order_type == 'TAKE_PROFIT_MARKET' and stop_price > 0:
+                                # For LONG positions (BUY), take profit is SELL order above entry price
+                                # For SHORT positions (SELL), take profit is BUY order below entry price
+                                if position_amt > 0 and order.get('side') == 'SELL' and stop_price > entry_price:
+                                    take_profit_price = stop_price
+                                elif position_amt < 0 and order.get('side') == 'BUY' and stop_price < entry_price:
+                                    take_profit_price = stop_price
+                    
+                    except Exception as order_error:
+                        logger.warning(f"Could not fetch stop loss/take profit orders for {symbol}: {order_error}")
+                    
                     position_id = f"{symbol}_live"
                     live_positions[position_id] = {
                         'symbol': symbol,
@@ -554,6 +595,8 @@ class BinanceTrader:
                         'current_price': current_price,
                         'unrealized_pnl': unrealized_pnl,
                         'unrealized_pnl_percentage': pnl_percentage,
+                        'stop_loss': stop_loss_price,  # Add stop loss price
+                        'take_profit': take_profit_price,  # Add take profit price
                         'position_type': 'FUTURES',
                         'leverage': float(pos.get('leverage', 1)),
                         'margin_type': pos.get('marginType', 'cross'),
