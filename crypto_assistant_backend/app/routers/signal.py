@@ -90,20 +90,20 @@ else:
 
 if DATABASE_AVAILABLE:
     @router.get("/current")
-    async def get_current_signal_live(symbol: str, interval: str = "1h", save_to_db: bool = True, db: AsyncSession = Depends(get_db)):
+    async def get_current_signal_live(symbol: str, interval: str = "1h", save_to_db: bool = False, db: AsyncSession = Depends(get_db)):
         """
         Generate a fresh signal in real-time
         
         Args:
             symbol: Trading symbol
             interval: Time interval
-            save_to_db: Whether to save signal to database (default: True - save all signals)
+            save_to_db: Whether to save signal to database (default: False - only save when explicitly requested)
         """
         try:
             # Generate fresh signal using signal engine
             signal_data = await get_current_signal(symbol, interval)
             
-            # Save all signals to database by default for signal history tracking
+            # Only save signals to database when explicitly requested (e.g., for trading)
             if save_to_db:
                 try:
                     await DatabaseService.save_signal(db, signal_data)
@@ -111,7 +111,7 @@ if DATABASE_AVAILABLE:
                 except Exception as save_error:
                     print(f"Warning: Could not save signal to database: {save_error}")
             else:
-                print(f"📊 Signal generated for {symbol} (not saved - display only)")
+                print(f"📊 Signal generated for {symbol} (display only - not saved)")
             
             return signal_data
             

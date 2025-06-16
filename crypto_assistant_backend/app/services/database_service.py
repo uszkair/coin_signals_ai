@@ -556,7 +556,7 @@ class DatabaseService:
             if testnet_mode is not None:
                 base_query = base_query.where(SignalPerformance.testnet_mode == testnet_mode)
             
-            # Total trades
+            # Total trades (all including pending)
             total_result = await db.execute(
                 select(func.count(SignalPerformance.id)).select_from(base_query.subquery())
             )
@@ -583,14 +583,16 @@ class DatabaseService:
             )
             failed_orders = failed_orders_result.scalar()
             
-            # Total P&L
+            # Total P&L (only from completed trades)
+            completed_trades_query = base_query.where(SignalPerformance.result != 'pending')
             pnl_result = await db.execute(
-                select(func.sum(SignalPerformance.profit_loss)).select_from(base_query.subquery())
+                select(func.sum(SignalPerformance.profit_loss)).select_from(completed_trades_query.subquery())
             )
             total_pnl = pnl_result.scalar() or 0
             
-            # Win rate
-            win_rate = (successful_trades / total_trades * 100) if total_trades > 0 else 0
+            # Win rate (only from completed trades, excluding pending)
+            completed_trades_count = successful_trades + failed_trades + failed_orders
+            win_rate = (successful_trades / completed_trades_count * 100) if completed_trades_count > 0 else 0
             
             return {
                 "total_trades": total_trades,

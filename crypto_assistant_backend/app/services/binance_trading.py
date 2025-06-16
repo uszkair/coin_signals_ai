@@ -302,11 +302,9 @@ class BinanceTrader:
             # Update daily tracking
             self.daily_trades += 1
             
-            # Save successful trade to trading history
-            if save_to_history:
-                trade_history_id = await self._save_successful_trade_to_history(
-                    signal, position_size_usd, quantity, main_order, stop_loss_order, take_profit_order
-                )
+            # NOTE: We don't save trades to history when they start (pending state)
+            # Trades are only saved when they complete (profit/loss/breakeven)
+            trade_history_id = None
             
             # Send notification for new position
             try:
@@ -410,9 +408,9 @@ class BinanceTrader:
                 # Update daily P&L
                 self.daily_pnl += pnl
                 
-                # Update trading history with exit data
-                await self._update_trade_history_on_exit(
-                    position.get('main_order_id'),
+                # Save completed trade to history (only when position actually closes)
+                await self._save_completed_trade_to_history(
+                    position,
                     exit_price,
                     pnl,
                     pnl_percentage,
@@ -1342,8 +1340,60 @@ class BinanceTrader:
         except Exception as e:
             logger.error(f"Error saving failed trade to performance: {e}")
     
+    async def _save_completed_trade_to_history(self, position: Dict[str, Any], exit_price: float, pnl: float, pnl_percentage: float, reason: str):
+        """Save completed trade to database (only when trade is actually finished)"""
+        try:
+            from app.services.database_service import DatabaseService
+            
+            # Get signal data from position
+            signal_data = {
+                'symbol': position['symbol'],
+                'signal': position['direction'],
+                'entry_price': position['entry_price'],
+                'stop_loss': position.get('stop_loss'),
+                'take_profit': position.get('take_profit'),
+                'confidence': position.get('signal_confidence', 70),
+                'timestamp': position.get('timestamp', datetime.now())
+            }
+            
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                # First save the signal
+                saved_signal = await DatabaseService.save_signal(db, signal_data)
+                
+                # Determine trade result
+                if pnl > 0:
+                    trade_result = "profit"
+                elif pnl < 0:
+                    trade_result = "loss"
+                else:
+                    trade_result = "breakeven"
+                
+                # Now save the completed trade performance
+                trade_data = {
+                    "quantity": position['quantity'],
+                    "position_size_usd": position['quantity'] * position['entry_price'],
+                    "main_order_id": str(position.get('main_order_id')),
+                    "stop_loss_order_id": str(position.get('stop_loss_order_id')) if position.get('stop_loss_order_id') else None,
+                    "take_profit_order_id": str(position.get('take_profit_order_id')) if position.get('take_profit_order_id') else None,
+                    "exit_price": exit_price,
+                    "exit_time": datetime.now(),
+                    "profit_loss": pnl,
+                    "profit_percentage": pnl_percentage,
+                    "result": trade_result,
+                    "testnet_mode": self.testnet
+                }
+                
+                performance = await DatabaseService.save_trading_performance(db, saved_signal.id, trade_data)
+                logger.info(f"✅ Completed trade saved to history: {position['symbol']} - {trade_result} - ${pnl:.2f}")
+                return performance.id
+                
+        except Exception as e:
+            logger.error(f"❌ Error saving completed trade to history: {e}")
+            return None
+    
     async def _update_trade_history_on_exit(self, main_order_id: str, exit_price: float, pnl: float, pnl_percentage: float, reason: str):
-        """Update signal performance when position is closed"""
+        """Update signal performance when position is closed (DEPRECATED - use _save_completed_trade_to_history instead)"""
         try:
             from app.services.database_service import DatabaseService
             
