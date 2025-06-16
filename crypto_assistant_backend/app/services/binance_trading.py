@@ -1343,6 +1343,8 @@ class BinanceTrader:
                     "main_order_id": str(main_order.get("order_id")) if main_order.get("order_id") else None,
                     "stop_loss_order_id": str(stop_loss_order.get("order_id")) if stop_loss_order.get("order_id") else None,
                     "take_profit_order_id": str(take_profit_order.get("order_id")) if take_profit_order.get("order_id") else None,
+                    "stop_loss_price": signal.get("stop_loss"),  # Save actual stop loss price
+                    "take_profit_price": signal.get("take_profit"),  # Save actual take profit price
                     "result": "open",  # New status for open positions
                     "testnet_mode": self.testnet
                 }

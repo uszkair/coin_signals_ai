@@ -418,6 +418,8 @@ class DatabaseService:
                 take_profit_order_id=trade_data.get("take_profit_order_id"),
                 quantity=float(trade_data["quantity"]) if trade_data.get("quantity") else None,
                 position_size_usd=float(trade_data["position_size_usd"]) if trade_data.get("position_size_usd") else None,
+                stop_loss_price=float(trade_data["stop_loss_price"]) if trade_data.get("stop_loss_price") else None,
+                take_profit_price=float(trade_data["take_profit_price"]) if trade_data.get("take_profit_price") else None,
                 failure_reason=trade_data.get("failure_reason"),
                 testnet_mode=trade_data.get("testnet_mode", True)
             )
@@ -518,8 +520,8 @@ class DatabaseService:
                     "profit_loss_usd": float(performance.profit_loss) if performance.profit_loss else None,
                     "profit_loss_percentage": float(performance.profit_percentage) if performance.profit_percentage else None,
                     "failure_reason": performance.failure_reason,
-                    "stop_loss": float(signal.support_level) if signal.support_level else None,
-                    "take_profit": float(signal.resistance_level) if signal.resistance_level else None,
+                    "stop_loss": float(performance.stop_loss_price) if performance.stop_loss_price else (float(signal.support_level) if signal.support_level else None),
+                    "take_profit": float(performance.take_profit_price) if performance.take_profit_price else (float(signal.resistance_level) if signal.resistance_level else None),
                     "entry_time": signal.created_at.isoformat() if signal.created_at else None,
                     "exit_time": performance.exit_time.isoformat() if performance.exit_time else None,
                     "testnet_mode": performance.testnet_mode,

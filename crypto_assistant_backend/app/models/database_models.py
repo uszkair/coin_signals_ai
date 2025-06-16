@@ -70,7 +70,7 @@ class SignalPerformance(Base):
     exit_time = Column(TIMESTAMP(timezone=True))
     profit_loss = Column(DECIMAL(20, 8))
     profit_percentage = Column(DECIMAL(10, 4))
-    result = Column(String(20))  # profit, loss, breakeven, pending, failed_order
+    result = Column(String(20))  # profit, loss, breakeven, pending, failed_order, open
     
     # Order execution details
     main_order_id = Column(String(50), nullable=True)
@@ -78,6 +78,10 @@ class SignalPerformance(Base):
     take_profit_order_id = Column(String(50), nullable=True)
     quantity = Column(DECIMAL(20, 8), nullable=True)
     position_size_usd = Column(DECIMAL(20, 8), nullable=True)
+    
+    # Stop Loss and Take Profit prices (actual executed prices)
+    stop_loss_price = Column(DECIMAL(20, 8), nullable=True)
+    take_profit_price = Column(DECIMAL(20, 8), nullable=True)
     
     # Order failure details
     failure_reason = Column(Text, nullable=True)
@@ -104,6 +108,8 @@ class SignalPerformance(Base):
             "take_profit_order_id": self.take_profit_order_id,
             "quantity": float(self.quantity) if self.quantity else None,
             "position_size_usd": float(self.position_size_usd) if self.position_size_usd else None,
+            "stop_loss_price": float(self.stop_loss_price) if self.stop_loss_price else None,
+            "take_profit_price": float(self.take_profit_price) if self.take_profit_price else None,
             "failure_reason": self.failure_reason,
             "testnet_mode": self.testnet_mode,
             "created_at": self.created_at.isoformat() if self.created_at else None
