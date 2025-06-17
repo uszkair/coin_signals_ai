@@ -71,6 +71,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   loading = false;
   tradeHistory: TradeHistory[] = [];
+  deletingTradeId: number | null = null;
   
   // Live Positions
   livePositions: LivePosition[] = [];
@@ -697,6 +698,115 @@ export class HistoryComponent implements OnInit, OnDestroy {
                 life: 5000
               });
               console.error('Close position error:', error);
+            }
+          });
+      }
+    });
+  }
+
+  // Trade History Delete Methods
+  deleteTrade(tradeId: number): void {
+    this.confirmationService.confirm({
+      message: 'Biztosan törölni szeretnéd ezt a kereskedési előzményt? Ez a művelet visszafordíthatatlan!',
+      header: 'Kereskedés törlése',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Igen, törlöm',
+      rejectLabel: 'Mégse',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.deletingTradeId = tradeId;
+        
+        this.historyService.deleteTrade(tradeId)
+          .pipe(take(1))
+          .subscribe({
+            next: (response) => {
+              this.deletingTradeId = null;
+              if (response.success) {
+                this.messageService.add({
+                  severity: 'success',
+                  summary: 'Sikeres törlés',
+                  detail: 'Kereskedési előzmény sikeresen törölve',
+                  life: 3000
+                });
+                // Frissítjük a listát
+                this.loadTradeHistory();
+                this.loadTradingStatistics();
+                this.loadDailySummary();
+              } else {
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'Hiba történt',
+                  detail: response.error || 'Ismeretlen hiba a törlés során',
+                  life: 5000
+                });
+              }
+            },
+            error: (error) => {
+              this.deletingTradeId = null;
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Hiba történt',
+                detail: error.message || 'Ismeretlen hiba a törlés során',
+                life: 5000
+              });
+              console.error('Delete trade error:', error);
+            }
+          });
+      }
+    });
+  }
+
+  clearAllHistory(testnetOnly: boolean = true): void {
+    const message = testnetOnly
+      ? 'Biztosan törölni szeretnéd az ÖSSZES testnet kereskedési előzményt? Ez a művelet visszafordíthatatlan!'
+      : 'Biztosan törölni szeretnéd az ÖSSZES kereskedési előzményt? Ez a művelet visszafordíthatatlan!';
+    
+    const header = testnetOnly ? 'Testnet előzmények törlése' : 'Összes előzmény törlése';
+
+    this.confirmationService.confirm({
+      message: message,
+      header: header,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Igen, törlöm mind',
+      rejectLabel: 'Mégse',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.loading = true;
+        
+        this.historyService.clearAllHistory(testnetOnly)
+          .pipe(take(1))
+          .subscribe({
+            next: (response) => {
+              this.loading = false;
+              if (response.success) {
+                this.messageService.add({
+                  severity: 'success',
+                  summary: 'Sikeres törlés',
+                  detail: `${response.deleted_count || 0} kereskedési előzmény törölve`,
+                  life: 3000
+                });
+                // Frissítjük a listát
+                this.loadTradeHistory();
+                this.loadTradingStatistics();
+                this.loadDailySummary();
+              } else {
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'Hiba történt',
+                  detail: response.error || 'Ismeretlen hiba a törlés során',
+                  life: 5000
+                });
+              }
+            },
+            error: (error) => {
+              this.loading = false;
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Hiba történt',
+                detail: error.message || 'Ismeretlen hiba a törlés során',
+                life: 5000
+              });
+              console.error('Clear all history error:', error);
             }
           });
       }

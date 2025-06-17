@@ -1995,3 +1995,53 @@ async def refresh_position_table():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/history/clear-all")
+async def clear_all_trade_history(
+    db: AsyncSession = Depends(get_db),
+    testnet_only: bool = Query(True, description="Only delete testnet trades")
+):
+    """Clear all trade history (with safety option for testnet only)"""
+    try:
+        # Additional safety check - prevent accidental mainnet deletion
+        if not testnet_only:
+            logger.warning("⚠️ Attempting to delete ALL trading history (including mainnet)")
+        
+        deleted_count = await DatabaseService.clear_all_trading_history(db, testnet_only)
+        
+        environment = "testnet" if testnet_only else "all"
+        logger.info(f"✅ Cleared {deleted_count} trades from {environment} history")
+        
+        return {
+            "success": True,
+            "message": f"Cleared {deleted_count} trades from {environment} history",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing trade history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/history/{trade_id}")
+async def delete_trade_history(trade_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete a specific trade from history"""
+    try:
+        # Delete the trading performance record
+        deleted = await DatabaseService.delete_trading_performance(db, trade_id)
+        
+        if deleted:
+            return {
+                "success": True,
+                "message": f"Trade {trade_id} deleted successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Trade {trade_id} not found"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error deleting trade {trade_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -251,4 +251,20 @@ export class HistoryService {
     link.click();
     window.URL.revokeObjectURL(url);
   }
+
+  deleteTrade(tradeId: number): Observable<{ success: boolean; message?: string; error?: string }> {
+    return this.http.delete<{ success: boolean; message?: string; error?: string }>(
+      `${this.apiUrl}/trading/history/${tradeId}`
+    );
+  }
+
+  clearAllHistory(testnetOnly: boolean = true): Observable<{ success: boolean; message?: string; deleted_count?: number; error?: string }> {
+    let params = new URLSearchParams();
+    params.append('testnet_only', testnetOnly.toString());
+
+    const queryString = params.toString();
+    const url = `${this.apiUrl}/trading/history/clear-all?${queryString}`;
+    
+    return this.http.delete<{ success: boolean; message?: string; deleted_count?: number; error?: string }>(url);
+  }
 }

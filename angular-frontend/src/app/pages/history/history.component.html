@@ -383,18 +383,42 @@
         #dt
       >
         <ng-template pTemplate="caption">
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">Kereskedési előzmények</h2>
-            <span class="p-input-icon-left">
-              <i class="pi pi-search"></i>
-              <input
-                pInputText
-                type="text"
-                (input)="dt.filterGlobal($any($event.target).value, 'contains')"
-                placeholder="Keresés..."
-                class="w-64"
-              />
-            </span>
+            <div class="flex items-center gap-2">
+              <span class="p-input-icon-left">
+                <i class="pi pi-search"></i>
+                <input
+                  pInputText
+                  type="text"
+                  (input)="dt.filterGlobal($any($event.target).value, 'contains')"
+                  placeholder="Keresés..."
+                  class="w-64"
+                />
+              </span>
+              
+              <p-button
+                label="Testnet törlése"
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                (onClick)="clearAllHistory(true)"
+                [disabled]="!tradeHistory.length"
+                pTooltip="Csak testnet kereskedések törlése"
+                tooltipPosition="top"
+              ></p-button>
+
+              <p-button
+                label="Összes törlése"
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                (onClick)="clearAllHistory(false)"
+                [disabled]="!tradeHistory.length"
+                pTooltip="Összes kereskedés törlése (testnet + mainnet)"
+                tooltipPosition="top"
+              ></p-button>
+            </div>
           </div>
         </ng-template>
         
@@ -437,6 +461,7 @@
             <th pSortableColumn="testnet_mode">
               Környezet <p-sortIcon field="testnet_mode"></p-sortIcon>
             </th>
+            <th>Műveletek</th>
           </tr>
         </ng-template>
         
@@ -509,12 +534,24 @@
                 [severity]="trade.testnet_mode ? 'warning' : 'success'"
               ></p-tag>
             </td>
+            <td>
+              <p-button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                (onClick)="deleteTrade(trade.id)"
+                [loading]="deletingTradeId === trade.id"
+                pTooltip="Kereskedés törlése"
+                tooltipPosition="left"
+                class="p-button-text"
+              ></p-button>
+            </td>
           </tr>
         </ng-template>
         
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="13" class="text-center py-8">
+            <td colspan="14" class="text-center py-8">
               <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
               <p class="text-gray-500 dark:text-gray-400">Nincs kereskedési előzmény</p>
             </td>

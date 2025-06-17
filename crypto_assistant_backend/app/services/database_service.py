@@ -672,3 +672,62 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error getting pending/open trading performances: {str(e)}")
             return []
+
+    @staticmethod
+    async def delete_trading_performance(db: AsyncSession, performance_id: int) -> bool:
+        """Delete a specific trading performance record"""
+        try:
+            # First get the performance record
+            query = select(SignalPerformance).where(SignalPerformance.id == performance_id)
+            result = await db.execute(query)
+            performance = result.scalar_one_or_none()
+            
+            if not performance:
+                return False
+            
+            # Delete the performance record
+            await db.delete(performance)
+            await db.commit()
+            
+            print(f"✅ Trading performance {performance_id} deleted successfully")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error deleting trading performance {performance_id}: {str(e)}")
+            await db.rollback()
+            return False
+
+    @staticmethod
+    async def clear_all_trading_history(db: AsyncSession, testnet_only: bool = True) -> int:
+        """Clear all trading history (with safety option for testnet only)"""
+        try:
+            # Build the delete query
+            if testnet_only:
+                # Only delete testnet trades for safety
+                query = select(SignalPerformance).where(SignalPerformance.testnet_mode == True)
+            else:
+                # Delete all trades (dangerous!)
+                query = select(SignalPerformance)
+            
+            # Get count first
+            result = await db.execute(query)
+            performances = result.scalars().all()
+            count = len(performances)
+            
+            if count == 0:
+                return 0
+            
+            # Delete all found records
+            for performance in performances:
+                await db.delete(performance)
+            
+            await db.commit()
+            
+            environment = "testnet" if testnet_only else "all"
+            print(f"✅ Cleared {count} trading performances from {environment} history")
+            return count
+            
+        except Exception as e:
+            print(f"❌ Error clearing trading history: {str(e)}")
+            await db.rollback()
+            return 0
