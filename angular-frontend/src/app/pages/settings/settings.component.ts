@@ -58,7 +58,7 @@ export class SettingsComponent implements OnInit {
   };
 
   // Auto trading configuration
-  autoTradingEnabled: boolean = false;
+  autoTradingEnabled: boolean = true;
 
   // Current configurations from backend
   currentPositionConfig: any = null;
@@ -294,8 +294,8 @@ export class SettingsComponent implements OnInit {
       },
       error: (error) => {
         console.warn('Could not load trading mode:', error);
-        // Default to manual mode if loading fails
-        this.autoTradingEnabled = false;
+        // Default to automatic mode if loading fails
+        this.autoTradingEnabled = true;
       }
     });
   }
@@ -891,8 +891,8 @@ export class SettingsComponent implements OnInit {
   }
 
   resetAutoTradingSettings(): void {
-    this.autoTradingEnabled = false;
-    this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés kikapcsolva');
+    this.autoTradingEnabled = true;
+    this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés bekapcsolva');
   }
 
   resetTradingEnvironmentSettings(): void {

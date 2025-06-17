@@ -43,7 +43,7 @@ export class TradingService {
   private autoTradingUrl = 'http://localhost:8000/api/auto-trading';
   
   // Auto trading state
-  private autoTradingSubject = new BehaviorSubject<boolean>(false);
+  private autoTradingSubject = new BehaviorSubject<boolean>(true);
   public autoTrading$ = this.autoTradingSubject.asObservable();
 
   constructor(private http: HttpClient) {

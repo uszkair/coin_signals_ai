@@ -106,7 +106,7 @@ class TradingSettingsService:
                 'min_confidence': getattr(settings, 'min_signal_confidence', 70)
             }
         return {
-            'enabled': False,
+            'enabled': True,
             'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
             'interval': 300,
             'min_confidence': 70

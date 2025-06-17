@@ -48,7 +48,7 @@ class AutoTradingScheduler:
             logger.error(f"Error getting auto-trading settings: {e}")
             # Return default settings if database fails
             return {
-                'enabled': False,
+                'enabled': True,
                 'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
                 'interval': 300,
                 'min_confidence': 70
@@ -308,13 +308,13 @@ class AutoTradingScheduler:
             logger.error(f"Error getting auto-trading status: {e}")
             return {
                 'scheduler_running': True,  # Scheduler always runs as background service
-                'auto_trading_enabled': False,
+                'auto_trading_enabled': True,
                 'monitored_symbols': [],
                 'check_interval': 300,
                 'min_signal_confidence': 70,
                 'last_signals_count': len(self.last_signals),
                 'last_check': datetime.now().isoformat(),
-                'mode': 'MANUAL',
+                'mode': 'AUTOMATIC',
                 'error': str(e)
             }
     
