@@ -14,6 +14,7 @@ import { TabViewModule } from 'primeng/tabview';
 import { DropdownModule } from 'primeng/dropdown';
 import { SliderModule } from 'primeng/slider';
 import { CheckboxModule } from 'primeng/checkbox';
+import { InputSwitchModule } from 'primeng/inputswitch';
 import { MessageService } from 'primeng/api';
 
 import { TradingService, PositionSizeConfig, TradingEnvironment } from '../../services/trading.service';
@@ -35,7 +36,8 @@ import { SettingsService } from '../../services/settings.service';
     TabViewModule,
     DropdownModule,
     SliderModule,
-    CheckboxModule
+    CheckboxModule,
+    InputSwitchModule
   ],
   providers: [MessageService],
   templateUrl: './settings.component.html'
@@ -55,8 +57,8 @@ export class SettingsComponent implements OnInit {
     max_position_size: 2.0  // percentage
   };
 
-  // Trading mode configuration
-  tradingMode: 'manual' | 'automatic' = 'manual';
+  // Auto trading configuration
+  autoTradingEnabled: boolean = false;
 
   // Current configurations from backend
   currentPositionConfig: any = null;
@@ -73,7 +75,7 @@ export class SettingsComponent implements OnInit {
   loadingRisk = false;
   savingPosition = false;
   savingRisk = false;
-  savingTradingMode = false;
+  savingAutoTrading = false;
   savingEnvironment = false;
   loadingMinimumReqs = false;
   
@@ -287,44 +289,42 @@ export class SettingsComponent implements OnInit {
     this.tradingService.getAutoTradingStatus().subscribe({
       next: (response) => {
         if (response.success) {
-          this.tradingMode = response.data.auto_trading_enabled ? 'automatic' : 'manual';
+          this.autoTradingEnabled = response.data.auto_trading_enabled || false;
         }
       },
       error: (error) => {
         console.warn('Could not load trading mode:', error);
         // Default to manual mode if loading fails
-        this.tradingMode = 'manual';
+        this.autoTradingEnabled = false;
       }
     });
   }
 
-  onTradingModeChange(): void {
-    // This method is called when the radio button selection changes
-    // The actual saving happens when the user clicks the save button
-    console.log('Trading mode changed to:', this.tradingMode);
+  onAutoTradingToggle(): void {
+    // This method is called when the toggle switch changes
+    console.log('Auto trading toggled to:', this.autoTradingEnabled);
   }
 
-  saveTradingMode(): void {
-    this.savingTradingMode = true;
-    const enableAutoTrading = this.tradingMode === 'automatic';
+  saveAutoTradingSettings(): void {
+    this.savingAutoTrading = true;
 
     // Add timeout for better user experience
     const timeoutId = setTimeout(() => {
-      if (this.savingTradingMode) {
+      if (this.savingAutoTrading) {
         this.showWarning('Lassú válasz', 'A mentés tovább tart a vártnál, kérlek várj...');
       }
     }, 3000);
 
-    this.tradingService.setAutoTrading(enableAutoTrading).subscribe({
+    this.tradingService.setAutoTrading(this.autoTradingEnabled).subscribe({
       next: (response: any) => {
         clearTimeout(timeoutId);
-        this.savingTradingMode = false;
+        this.savingAutoTrading = false;
         if (response.success) {
           // Update the local state
-          this.tradingService.updateAutoTradingState(enableAutoTrading);
+          this.tradingService.updateAutoTradingState(this.autoTradingEnabled);
           this.showSuccess(
-            'Kereskedési mód mentve',
-            `${this.tradingMode === 'automatic' ? 'Automatikus' : 'Manuális'} kereskedés beállítva`
+            'Auto-trading beállítás mentve',
+            `Automatikus kereskedés ${this.autoTradingEnabled ? 'bekapcsolva' : 'kikapcsolva'}`
           );
         } else {
           this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
@@ -332,8 +332,8 @@ export class SettingsComponent implements OnInit {
       },
       error: (error: any) => {
         clearTimeout(timeoutId);
-        this.savingTradingMode = false;
-        this.showError('Hálózati hiba', 'Nem sikerült menteni a kereskedési módot: ' + error.message);
+        this.savingAutoTrading = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállítást: ' + error.message);
       }
     });
   }
@@ -891,8 +891,8 @@ export class SettingsComponent implements OnInit {
   }
 
   resetAutoTradingSettings(): void {
-    this.tradingMode = 'manual';
-    this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés beállítások visszaállítva manuális módra');
+    this.autoTradingEnabled = false;
+    this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés kikapcsolva');
   }
 
   resetTradingEnvironmentSettings(): void {

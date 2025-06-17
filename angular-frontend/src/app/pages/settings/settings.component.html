@@ -12,39 +12,23 @@
         <div class="grid">
           <div class="col-12">
             <div class="field">
-              <label class="text-lg font-semibold mb-3 block">Kereskedési Mód</label>
+              <label class="text-lg font-semibold mb-3 block">Automatikus Kereskedés</label>
               
-              <div class="flex flex-column gap-4">
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="tradingMode"
-                    value="manual"
-                    [(ngModel)]="tradingMode"
-                    inputId="manual"
-                    (onClick)="onTradingModeChange()">
-                  </p-radioButton>
-                  <label for="manual" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">🎯 Manuális Kereskedés</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      Minden kereskedést manuálisan kell jóváhagyni. Teljes kontroll a döntések felett.
-                    </div>
-                  </label>
+              <div class="flex align-items-center p-4 border border-gray-200 rounded-lg">
+                <div class="flex-1">
+                  <div class="font-semibold text-gray-900 mb-2">
+                    🤖 Auto-Trading Mód
+                  </div>
+                  <div class="text-sm text-gray-600">
+                    Ha bekapcsolod, a rendszer automatikusan végrehajtja a kereskedéseket a beállított paraméterek alapján.
+                    <br><strong>Manuális trade indítás mindig elérhető marad!</strong>
+                  </div>
                 </div>
-                
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="tradingMode"
-                    value="automatic"
-                    [(ngModel)]="tradingMode"
-                    inputId="automatic"
-                    (onClick)="onTradingModeChange()">
-                  </p-radioButton>
-                  <label for="automatic" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">🤖 Automatikus Kereskedés</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      A rendszer automatikusan végrehajtja a kereskedéseket a beállított paraméterek alapján.
-                    </div>
-                  </label>
+                <div class="ml-4">
+                  <p-inputSwitch
+                    [(ngModel)]="autoTradingEnabled"
+                    (onChange)="onAutoTradingToggle()">
+                  </p-inputSwitch>
                 </div>
               </div>
             </div>
@@ -64,32 +48,30 @@
               <div class="grid">
                 <div class="col-12 md:col-6">
                   <div class="text-center p-3 border-round"
-                       [class]="tradingMode === 'automatic' ? 'bg-green-100 border-green-200' : 'bg-orange-100 border-orange-200'">
+                       [class]="autoTradingEnabled ? 'bg-green-100 border-green-200' : 'bg-blue-100 border-blue-200'">
                     <div class="text-2xl mb-2">
-                      {{ tradingMode === 'automatic' ? '🤖' : '🎯' }}
+                      {{ autoTradingEnabled ? '🤖' : '🎯' }}
                     </div>
                     <div class="font-bold text-lg"
-                         [class]="tradingMode === 'automatic' ? 'text-green-700' : 'text-orange-700'">
-                      {{ tradingMode === 'automatic' ? 'AUTOMATIKUS' : 'MANUÁLIS' }}
+                         [class]="autoTradingEnabled ? 'text-green-700' : 'text-blue-700'">
+                      {{ autoTradingEnabled ? 'AUTO-TRADING AKTÍV' : 'MANUÁLIS MÓD' }}
                     </div>
                     <div class="text-sm text-600 mt-1">
-                      {{ tradingMode === 'automatic' ? 'Kereskedés aktív' : 'Manuális jóváhagyás szükséges' }}
+                      {{ autoTradingEnabled ? 'Automatikus végrehajtás' : 'Csak manuális trade-ek' }}
                     </div>
                   </div>
                 </div>
                 <div class="col-12 md:col-6">
                   <div class="space-y-2">
                     <div class="flex justify-between text-sm">
-                      <span class="text-600">Monitoring:</span>
-                      <span class="font-medium" [class]="tradingMode === 'automatic' ? 'text-green-600' : 'text-gray-600'">
-                        {{ tradingMode === 'automatic' ? '5 percenként' : 'Kikapcsolva' }}
+                      <span class="text-600">Auto-trading:</span>
+                      <span class="font-medium" [class]="autoTradingEnabled ? 'text-green-600' : 'text-gray-600'">
+                        {{ autoTradingEnabled ? 'Bekapcsolva' : 'Kikapcsolva' }}
                       </span>
                     </div>
                     <div class="flex justify-between text-sm">
-                      <span class="text-600">Szignál végrehajtás:</span>
-                      <span class="font-medium" [class]="tradingMode === 'automatic' ? 'text-green-600' : 'text-orange-600'">
-                        {{ tradingMode === 'automatic' ? 'Automatikus' : 'Manuális' }}
-                      </span>
+                      <span class="text-600">Manuális trade:</span>
+                      <span class="font-medium text-blue-600">Mindig elérhető</span>
                     </div>
                     <div class="flex justify-between text-sm">
                       <span class="text-600">Risk management:</span>
@@ -102,7 +84,7 @@
           </div>
 
           <!-- Auto Trading Warning -->
-          <div class="col-12" *ngIf="tradingMode === 'automatic'">
+          <div class="col-12" *ngIf="autoTradingEnabled">
             <div class="bg-red-50 border-left-3 border-red-500 p-3">
               <div class="text-red-900">
                 <i class="pi pi-exclamation-triangle mr-2"></i>
@@ -120,6 +102,24 @@
             </div>
           </div>
 
+          <!-- Manual Trading Info -->
+          <div class="col-12" *ngIf="!autoTradingEnabled">
+            <div class="bg-blue-50 border-left-3 border-blue-500 p-3">
+              <div class="text-blue-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>Manuális Mód:</strong>
+              </div>
+              <div class="text-blue-800 mt-2 text-sm">
+                Az automatikus kereskedés ki van kapcsolva. A manuális trade indítás továbbra is elérhető:
+                <ul class="mt-2 ml-4">
+                  <li>• Dashboard-on a "Trade Indítása" gombbal</li>
+                  <li>• Szignálok oldalon az egyes szignáloknál</li>
+                  <li>• Teljes kontroll minden kereskedés felett</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <div class="col-12">
             <p-divider></p-divider>
           </div>
@@ -129,8 +129,8 @@
               <p-button
                 label="Mentés"
                 icon="pi pi-save"
-                [loading]="savingTradingMode"
-                (onClick)="saveTradingMode()">
+                [loading]="savingAutoTrading"
+                (onClick)="saveAutoTradingSettings()">
               </p-button>
               <p-button
                 label="Alaphelyzetbe"

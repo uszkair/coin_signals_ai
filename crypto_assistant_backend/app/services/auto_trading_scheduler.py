@@ -352,6 +352,9 @@ class AutoTradingScheduler:
             trader = initialize_global_trader()
             active_positions = await trader.get_active_positions()
             
+            # IMPORTANT: Check for orphaned "open" positions in database that are no longer active on Binance
+            await self._check_orphaned_open_positions(active_positions)
+            
             if not active_positions:
                 # Also check for pending orders in database that need status updates
                 await self._refresh_pending_orders()
@@ -530,6 +533,127 @@ class AutoTradingScheduler:
                             
         except Exception as e:
             logger.error(f"Error refreshing pending orders: {e}")
+
+    async def _check_orphaned_open_positions(self, active_positions: Dict):
+        """Check for 'open' positions in database that are no longer active on Binance"""
+        try:
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                # Get all "open" positions from database
+                open_performances = await DatabaseService.get_pending_trading_performances(db)
+                open_positions = [p for p in open_performances if p.result == 'open']
+                
+                if not open_positions:
+                    return
+                
+                logger.debug(f"Checking {len(open_positions)} open positions in database against {len(active_positions)} active Binance positions...")
+                
+                # Extract main order IDs from active Binance positions
+                active_order_ids = set()
+                for position in active_positions.values():
+                    main_order_id = position.get('main_order_id')
+                    if main_order_id:
+                        active_order_ids.add(str(main_order_id))
+                
+                # Check each open position in database
+                for performance in open_positions:
+                    if not performance.main_order_id:
+                        continue
+                    
+                    main_order_id = str(performance.main_order_id)
+                    
+                    # If this order ID is not in active positions, it means the position was manually closed
+                    if main_order_id not in active_order_ids:
+                        logger.warning(f"Found orphaned 'open' position: Order ID {main_order_id} for {performance.signal.symbol if performance.signal else 'UNKNOWN'}")
+                        
+                        try:
+                            # Try to get the final order status from Binance to determine exit price and P&L
+                            trader = initialize_global_trader()
+                            symbol = performance.signal.symbol if performance.signal else None
+                            
+                            if symbol:
+                                # Get order status from Binance
+                                order_status = await trader.get_order_status(symbol, main_order_id)
+                                
+                                if order_status.get('success') and order_status.get('status') == 'FILLED':
+                                    # Order was filled, calculate P&L
+                                    entry_price = float(performance.signal.price) if performance.signal else 0
+                                    exit_price = order_status.get('avg_price', entry_price)
+                                    quantity = performance.quantity or 0
+                                    direction = performance.signal.signal_type if performance.signal else 'BUY'
+                                    
+                                    # Calculate P&L
+                                    if direction == 'BUY':
+                                        pnl = quantity * (exit_price - entry_price)
+                                    else:  # SELL
+                                        pnl = quantity * (entry_price - exit_price)
+                                    
+                                    # Calculate percentage
+                                    if quantity > 0 and entry_price > 0:
+                                        pnl_percentage = (pnl / (quantity * entry_price)) * 100
+                                    else:
+                                        pnl_percentage = 0.0
+                                    
+                                    # Determine result
+                                    if pnl > 0:
+                                        result = "profit"
+                                    elif pnl < 0:
+                                        result = "loss"
+                                    else:
+                                        result = "breakeven"
+                                    
+                                    # Update the performance record
+                                    update_data = {
+                                        "exit_price": exit_price,
+                                        "exit_time": order_status.get('update_time', datetime.now()),
+                                        "profit_loss": pnl,
+                                        "profit_percentage": pnl_percentage,
+                                        "result": result
+                                    }
+                                    
+                                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                                    logger.info(f"✅ Updated orphaned position: {symbol} Order {main_order_id} -> {result} (${pnl:.2f})")
+                                    
+                                else:
+                                    # Could not get order status, mark as unknown closure
+                                    update_data = {
+                                        "exit_time": datetime.now(),
+                                        "result": "loss",  # Conservative assumption
+                                        "profit_loss": 0.0,
+                                        "profit_percentage": 0.0
+                                    }
+                                    
+                                    await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                                    logger.warning(f"⚠️ Marked orphaned position as closed (unknown P&L): {symbol} Order {main_order_id}")
+                            else:
+                                # No symbol info, just mark as closed
+                                update_data = {
+                                    "exit_time": datetime.now(),
+                                    "result": "loss",  # Conservative assumption
+                                    "profit_loss": 0.0,
+                                    "profit_percentage": 0.0
+                                }
+                                
+                                await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                                logger.warning(f"⚠️ Marked orphaned position as closed (no symbol): Order {main_order_id}")
+                                
+                        except Exception as e:
+                            logger.error(f"❌ Error updating orphaned position {main_order_id}: {e}")
+                            # As a last resort, mark it as closed with unknown result
+                            try:
+                                update_data = {
+                                    "exit_time": datetime.now(),
+                                    "result": "loss",  # Conservative assumption
+                                    "profit_loss": 0.0,
+                                    "profit_percentage": 0.0
+                                }
+                                await DatabaseService.update_trading_performance(db, performance.id, update_data)
+                                logger.warning(f"⚠️ Force-closed orphaned position due to error: Order {main_order_id}")
+                            except:
+                                pass
+                
+        except Exception as e:
+            logger.error(f"Error checking orphaned open positions: {e}")
 
 
 # Global scheduler instance
