@@ -245,8 +245,16 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
                     # Get current market price for P&L calculation
                     try:
                         current_price = await trader._get_current_price(symbol)
+                        if current_price is None or current_price <= 0:
+                            current_price = entry_price  # Fallback
                     except:
                         current_price = entry_price  # Fallback
+                    
+                    # Ensure we have valid prices
+                    if current_price is None:
+                        current_price = entry_price or 0
+                    if entry_price is None:
+                        entry_price = current_price or 0
                     
                     # Determine order side (opposite of position)
                     if position_amt > 0:
@@ -261,10 +269,14 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
                         position_side = 'SELL'  # Original position was SELL
                     
                     # Calculate P&L before closing
-                    if position_amt > 0:  # LONG position
-                        pnl = quantity * (current_price - entry_price)
-                    else:  # SHORT position
-                        pnl = quantity * (entry_price - current_price)
+                    # Safe P&L calculation with None checks
+                    if current_price is not None and entry_price is not None:
+                        if position_amt > 0:  # LONG position
+                            pnl = quantity * (current_price - entry_price)
+                        else:  # SHORT position
+                            pnl = quantity * (entry_price - current_price)
+                    else:
+                        pnl = 0.0  # Default to 0 if prices are None
                     
                     # Calculate P&L percentage
                     if quantity > 0 and entry_price > 0:
@@ -289,10 +301,14 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
                         exit_price = float(order_result.get('price'))
                     
                     # Recalculate P&L with actual exit price
-                    if position_amt > 0:  # LONG position
-                        final_pnl = quantity * (exit_price - entry_price)
-                    else:  # SHORT position
-                        final_pnl = quantity * (entry_price - exit_price)
+                    # Safe final P&L calculation with None checks
+                    if exit_price is not None and entry_price is not None:
+                        if position_amt > 0:  # LONG position
+                            final_pnl = quantity * (exit_price - entry_price)
+                        else:  # SHORT position
+                            final_pnl = quantity * (entry_price - exit_price)
+                    else:
+                        final_pnl = 0.0  # Default to 0 if prices are None
                     
                     # Recalculate P&L percentage
                     if quantity > 0 and entry_price > 0:
@@ -1705,10 +1721,14 @@ async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db
                 position_side = 'SELL'  # Original position was SELL
             
             # Calculate P&L before closing
-            if position_amt > 0:  # LONG position
-                pnl = quantity * (current_price - entry_price)
-            else:  # SHORT position
-                pnl = quantity * (entry_price - current_price)
+            # Safe P&L calculation with None checks
+            if current_price is not None and entry_price is not None:
+                if position_amt > 0:  # LONG position
+                    pnl = quantity * (current_price - entry_price)
+                else:  # SHORT position
+                    pnl = quantity * (entry_price - current_price)
+            else:
+                pnl = 0.0  # Default to 0 if prices are None
             
             # Calculate P&L percentage
             if quantity > 0 and entry_price > 0:
@@ -1733,10 +1753,14 @@ async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db
                 exit_price = float(order_result.get('price'))
             
             # Recalculate P&L with actual exit price
-            if position_amt > 0:  # LONG position
-                final_pnl = quantity * (exit_price - entry_price)
-            else:  # SHORT position
-                final_pnl = quantity * (entry_price - exit_price)
+            # Safe final P&L calculation with None checks
+            if exit_price is not None and entry_price is not None:
+                if position_amt > 0:  # LONG position
+                    final_pnl = quantity * (exit_price - entry_price)
+                else:  # SHORT position
+                    final_pnl = quantity * (entry_price - exit_price)
+            else:
+                final_pnl = 0.0  # Default to 0 if prices are None
             
             # Recalculate P&L percentage
             if quantity > 0 and entry_price > 0:

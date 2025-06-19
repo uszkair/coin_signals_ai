@@ -926,11 +926,35 @@ class BinanceTrader:
                 logger.warning(f"Could not get current price for {symbol}, skipping stop loss order")
                 return {'success': False, 'error': f'Could not get current price for {symbol}'}
             
+            # PERCENT_PRICE FILTER VALIDATION
+            # Validate stop price against PERCENT_PRICE limits BEFORE placing order
+            price_deviation = abs(stop_price - current_price) / current_price
+            max_deviation = 0.05 if self.use_futures else 0.10  # 5% for futures, 10% for spot
+            
+            if price_deviation > max_deviation:
+                # Adjust stop price to be within limits
+                if direction == 'BUY':  # LONG position, stop loss below current price
+                    adjusted_stop_price = current_price * (1 - max_deviation * 0.8)  # 80% of max deviation for safety
+                else:  # SHORT position, stop loss above current price
+                    adjusted_stop_price = current_price * (1 + max_deviation * 0.8)
+                
+                logger.warning(f"Stop price {stop_price} too far from market price {current_price} ({price_deviation:.1%})")
+                logger.warning(f"Adjusting stop price from {stop_price} to {adjusted_stop_price}")
+                stop_price = adjusted_stop_price
+            
             # TESTNET SAFETY: Check if we're in testnet mode and adjust behavior
             if self.testnet:
                 logger.info(f"TESTNET MODE: Attempting to place stop loss order for {symbol}")
-                # In testnet, be more lenient with price validation
+                # In testnet, be more conservative with price validation
                 logger.warning(f"TESTNET: Stop loss orders may fail due to testnet API limitations")
+                # Further reduce deviation for testnet
+                testnet_max_deviation = 0.02  # 2% for testnet
+                if abs(stop_price - current_price) / current_price > testnet_max_deviation:
+                    if direction == 'BUY':
+                        stop_price = current_price * (1 - testnet_max_deviation)
+                    else:
+                        stop_price = current_price * (1 + testnet_max_deviation)
+                    logger.warning(f"TESTNET: Further adjusted stop price to {stop_price}")
             
             # Round stop price to proper precision based on PRICE_FILTER
             price_filter = None
@@ -1339,7 +1363,11 @@ class BinanceTrader:
             return 0.0
     
     def _calculate_pnl(self, quantity: float, entry_price: float, exit_price: float, direction: str) -> float:
-        """Calculate profit/loss"""
+        """Calculate profit/loss with None value protection"""
+        # Protect against None values
+        if entry_price is None or exit_price is None or quantity is None:
+            return 0.0
+        
         if direction == 'BUY':
             return quantity * (exit_price - entry_price)
         else:  # SELL
