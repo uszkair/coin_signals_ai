@@ -731,3 +731,166 @@ class DatabaseService:
             print(f"❌ Error clearing trading history: {str(e)}")
             await db.rollback()
             return 0
+
+    @staticmethod
+    async def get_open_positions(db: AsyncSession, testnet_mode: Optional[bool] = None) -> List[dict]:
+        """Get all open positions from database (SignalPerformance with result='open')"""
+        try:
+            # Query for open positions
+            query = select(SignalPerformance).options(
+                selectinload(SignalPerformance.signal)
+            ).where(SignalPerformance.result == 'open')
+            
+            # Filter by testnet mode if specified
+            if testnet_mode is not None:
+                query = query.where(SignalPerformance.testnet_mode == testnet_mode)
+            
+            # Order by creation time (newest first)
+            query = query.order_by(desc(SignalPerformance.created_at))
+            
+            result = await db.execute(query)
+            performances = result.scalars().all()
+            
+            # Convert to position format
+            positions = []
+            for performance in performances:
+                if performance.signal:
+                    position_data = {
+                        "id": f"db_{performance.id}",
+                        "signal_id": performance.signal_id,
+                        "symbol": performance.signal.symbol,
+                        "direction": performance.signal.signal_type,  # BUY or SELL
+                        "quantity": float(performance.quantity) if performance.quantity else 0.0,
+                        "entry_price": float(performance.signal.price),
+                        "current_price": float(performance.signal.price),  # Will be updated with real price
+                        "unrealized_pnl": float(performance.profit_loss) if performance.profit_loss else 0.0,
+                        "unrealized_pnl_percentage": float(performance.profit_percentage) if performance.profit_percentage else 0.0,
+                        "stop_loss": float(performance.stop_loss_price) if performance.stop_loss_price else (float(performance.signal.support_level) if performance.signal.support_level else None),
+                        "take_profit": float(performance.take_profit_price) if performance.take_profit_price else (float(performance.signal.resistance_level) if performance.signal.resistance_level else None),
+                        "main_order_id": performance.main_order_id,
+                        "stop_loss_order_id": performance.stop_loss_order_id,
+                        "take_profit_order_id": performance.take_profit_order_id,
+                        "position_size_usd": float(performance.position_size_usd) if performance.position_size_usd else None,
+                        "entry_time": performance.signal.created_at.isoformat() if performance.signal.created_at else None,
+                        "testnet_mode": performance.testnet_mode,
+                        "confidence": float(performance.signal.confidence) if performance.signal.confidence else None,
+                        "pattern": performance.signal.pattern
+                    }
+                    positions.append(position_data)
+            
+            return positions
+            
+        except Exception as e:
+            print(f"❌ Error getting open positions from database: {str(e)}")
+            return []
+
+    @staticmethod
+    async def save_open_position(db: AsyncSession, position_data: dict) -> Optional[SignalPerformance]:
+        """Save a new open position to database"""
+        try:
+            # First, we need to create or find the associated signal
+            signal_id = position_data.get("signal_id")
+            if not signal_id:
+                print("❌ No signal_id provided for open position")
+                return None
+            
+            # Create the performance record with 'open' status
+            performance = SignalPerformance(
+                signal_id=signal_id,
+                result='open',
+                main_order_id=position_data.get("main_order_id"),
+                stop_loss_order_id=position_data.get("stop_loss_order_id"),
+                take_profit_order_id=position_data.get("take_profit_order_id"),
+                quantity=float(position_data["quantity"]) if position_data.get("quantity") else None,
+                position_size_usd=float(position_data["position_size_usd"]) if position_data.get("position_size_usd") else None,
+                stop_loss_price=float(position_data["stop_loss"]) if position_data.get("stop_loss") else None,
+                take_profit_price=float(position_data["take_profit"]) if position_data.get("take_profit") else None,
+                testnet_mode=position_data.get("testnet_mode", True),
+                profit_loss=0.0,  # Initial unrealized P&L
+                profit_percentage=0.0  # Initial unrealized P&L percentage
+            )
+            
+            db.add(performance)
+            await db.commit()
+            await db.refresh(performance)
+            
+            print(f"✅ Open position saved to database: Signal {signal_id}")
+            return performance
+            
+        except Exception as e:
+            print(f"❌ Error saving open position to database: {str(e)}")
+            await db.rollback()
+            return None
+
+    @staticmethod
+    async def update_open_position(db: AsyncSession, position_id: str, update_data: dict) -> bool:
+        """Update an open position in database"""
+        try:
+            # Extract performance ID from position_id (format: "db_123")
+            if not position_id.startswith("db_"):
+                return False
+            
+            performance_id = int(position_id.replace("db_", ""))
+            
+            # Get the performance record
+            query = select(SignalPerformance).where(SignalPerformance.id == performance_id)
+            result = await db.execute(query)
+            performance = result.scalar_one_or_none()
+            
+            if not performance:
+                return False
+            
+            # Update fields
+            for key, value in update_data.items():
+                if key == "unrealized_pnl" and value is not None:
+                    performance.profit_loss = float(value)
+                elif key == "unrealized_pnl_percentage" and value is not None:
+                    performance.profit_percentage = float(value)
+                elif key == "current_price":
+                    # We don't store current_price in database, it's calculated
+                    pass
+                elif hasattr(performance, key) and value is not None:
+                    setattr(performance, key, value)
+            
+            await db.commit()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error updating open position in database: {str(e)}")
+            await db.rollback()
+            return False
+
+    @staticmethod
+    async def close_position_in_database(db: AsyncSession, position_id: str, close_data: dict) -> bool:
+        """Close a position in database by updating its status"""
+        try:
+            # Extract performance ID from position_id (format: "db_123")
+            if not position_id.startswith("db_"):
+                return False
+            
+            performance_id = int(position_id.replace("db_", ""))
+            
+            # Get the performance record
+            query = select(SignalPerformance).where(SignalPerformance.id == performance_id)
+            result = await db.execute(query)
+            performance = result.scalar_one_or_none()
+            
+            if not performance:
+                return False
+            
+            # Update to closed status
+            performance.result = close_data.get("result", "profit" if close_data.get("realized_pnl", 0) > 0 else "loss")
+            performance.exit_price = float(close_data["exit_price"]) if close_data.get("exit_price") else None
+            performance.exit_time = close_data.get("exit_time")
+            performance.profit_loss = float(close_data["realized_pnl"]) if close_data.get("realized_pnl") else None
+            performance.profit_percentage = float(close_data["realized_pnl_percentage"]) if close_data.get("realized_pnl_percentage") else None
+            
+            await db.commit()
+            
+            print(f"✅ Position {position_id} closed in database with result: {performance.result}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error closing position in database: {str(e)}")
+            await db.rollback()
+            return False

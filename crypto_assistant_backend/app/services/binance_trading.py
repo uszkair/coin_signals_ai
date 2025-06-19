@@ -156,10 +156,10 @@ class BinanceTrader:
         self.daily_loss_limit = 0.05   # Stop trading if daily loss > 5%
         self.max_drawdown = 0.10       # Maximum 10% drawdown
         
-        # Trade tracking
-        self.daily_trades = 0
-        self.daily_pnl = 0.0
-        self.active_positions = {}
+        # Trade tracking - load from persistent storage
+        self._load_daily_counters()
+        self._load_active_positions()
+        self._load_configuration()
     
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information and balances"""
@@ -314,8 +314,10 @@ class BinanceTrader:
                 'manual_management_required': (sl_failed or tp_failed) if self.testnet else False
             }
             
-            # Update daily tracking
+            # Update daily tracking and save persistent data
             self.daily_trades += 1
+            self._save_daily_counters()
+            self._save_active_positions()
             
             # SAVE OPEN POSITION TO PERFORMANCE TABLE IMMEDIATELY
             trade_history_id = await self._save_open_position_to_history(
@@ -438,8 +440,9 @@ class BinanceTrader:
                 else:
                     pnl_percentage = 0.0
                 
-                # Update daily P&L
+                # Update daily P&L and save persistent data
                 self.daily_pnl += pnl
+                self._save_daily_counters()
                 
                 # Update existing OPEN position to CLOSED status
                 await self._update_position_to_closed(
@@ -491,8 +494,9 @@ class BinanceTrader:
                 except Exception as table_error:
                     logger.error(f"❌ Failed to remove position from table: {table_error}")
                 
-                # Remove from active positions
+                # Remove from active positions and save persistent data
                 del self.active_positions[position_id]
+                self._save_active_positions()
                 
                 return {
                     'success': True,
@@ -511,6 +515,11 @@ class BinanceTrader:
     
     async def get_active_positions(self) -> Dict[str, Any]:
         """Get all active positions with current P&L from Binance API"""
+        
+        # Lazy loading: Load positions from database if not already loaded
+        if not self.active_positions:
+            await self._load_active_positions_from_database()
+        
         if not self.client or not self.use_futures:
             # Fallback to stored positions for non-futures or no client
             positions_with_pnl = {}
@@ -751,6 +760,7 @@ class BinanceTrader:
                 self.max_position_size = max_percentage / 100  # Convert percentage to decimal
         
         logger.info(f"Position size config updated: mode={mode}, amount={amount}, max_percentage={max_percentage}")
+        self._save_configuration()
     
     async def _get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Get symbol trading information"""
@@ -1697,6 +1707,180 @@ class BinanceTrader:
                     
         except Exception as e:
             logger.error(f"Error updating position to closed: {e}")
+
+    def _load_daily_counters(self):
+        """Load daily trading counters from persistent storage"""
+        try:
+            import json
+            import os
+            
+            counters_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'daily_trading_counters.json')
+            
+            if os.path.exists(counters_file):
+                with open(counters_file, 'r') as f:
+                    data = json.load(f)
+                    self.daily_trades = data.get('daily_trades', 0)
+                    self.daily_pnl = data.get('daily_pnl', 0.0)
+                    logger.info(f"Loaded daily counters: trades={self.daily_trades}, pnl={self.daily_pnl}")
+            else:
+                # Default values if file doesn't exist
+                self.daily_trades = 0
+                self.daily_pnl = 0.0
+                logger.info("No persistent counters found, using defaults")
+                
+        except Exception as e:
+            logger.error(f"Error loading daily counters: {e}")
+            # Fallback to defaults
+            self.daily_trades = 0
+            self.daily_pnl = 0.0
+
+    def _save_daily_counters(self):
+        """Save daily trading counters to persistent storage"""
+        try:
+            import json
+            import os
+            from datetime import datetime
+            
+            counters_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'daily_trading_counters.json')
+            
+            # Load existing data to preserve reset info
+            existing_data = {}
+            if os.path.exists(counters_file):
+                try:
+                    with open(counters_file, 'r') as f:
+                        existing_data = json.load(f)
+                except:
+                    pass
+            
+            # Update with current values
+            data = {
+                'daily_trades': self.daily_trades,
+                'daily_pnl': self.daily_pnl,
+                'last_reset': existing_data.get('last_reset'),
+                'reset_count': existing_data.get('reset_count', 0),
+                'last_update': datetime.now().isoformat()
+            }
+            
+            # Save to file
+            with open(counters_file, 'w') as f:
+                json.dump(data, f, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Error saving daily counters: {e}")
+
+    def _load_active_positions(self):
+        """Load active positions from database (synchronous wrapper)"""
+        try:
+            # Since we can't use async in __init__, we'll load positions lazily
+            # when they're first needed in get_active_positions()
+            self.active_positions = {}
+            logger.info("Active positions will be loaded from database when first accessed")
+            
+        except Exception as e:
+            logger.error(f"Error initializing active positions: {e}")
+            self.active_positions = {}
+
+    async def _load_active_positions_from_database(self):
+        """Load active positions from database asynchronously"""
+        try:
+            from app.services.database_service import DatabaseService
+            from app.database import AsyncSessionLocal
+            
+            async with AsyncSessionLocal() as db:
+                # Load open positions from database
+                open_positions = await DatabaseService.get_open_positions(db, testnet_mode=self.testnet)
+                
+                self.active_positions = {}
+                for position in open_positions:
+                    # Create position ID from database record
+                    position_id = f"{position.signal.symbol}_{position.signal.timestamp.strftime('%Y%m%d_%H%M%S')}"
+                    
+                    self.active_positions[position_id] = {
+                        'symbol': position.signal.symbol,
+                        'direction': position.signal.signal_type,
+                        'quantity': position.quantity,
+                        'entry_price': position.signal.price,
+                        'stop_loss': position.stop_loss_price or 0.0,
+                        'take_profit': position.take_profit_price or 0.0,
+                        'main_order_id': position.main_order_id,
+                        'stop_loss_order_id': position.stop_loss_order_id,
+                        'take_profit_order_id': position.take_profit_order_id,
+                        'timestamp': position.signal.timestamp,
+                        'signal_confidence': position.signal.confidence,
+                        'testnet_mode': position.testnet_mode,
+                        'database_id': position.id  # Store database ID for updates
+                    }
+                
+                logger.info(f"Loaded {len(self.active_positions)} active positions from database")
+                    
+        except Exception as e:
+            logger.error(f"Error loading active positions from database: {e}")
+            # Fallback to empty dict
+            self.active_positions = {}
+
+    def _save_active_positions(self):
+        """Save active positions to database - handled automatically by database operations"""
+        # Active positions are now stored in the database via the trading performance table
+        # This method is kept for compatibility but doesn't need to do anything
+        # since positions are saved when created and updated when closed
+        logger.info(f"Active positions are automatically saved to database")
+
+    def _load_configuration(self):
+        """Load trader configuration from persistent storage"""
+        try:
+            import json
+            import os
+            
+            config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'trader_config.json')
+            
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    
+                    # Load configuration values with fallbacks to current values
+                    self.max_position_size = config.get('max_position_size', self.max_position_size)
+                    self.default_position_size_usd = config.get('default_position_size_usd', self.default_position_size_usd)
+                    self.position_size_mode = config.get('position_size_mode', self.position_size_mode)
+                    self.max_daily_trades = config.get('max_daily_trades', self.max_daily_trades)
+                    self.min_profit_threshold = config.get('min_profit_threshold', self.min_profit_threshold)
+                    self.daily_loss_limit = config.get('daily_loss_limit', self.daily_loss_limit)
+                    self.max_drawdown = config.get('max_drawdown', self.max_drawdown)
+                    
+                    logger.info(f"Loaded trader configuration from persistent storage")
+            else:
+                logger.info("No persistent configuration found, using defaults")
+                
+        except Exception as e:
+            logger.error(f"Error loading trader configuration: {e}")
+
+    def _save_configuration(self):
+        """Save trader configuration to persistent storage"""
+        try:
+            import json
+            import os
+            from datetime import datetime
+            
+            config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'trader_config.json')
+            
+            config = {
+                'max_position_size': self.max_position_size,
+                'default_position_size_usd': self.default_position_size_usd,
+                'position_size_mode': self.position_size_mode,
+                'max_daily_trades': self.max_daily_trades,
+                'min_profit_threshold': self.min_profit_threshold,
+                'daily_loss_limit': self.daily_loss_limit,
+                'max_drawdown': self.max_drawdown,
+                'last_update': datetime.now().isoformat()
+            }
+            
+            # Save to file
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+                
+            logger.info("Saved trader configuration to persistent storage")
+                
+        except Exception as e:
+            logger.error(f"Error saving trader configuration: {e}")
 
 
 # Global trader instance - will be initialized from database settings
