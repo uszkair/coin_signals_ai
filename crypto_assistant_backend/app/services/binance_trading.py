@@ -286,6 +286,15 @@ class BinanceTrader:
                 symbol, direction, quantity, take_profit, symbol_info
             )
             
+            # TESTNET HANDLING: Check if SL/TP orders failed but continue with trade
+            sl_failed = not stop_loss_order.get('success', False)
+            tp_failed = not take_profit_order.get('success', False)
+            
+            if (sl_failed or tp_failed) and self.testnet:
+                logger.warning(f"TESTNET: Some orders failed for {symbol} but continuing trade execution")
+                logger.warning(f"TESTNET: SL failed: {sl_failed}, TP failed: {tp_failed}")
+                logger.warning(f"TESTNET: Manual risk management required for {symbol}")
+            
             # Track position
             position_id = f"{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             self.active_positions[position_id] = {
@@ -296,10 +305,13 @@ class BinanceTrader:
                 'stop_loss': stop_loss,
                 'take_profit': take_profit,
                 'main_order_id': main_order.get('order_id'),
-                'stop_loss_order_id': stop_loss_order.get('order_id'),
-                'take_profit_order_id': take_profit_order.get('order_id'),
+                'stop_loss_order_id': stop_loss_order.get('order_id') if stop_loss_order.get('success') else None,
+                'take_profit_order_id': take_profit_order.get('order_id') if take_profit_order.get('success') else None,
                 'timestamp': datetime.now(),
-                'signal_confidence': confidence
+                'signal_confidence': confidence,
+                'testnet_sl_failed': sl_failed if self.testnet else False,
+                'testnet_tp_failed': tp_failed if self.testnet else False,
+                'manual_management_required': (sl_failed or tp_failed) if self.testnet else False
             }
             
             # Update daily tracking
@@ -323,13 +335,23 @@ class BinanceTrader:
                     'take_profit': take_profit,
                     'main_order_id': main_order.get('order_id'),
                     'stop_loss_order_id': stop_loss_order.get('order_id'),
-                    'take_profit_order_id': take_profit_order.get('order_id'),
+                    'take_profit_order_id': take_profit_order.get('order_id') if take_profit_order.get('success') else None,
                     'testnet': self.testnet,
                     'confidence': confidence,
-                    'position_id': position_id
+                    'position_id': position_id,
+                    'testnet_warnings': {
+                        'sl_failed': sl_failed if self.testnet else False,
+                        'tp_failed': tp_failed if self.testnet else False,
+                        'manual_management_required': (sl_failed or tp_failed) if self.testnet else False
+                    }
                 }
                 await notify_new_position(position_notification_data)
                 logger.info(f"✅ New position notification sent for {symbol}")
+                
+                # Additional testnet warning notification
+                if self.testnet and (sl_failed or tp_failed):
+                    logger.warning(f"⚠️ TESTNET WARNING: {symbol} position opened but SL/TP orders failed")
+                    logger.warning(f"⚠️ Manual risk management required for {symbol}")
             except Exception as notification_error:
                 logger.error(f"❌ Failed to send new position notification: {notification_error}")
             
@@ -368,7 +390,14 @@ class BinanceTrader:
                 'quantity': quantity,
                 'expected_profit': self._calculate_expected_profit(quantity, entry_price, take_profit, direction),
                 'max_loss': self._calculate_max_loss(quantity, entry_price, stop_loss, direction),
-                'trade_history_id': trade_history_id if save_to_history else None
+                'trade_history_id': trade_history_id if save_to_history else None,
+                'testnet_warnings': {
+                    'is_testnet': self.testnet,
+                    'sl_order_failed': sl_failed if self.testnet else False,
+                    'tp_order_failed': tp_failed if self.testnet else False,
+                    'manual_management_required': (sl_failed or tp_failed) if self.testnet else False,
+                    'warning_message': f"TESTNET: Manual SL/TP management required for {symbol}" if self.testnet and (sl_failed or tp_failed) else None
+                }
             }
             
         except Exception as e:
@@ -900,6 +929,8 @@ class BinanceTrader:
             # TESTNET SAFETY: Check if we're in testnet mode and adjust behavior
             if self.testnet:
                 logger.info(f"TESTNET MODE: Attempting to place stop loss order for {symbol}")
+                # In testnet, be more lenient with price validation
+                logger.warning(f"TESTNET: Stop loss orders may fail due to testnet API limitations")
             
             # Round stop price to proper precision based on PRICE_FILTER
             price_filter = None
@@ -985,12 +1016,34 @@ class BinanceTrader:
             error_msg = str(e)
             logger.error(f"Binance stop loss order error for {symbol}: {error_msg}")
             
+            # TESTNET HANDLING: In testnet mode, don't fail the entire trade if SL order fails
+            if self.testnet:
+                logger.warning(f"TESTNET: Stop loss order failed for {symbol}, but continuing trade execution")
+                logger.warning(f"TESTNET: Manual stop loss management required for {symbol}")
+                return {
+                    'success': False,
+                    'error': f'Testnet stop loss order failed: {error_msg}',
+                    'testnet_warning': True,
+                    'manual_management_required': True
+                }
+            
             if "PERCENT_PRICE" in error_msg:
                 return {'success': False, 'error': f'Stop loss price validation failed for {symbol}. Price too far from market price.'}
             else:
                 return {'success': False, 'error': error_msg}
         except Exception as e:
             logger.error(f"Error placing stop loss order for {symbol}: {e}")
+            
+            # TESTNET HANDLING: In testnet mode, don't fail the entire trade
+            if self.testnet:
+                logger.warning(f"TESTNET: Stop loss order exception for {symbol}, but continuing trade execution")
+                return {
+                    'success': False,
+                    'error': f'Testnet stop loss order exception: {str(e)}',
+                    'testnet_warning': True,
+                    'manual_management_required': True
+                }
+            
             return {'success': False, 'error': str(e)}
     
     async def _place_take_profit_order(self, symbol: str, direction: str, quantity: float, take_profit_price: float, symbol_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -1086,12 +1139,34 @@ class BinanceTrader:
             error_msg = str(e)
             logger.error(f"Binance take profit order error for {symbol}: {error_msg}")
             
+            # TESTNET HANDLING: In testnet mode, don't fail the entire trade if TP order fails
+            if self.testnet:
+                logger.warning(f"TESTNET: Take profit order failed for {symbol}, but continuing trade execution")
+                logger.warning(f"TESTNET: Manual take profit management required for {symbol}")
+                return {
+                    'success': False,
+                    'error': f'Testnet take profit order failed: {error_msg}',
+                    'testnet_warning': True,
+                    'manual_management_required': True
+                }
+            
             if "PERCENT_PRICE" in error_msg:
                 return {'success': False, 'error': f'Take profit price validation failed for {symbol}. Price too far from market price.'}
             else:
                 return {'success': False, 'error': error_msg}
         except Exception as e:
             logger.error(f"Error placing take profit order for {symbol}: {e}")
+            
+            # TESTNET HANDLING: In testnet mode, don't fail the entire trade
+            if self.testnet:
+                logger.warning(f"TESTNET: Take profit order exception for {symbol}, but continuing trade execution")
+                return {
+                    'success': False,
+                    'error': f'Testnet take profit order exception: {str(e)}',
+                    'testnet_warning': True,
+                    'manual_management_required': True
+                }
+            
             return {'success': False, 'error': str(e)}
     
     async def _cancel_order(self, symbol: str, order_id: str) -> bool:

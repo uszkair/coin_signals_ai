@@ -358,8 +358,8 @@
               </div>
             </div>
 
-            <!-- Manual Trading Actions (only when auto-trading is disabled) -->
-            <div *ngIf="!autoTradingEnabled" class="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+            <!-- Manual Trading Actions (always visible) -->
+            <div class="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
               <h4 class="text-xs font-medium text-gray-900 dark:text-white mb-2">🎯 Manuális Kereskedés</h4>
               <div class="flex space-x-1">
                 <!-- Manual Trading Button -->
@@ -395,13 +395,19 @@
                   pTooltip="Chart megjelenítése"
                 ></p-button>
               </div>
-            </div>
-
-            <!-- Auto Trading Info (when auto-trading is enabled) -->
-            <div *ngIf="autoTradingEnabled" class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-700">
-              <div class="flex items-center text-green-800 dark:text-green-200 text-xs">
-                <i class="pi pi-check-circle mr-1"></i>
-                <span>Automatikus kereskedés aktív</span>
+              
+              <!-- Auto Trading Status Info -->
+              <div *ngIf="autoTradingEnabled" class="mt-2 p-1 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-700">
+                <div class="flex items-center text-green-800 dark:text-green-200 text-xs">
+                  <i class="pi pi-check-circle mr-1"></i>
+                  <span>Automatikus kereskedés is aktív</span>
+                </div>
+              </div>
+              <div *ngIf="!autoTradingEnabled" class="mt-2 p-1 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700">
+                <div class="flex items-center text-blue-800 dark:text-blue-200 text-xs">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  <span>Csak manuális kereskedés aktív</span>
+                </div>
               </div>
             </div>
           </div>

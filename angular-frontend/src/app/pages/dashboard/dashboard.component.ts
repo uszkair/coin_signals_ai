@@ -268,20 +268,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   executeManualTrade(signal: Signal): void {
-    if (this.autoTradingEnabled) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Automata Mód Aktív',
-        detail: 'Kapcsold ki az automata kereskedést a manuális végrehajtáshoz',
-        life: 5000
-      });
-      return;
-    }
-
+    // Allow manual trading even when auto-trading is enabled
+    const tradingMode = this.autoTradingEnabled ? 'Hibrid Mód (Auto + Manuális)' : 'Manuális Mód';
+    
     this.confirmationService.confirm({
-      message: `Manuális kereskedés végrehajtása: ${signal.signal} ${signal.symbol} @ $${signal.entry_price}?`,
+      message: `Manuális kereskedés végrehajtása: ${signal.signal} ${signal.symbol} @ $${signal.entry_price}?\n\nJelenlegi mód: ${tradingMode}`,
       header: 'Manuális Kereskedés Megerősítése',
       icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Végrehajtás',
+      rejectLabel: 'Mégse',
       accept: () => {
         this.executeAutomaticTrade(signal);
       }
@@ -562,21 +557,55 @@ export class DashboardComponent implements OnInit, OnDestroy {
             });
           }
         } else {
-          this.messageService.add({
-            severity: 'warn',
-            summary: 'Kereskedés Sikertelen',
-            detail: result.data?.error || 'Ismeretlen hiba történt',
-            life: 10000
-          });
+          // Check for API permission errors
+          const errorMessage = result.data?.error || result.error || 'Ismeretlen hiba történt';
+          
+          if (errorMessage.includes('Invalid account') || errorMessage.includes('-1109')) {
+            this.messageService.add({
+              severity: 'error',
+              summary: 'API Jogosultság Hiba',
+              detail: 'Az API kulcs nem rendelkezik kereskedési jogosultságokkal. Új API kulcs szükséges "Enable Trading" engedéllyel.',
+              life: 15000
+            });
+            
+            this.messageService.add({
+              severity: 'info',
+              summary: 'Megoldás',
+              detail: 'Binance Testnet → API Management → Create API → Enable Trading jogosultság bekapcsolása',
+              life: 20000
+            });
+          } else {
+            this.messageService.add({
+              severity: 'warn',
+              summary: 'Kereskedés Sikertelen',
+              detail: errorMessage,
+              life: 10000
+            });
+          }
         }
       },
       error: (error) => {
         this.loading = false;
+        
+        // Enhanced error handling for API issues
+        let errorDetail = 'Nem sikerült végrehajtani a kereskedést: ' + error.message;
+        
+        if (error.status === 500 && error.error?.detail?.includes('Invalid account')) {
+          errorDetail = 'API kulcs jogosultság hiba: Az API kulcs csak olvasási jogosultságokkal rendelkezik. Kereskedési jogosultság szükséges.';
+          
+          this.messageService.add({
+            severity: 'info',
+            summary: 'API Kulcs Frissítés Szükséges',
+            detail: 'Binance Testnet → API Management → Enable Trading/Futures Trading bekapcsolása',
+            life: 20000
+          });
+        }
+        
         this.messageService.add({
           severity: 'error',
           summary: 'Kereskedési Hiba',
-          detail: 'Nem sikerült végrehajtani a kereskedést: ' + error.message,
-          life: 10000
+          detail: errorDetail,
+          life: 15000
         });
       }
     });
