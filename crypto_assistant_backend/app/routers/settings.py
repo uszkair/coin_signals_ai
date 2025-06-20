@@ -156,7 +156,7 @@ async def get_default_settings():
         # Return the default values as defined in the model
         defaults = {
             "auto_trading_enabled": True,
-            "monitored_symbols": ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+            "monitored_symbols": ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'],
             "check_interval": 300,
             "min_signal_confidence": 70,
             "position_size_mode": 'percentage',

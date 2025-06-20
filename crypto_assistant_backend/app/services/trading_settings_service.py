@@ -101,13 +101,13 @@ class TradingSettingsService:
         if settings:
             return {
                 'enabled': getattr(settings, 'auto_trading_enabled', False),
-                'symbols': getattr(settings, 'monitored_symbols', ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT']),
+                'symbols': getattr(settings, 'monitored_symbols', ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT']),
                 'interval': getattr(settings, 'check_interval', 300),
                 'min_confidence': getattr(settings, 'min_signal_confidence', 70)
             }
         return {
             'enabled': True,
-            'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+            'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'],
             'interval': 300,
             'min_confidence': 70
         }

@@ -389,7 +389,7 @@ async def get_current_signal(symbol: str, interval: str):
     ai_signal_weight = ai_ml_settings.get('ai_signal_weight', 2.0)
     ai_confidence_threshold = ai_ml_settings.get('ai_confidence_threshold', 60.0)
     
-    if ai_confidence >= 75:  # High confidence AI signal
+    if ai_confidence >= ai_confidence_threshold + 15:  # High confidence AI signal (threshold + 15 for high confidence)
         if ai_signal == 'BUY':
             ai_weight = ai_signal_weight
             signal_score += ai_weight

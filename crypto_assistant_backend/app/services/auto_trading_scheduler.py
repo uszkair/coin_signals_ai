@@ -49,7 +49,7 @@ class AutoTradingScheduler:
             # Return default settings if database fails
             return {
                 'enabled': True,
-                'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+                'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'],
                 'interval': 300,
                 'min_confidence': 70
             }
