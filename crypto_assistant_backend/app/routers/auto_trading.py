@@ -22,6 +22,12 @@ class AutoTradingSettings(BaseModel):
     symbols: List[str] = None
     interval: int = None  # seconds
     min_confidence: int = None
+    # Signal strength settings
+    trading_mode: str = None  # 'conservative', 'balanced', 'aggressive'
+    strong_signals_only: bool = None
+    ai_confidence_threshold: int = None
+    max_daily_trades: int = None
+    check_interval: int = None
 
 
 @router.get("/status")
@@ -80,6 +86,22 @@ async def update_settings(settings: AutoTradingSettings):
         if settings.min_confidence is not None:
             settings_dict['min_confidence'] = settings.min_confidence
         
+        # Signal strength settings
+        if settings.trading_mode is not None:
+            settings_dict['trading_mode'] = settings.trading_mode
+        
+        if settings.strong_signals_only is not None:
+            settings_dict['strong_signals_only'] = settings.strong_signals_only
+        
+        if settings.ai_confidence_threshold is not None:
+            settings_dict['ai_confidence_threshold'] = settings.ai_confidence_threshold
+        
+        if settings.max_daily_trades is not None:
+            settings_dict['max_daily_trades'] = settings.max_daily_trades
+        
+        if settings.check_interval is not None:
+            settings_dict['check_interval'] = settings.check_interval
+        
         await update_auto_trading_settings(settings_dict)
         
         return {
@@ -102,7 +124,13 @@ async def get_settings():
                 "symbols": status["monitored_symbols"],
                 "interval": status["check_interval"],
                 "min_confidence": status["min_signal_confidence"],
-                "enabled": status["auto_trading_enabled"]
+                "enabled": status["auto_trading_enabled"],
+                # Signal strength settings
+                "trading_mode": status.get("trading_mode", "balanced"),
+                "strong_signals_only": status.get("strong_signals_only", False),
+                "ai_confidence_threshold": status.get("ai_confidence_threshold", 60),
+                "max_daily_trades": status.get("max_daily_trades", 10),
+                "check_interval": status.get("check_interval", 300)
             }
         }
     except Exception as e:

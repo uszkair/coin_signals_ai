@@ -6,6 +6,266 @@
   </div>
 
   <p-tabView>
+    <!-- Signal Strength Tab -->
+    <p-tabPanel header="Signal Erősség" leftIcon="pi pi-bolt">
+      <p-card header="Signal Erősség Beállítások" styleClass="mb-4">
+        <div class="grid">
+          <!-- Trading Mode Selection -->
+          <div class="col-12">
+            <div class="field">
+              <label class="text-lg font-semibold mb-3 block">Kereskedési Mód</label>
+              
+              <div class="flex flex-column gap-4">
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg"
+                     [class]="tradingMode === 'conservative' ? 'border-green-500 bg-green-50' : ''">
+                  <p-radioButton
+                    name="tradingMode"
+                    value="conservative"
+                    [(ngModel)]="tradingMode"
+                    inputId="conservative"
+                    (onClick)="onTradingModeChange()">
+                  </p-radioButton>
+                  <label for="conservative" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">
+                      🛡️ Konzervatív (Erős Signalok)
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Csak a legerősebb signalokra kereskedik. Min. 80% confidence, max 5 trade/nap.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg"
+                     [class]="tradingMode === 'balanced' ? 'border-blue-500 bg-blue-50' : ''">
+                  <p-radioButton
+                    name="tradingMode"
+                    value="balanced"
+                    [(ngModel)]="tradingMode"
+                    inputId="balanced"
+                    (onClick)="onTradingModeChange()">
+                  </p-radioButton>
+                  <label for="balanced" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">
+                      ⚖️ Kiegyensúlyozott
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Optimális egyensúly kockázat és hozam között. Min. 70% confidence, max 10 trade/nap.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg"
+                     [class]="tradingMode === 'aggressive' ? 'border-red-500 bg-red-50' : ''">
+                  <p-radioButton
+                    name="tradingMode"
+                    value="aggressive"
+                    [(ngModel)]="tradingMode"
+                    inputId="aggressive"
+                    (onClick)="onTradingModeChange()">
+                  </p-radioButton>
+                  <label for="aggressive" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">
+                      🚀 Agresszív
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Több kereskedés, magasabb kockázat. Min. 60% confidence, max 20 trade/nap.
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Manual Signal Strength Settings -->
+          <div class="col-12">
+            <h4 class="text-900 font-semibold mb-3">
+              <i class="pi pi-sliders-h mr-2"></i>Egyedi Signal Beállítások
+            </h4>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="minConfidence" class="block text-900 font-medium mb-2">
+                <i class="pi pi-chart-line mr-2"></i>Minimum Confidence (%)
+              </label>
+              <p-inputNumber
+                id="minConfidence"
+                [(ngModel)]="signalStrengthSettings.min_confidence"
+                [min]="50"
+                [max]="95"
+                [step]="5"
+                suffix="%"
+                placeholder="pl. 80"
+                styleClass="w-full">
+              </p-inputNumber>
+              <small class="text-600">
+                Csak ennél magasabb confidence-szel rendelkező signalok (50%-95%)
+              </small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="maxDailySignalTrades" class="block text-900 font-medium mb-2">
+                <i class="pi pi-calendar mr-2"></i>Max Napi Signal Trade
+              </label>
+              <p-inputNumber
+                id="maxDailySignalTrades"
+                [(ngModel)]="signalStrengthSettings.max_daily_trades"
+                [min]="1"
+                [max]="50"
+                [step]="1"
+                placeholder="pl. 5"
+                styleClass="w-full">
+              </p-inputNumber>
+              <small class="text-600">
+                Maximum signal alapú kereskedések naponta (1-50)
+              </small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="aiConfidenceThreshold" class="block text-900 font-medium mb-2">
+                <i class="pi pi-android mr-2"></i>AI Confidence Küszöb (%)
+              </label>
+              <p-inputNumber
+                id="aiConfidenceThreshold"
+                [(ngModel)]="signalStrengthSettings.ai_confidence_threshold"
+                [min]="30"
+                [max]="95"
+                [step]="5"
+                suffix="%"
+                placeholder="pl. 75"
+                styleClass="w-full">
+              </p-inputNumber>
+              <small class="text-600">
+                AI signalok minimum confidence szintje (30%-95%)
+              </small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="checkInterval" class="block text-900 font-medium mb-2">
+                <i class="pi pi-clock mr-2"></i>Ellenőrzési Intervallum (sec)
+              </label>
+              <p-inputNumber
+                id="checkInterval"
+                [(ngModel)]="signalStrengthSettings.check_interval"
+                [min]="60"
+                [max]="1800"
+                [step]="30"
+                suffix=" sec"
+                placeholder="pl. 300"
+                styleClass="w-full">
+              </p-inputNumber>
+              <small class="text-600">
+                Milyen gyakran ellenőrizze a signalokat (60-1800 sec)
+              </small>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Strong Signals Only Toggle -->
+          <div class="col-12">
+            <div class="flex align-items-center p-4 border border-gray-200 rounded-lg">
+              <div class="flex-1">
+                <div class="font-semibold text-gray-900 mb-2">
+                  💪 Csak Erős Signalok Mód
+                </div>
+                <div class="text-sm text-gray-600">
+                  Ha bekapcsolod, csak a legerősebb signalokra fog kereskedni (80%+ confidence).
+                  <br><strong>Automatikusan konzervatív módra vált!</strong>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p-inputSwitch
+                  [(ngModel)]="strongSignalsOnly"
+                  (onChange)="onStrongSignalsToggle()">
+                </p-inputSwitch>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <!-- Current Signal Strength Status -->
+          <div class="col-12">
+            <div class="bg-gray-50 border-round p-4">
+              <h4 class="text-900 font-semibold mb-3">
+                <i class="pi pi-info-circle mr-2"></i>Jelenlegi Signal Beállítások
+              </h4>
+              <div class="grid">
+                <div class="col-12 md:col-3">
+                  <div class="text-center p-3 border-round"
+                       [class]="getTradingModeColorClass()">
+                    <div class="text-2xl mb-2">
+                      {{ getTradingModeIcon() }}
+                    </div>
+                    <div class="font-bold text-lg">
+                      {{ getTradingModeName() }}
+                    </div>
+                    <div class="text-sm text-600 mt-1">
+                      Kereskedési mód
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-3">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl font-bold text-blue-600">{{ signalStrengthSettings.min_confidence }}%</div>
+                    <div class="text-600">Min. Confidence</div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-3">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl font-bold text-green-600">{{ signalStrengthSettings.max_daily_trades }}</div>
+                    <div class="text-600">Max napi trade</div>
+                  </div>
+                </div>
+                <div class="col-12 md:col-3">
+                  <div class="text-center p-3 border-round bg-white">
+                    <div class="text-2xl font-bold text-purple-600">{{ signalStrengthSettings.ai_confidence_threshold }}%</div>
+                    <div class="text-600">AI küszöb</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
+          <div class="col-12">
+            <div class="flex justify-content-end gap-2">
+              <p-button
+                label="Alaphelyzetbe"
+                icon="pi pi-refresh"
+                severity="secondary"
+                (onClick)="resetSignalStrengthSettings()">
+              </p-button>
+              <p-button
+                label="Mentés"
+                icon="pi pi-save"
+                [loading]="savingSignalStrength"
+                (onClick)="saveSignalStrengthSettings()">
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </p-tabPanel>
+
     <!-- Auto Trading Tab -->
     <p-tabPanel header="Auto-Trading" leftIcon="pi pi-cog">
       <p-card header="Automatikus Kereskedés Beállítások" styleClass="mb-4">

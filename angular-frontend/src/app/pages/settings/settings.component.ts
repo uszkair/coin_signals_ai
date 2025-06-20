@@ -60,6 +60,16 @@ export class SettingsComponent implements OnInit {
   // Auto trading configuration
   autoTradingEnabled: boolean = true;
 
+  // Signal Strength Configuration
+  tradingMode: string = 'balanced'; // 'conservative', 'balanced', 'aggressive'
+  strongSignalsOnly: boolean = false;
+  signalStrengthSettings = {
+    min_confidence: 70,
+    max_daily_trades: 10,
+    ai_confidence_threshold: 60,
+    check_interval: 300
+  };
+
   // Current configurations from backend
   currentPositionConfig: any = null;
   currentTradingConfig: any = null;
@@ -78,6 +88,7 @@ export class SettingsComponent implements OnInit {
   savingAutoTrading = false;
   savingEnvironment = false;
   loadingMinimumReqs = false;
+  savingSignalStrength = false;
   
   // Technical Indicator Settings
   technicalIndicatorWeights = {
@@ -214,6 +225,7 @@ export class SettingsComponent implements OnInit {
     this.loadTradingEnvironment();
     this.loadAdvancedSettings();
     this.loadStopLossTakeProfitSettings();
+    this.loadSignalStrengthSettings();
   }
 
   loadAllConfigs(): void {
@@ -978,6 +990,153 @@ export class SettingsComponent implements OnInit {
     this.takeProfitPercentageDisplay = 10.0;
 
     this.showSuccess('Alaphelyzetbe állítva', 'A Stop Loss/Take Profit beállítások visszaállítva az alapértékekre');
+  }
+
+  // Signal Strength Settings Methods
+  onTradingModeChange(): void {
+    // Apply predefined settings based on trading mode
+    switch (this.tradingMode) {
+      case 'conservative':
+        this.signalStrengthSettings = {
+          min_confidence: 80,
+          max_daily_trades: 5,
+          ai_confidence_threshold: 75,
+          check_interval: 600
+        };
+        this.strongSignalsOnly = true;
+        break;
+      case 'balanced':
+        this.signalStrengthSettings = {
+          min_confidence: 70,
+          max_daily_trades: 10,
+          ai_confidence_threshold: 60,
+          check_interval: 300
+        };
+        this.strongSignalsOnly = false;
+        break;
+      case 'aggressive':
+        this.signalStrengthSettings = {
+          min_confidence: 60,
+          max_daily_trades: 20,
+          ai_confidence_threshold: 50,
+          check_interval: 180
+        };
+        this.strongSignalsOnly = false;
+        break;
+    }
+    console.log('Trading mode changed to:', this.tradingMode);
+  }
+
+  onStrongSignalsToggle(): void {
+    if (this.strongSignalsOnly) {
+      // Automatically switch to conservative mode
+      this.tradingMode = 'conservative';
+      this.onTradingModeChange();
+    }
+    console.log('Strong signals only toggled to:', this.strongSignalsOnly);
+  }
+
+  loadSignalStrengthSettings(): void {
+    // Load current auto-trading settings to get signal strength configuration
+    this.tradingService.getAutoTradingStatus().subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          const data = response.data;
+          
+          // Map the response to our signal strength settings
+          this.signalStrengthSettings.min_confidence = data.min_signal_confidence || 70;
+          this.signalStrengthSettings.max_daily_trades = data.max_daily_trades || 10;
+          this.signalStrengthSettings.ai_confidence_threshold = data.ai_confidence_threshold || 60;
+          this.signalStrengthSettings.check_interval = data.check_interval || 300;
+          
+          // Determine trading mode based on settings
+          if (this.signalStrengthSettings.min_confidence >= 80) {
+            this.tradingMode = 'conservative';
+            this.strongSignalsOnly = true;
+          } else if (this.signalStrengthSettings.min_confidence >= 70) {
+            this.tradingMode = 'balanced';
+            this.strongSignalsOnly = false;
+          } else {
+            this.tradingMode = 'aggressive';
+            this.strongSignalsOnly = false;
+          }
+        }
+      },
+      error: (error) => {
+        console.warn('Could not load signal strength settings:', error);
+        // Keep default values
+      }
+    });
+  }
+
+  saveSignalStrengthSettings(): void {
+    this.savingSignalStrength = true;
+
+    const settingsToSave = {
+      trading_mode: this.tradingMode,
+      strong_signals_only: this.strongSignalsOnly,
+      min_confidence: this.signalStrengthSettings.min_confidence,
+      max_daily_trades: this.signalStrengthSettings.max_daily_trades,
+      ai_confidence_threshold: this.signalStrengthSettings.ai_confidence_threshold,
+      check_interval: this.signalStrengthSettings.check_interval
+    };
+
+    // Use the auto trading settings endpoint to save signal strength settings
+    this.tradingService.updateAutoTradingSettings(settingsToSave).subscribe({
+      next: (response) => {
+        this.savingSignalStrength = false;
+        if (response.success) {
+          this.showSuccess('Signal erősség beállítások mentve',
+            `${this.getTradingModeName()} mód beállítva (${this.signalStrengthSettings.min_confidence}% min. confidence)`);
+        } else {
+          this.showError('Mentési hiba', response.error || 'Ismeretlen hiba történt');
+        }
+      },
+      error: (error) => {
+        this.savingSignalStrength = false;
+        this.showError('Hálózati hiba', 'Nem sikerült menteni a beállításokat: ' + error.message);
+      }
+    });
+  }
+
+  resetSignalStrengthSettings(): void {
+    this.tradingMode = 'balanced';
+    this.strongSignalsOnly = false;
+    this.signalStrengthSettings = {
+      min_confidence: 70,
+      max_daily_trades: 10,
+      ai_confidence_threshold: 60,
+      check_interval: 300
+    };
+    this.showSuccess('Alaphelyzetbe állítva', 'A signal erősség beállítások visszaállítva az alapértékekre');
+  }
+
+  // Helper methods for trading mode display
+  getTradingModeName(): string {
+    switch (this.tradingMode) {
+      case 'conservative': return 'KONZERVATÍV';
+      case 'balanced': return 'KIEGYENSÚLYOZOTT';
+      case 'aggressive': return 'AGRESSZÍV';
+      default: return 'ISMERETLEN';
+    }
+  }
+
+  getTradingModeIcon(): string {
+    switch (this.tradingMode) {
+      case 'conservative': return '🛡️';
+      case 'balanced': return '⚖️';
+      case 'aggressive': return '🚀';
+      default: return '❓';
+    }
+  }
+
+  getTradingModeColorClass(): string {
+    switch (this.tradingMode) {
+      case 'conservative': return 'bg-green-100 border-green-200 text-green-700';
+      case 'balanced': return 'bg-blue-100 border-blue-200 text-blue-700';
+      case 'aggressive': return 'bg-red-100 border-red-200 text-red-700';
+      default: return 'bg-gray-100 border-gray-200 text-gray-700';
+    }
   }
 
 }
