@@ -22,9 +22,19 @@
       </p-button>
       
       <p-button
+        (onClick)="deleteAllReadNotifications()"
+        label="Olvasottak törlése"
+        icon="pi pi-trash"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        pTooltip="Összes olvasott értesítés törlése">
+      </p-button>
+      
+      <p-button
         (onClick)="cleanupOldNotifications()"
         label="Régi törlése"
-        icon="pi pi-trash"
+        icon="pi pi-clock"
         severity="secondary"
         [outlined]="true"
         size="small"
@@ -145,7 +155,7 @@
           <th>Prioritás</th>
           <th>Időpont</th>
           <th>Állapot</th>
-          <th style="width: 8rem">Műveletek</th>
+          <th style="width: 10rem">Műveletek</th>
         </tr>
       </ng-template>
       
@@ -229,6 +239,15 @@
                 severity="secondary"
                 [outlined]="true"
                 pTooltip="Olvasottnak jelölés">
+              </p-button>
+              
+              <p-button
+                (onClick)="deleteNotification(notification)"
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                [outlined]="true"
+                pTooltip="Törlés">
               </p-button>
               
               <p-button

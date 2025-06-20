@@ -157,6 +157,14 @@ export class NotificationsComponent implements OnInit, OnDestroy {
     });
   }
 
+  deleteNotification(notification: TradingNotification): void {
+    this.notificationService.deleteNotificationById(notification.id);
+  }
+
+  deleteAllReadNotifications(): void {
+    this.notificationService.deleteAllReadNotificationsLocal();
+  }
+
   getNotificationIcon(type: string): string {
     return this.notificationService.getNotificationIcon(type);
   }

@@ -107,6 +107,16 @@ export class NotificationService {
     return this.http.get(`${this.apiUrl}/stats`);
   }
 
+  deleteNotification(notificationId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/delete`, {
+      body: { notification_id: notificationId }
+    });
+  }
+
+  deleteAllReadNotifications(): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/delete-all-read`);
+  }
+
   cleanupOldNotifications(daysOld: number = 7): Observable<any> {
     return this.http.delete(`${this.apiUrl}/cleanup?days_old=${daysOld}`);
   }
@@ -163,6 +173,39 @@ export class NotificationService {
       },
       error: (error) => {
         console.error('Error marking all notifications as read:', error);
+      }
+    });
+  }
+
+  deleteNotificationById(notificationId: number): void {
+    this.deleteNotification(notificationId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          // Remove from local state
+          const notifications = this.notificationsSubject.value.filter(n => n.id !== notificationId);
+          this.notificationsSubject.next(notifications);
+          this.updateUnreadCount();
+        }
+      },
+      error: (error) => {
+        console.error('Error deleting notification:', error);
+      }
+    });
+  }
+
+  deleteAllReadNotificationsLocal(): void {
+    this.deleteAllReadNotifications().subscribe({
+      next: (response) => {
+        if (response.success) {
+          // Remove all read notifications from local state
+          const notifications = this.notificationsSubject.value.filter(n => !n.is_read);
+          this.notificationsSubject.next(notifications);
+          this.updateUnreadCount();
+          console.log(`${response.data.deleted_count} olvasott értesítés törölve`);
+        }
+      },
+      error: (error) => {
+        console.error('Error deleting all read notifications:', error);
       }
     });
   }

@@ -18,6 +18,9 @@ router = APIRouter(tags=["notifications"])
 class MarkReadRequest(BaseModel):
     notification_id: int
 
+class DeleteNotificationRequest(BaseModel):
+    notification_id: int
+
 class NotificationResponse(BaseModel):
     id: int
     notification_type: str
@@ -132,6 +135,48 @@ async def mark_all_notifications_read(user_id: str = Query('default')):
         
     except Exception as e:
         logger.error(f"Error marking all notifications as read: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete")
+async def delete_notification(request: DeleteNotificationRequest, user_id: str = Query('default')):
+    """Delete a specific notification"""
+    try:
+        success = await NotificationService.delete_notification(
+            notification_id=request.notification_id,
+            user_id=user_id
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Notification deleted successfully"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Notification not found or could not be deleted"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error deleting notification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete-all-read")
+async def delete_all_read_notifications(user_id: str = Query('default')):
+    """Delete all read notifications for a user"""
+    try:
+        deleted_count = await NotificationService.delete_all_read_notifications(user_id=user_id)
+        
+        return {
+            "success": True,
+            "message": f"Deleted {deleted_count} read notifications",
+            "data": {
+                "deleted_count": deleted_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting all read notifications: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/cleanup")

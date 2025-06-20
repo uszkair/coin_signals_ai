@@ -345,6 +345,79 @@ class NotificationService:
             return False
     
     @staticmethod
+    async def delete_notification(notification_id: int, user_id: str = 'default') -> bool:
+        """
+        Delete a specific notification
+        
+        Args:
+            notification_id: ID of the notification to delete
+            user_id: User ID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            from app.models.notification_models import Notification
+            from app.database import AsyncSessionLocal
+            from sqlalchemy import select, delete
+            
+            async with AsyncSessionLocal() as db:
+                # Delete the specific notification
+                delete_query = delete(Notification).where(
+                    Notification.id == notification_id,
+                    Notification.user_id == user_id
+                )
+                
+                result = await db.execute(delete_query)
+                deleted_count = result.rowcount
+                await db.commit()
+                
+                if deleted_count > 0:
+                    logger.info(f"🗑️ Notification deleted: ID {notification_id}")
+                    return True
+                else:
+                    logger.warning(f"❌ Notification not found for deletion: ID {notification_id}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"❌ Error deleting notification: {e}")
+            return False
+    
+    @staticmethod
+    async def delete_all_read_notifications(user_id: str = 'default') -> int:
+        """
+        Delete all read notifications for a user
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Number of notifications deleted
+        """
+        try:
+            from app.models.notification_models import Notification
+            from app.database import AsyncSessionLocal
+            from sqlalchemy import delete
+            
+            async with AsyncSessionLocal() as db:
+                # Delete all read notifications
+                delete_query = delete(Notification).where(
+                    Notification.user_id == user_id,
+                    Notification.is_read == True
+                )
+                
+                result = await db.execute(delete_query)
+                deleted_count = result.rowcount
+                await db.commit()
+                
+                logger.info(f"🗑️ Deleted {deleted_count} read notifications for user {user_id}")
+                return deleted_count
+                
+        except Exception as e:
+            logger.error(f"❌ Error deleting all read notifications: {e}")
+            return 0
+    
+    @staticmethod
     async def cleanup_old_notifications(user_id: str = 'default', days_old: int = 7) -> int:
         """
         Clean up old read notifications
