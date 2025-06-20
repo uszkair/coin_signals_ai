@@ -1453,7 +1453,12 @@
 
           <div class="col-12 md:col-6">
             <div class="field">
-              <label for="rsiWeight" class="block text-900 font-medium mb-2">RSI Súly</label>
+              <label for="rsiWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-chart-bar text-blue-500 mr-2"></i>RSI Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="RSI (Relative Strength Index): Momentum oszcillátor 0-100 skálán. 70 felett túlvett, 30 alatt túladott. Jelzi a vételi/eladási pontokat."
+                   tooltipPosition="top"></i>
+              </label>
               <p-slider
                 id="rsiWeight"
                 [(ngModel)]="technicalIndicatorWeights.rsi_weight"
@@ -1468,7 +1473,12 @@
 
           <div class="col-12 md:col-6">
             <div class="field">
-              <label for="macdWeight" class="block text-900 font-medium mb-2">MACD Súly</label>
+              <label for="macdWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-chart-line text-green-500 mr-2"></i>MACD Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="MACD (Moving Average Convergence Divergence): Trend-követő momentum indikátor. Két mozgóátlag különbségét mutatja. Crossover signalok jelzik a trend változásokat."
+                   tooltipPosition="top"></i>
+              </label>
               <p-slider
                 id="macdWeight"
                 [(ngModel)]="technicalIndicatorWeights.macd_weight"
@@ -1483,7 +1493,12 @@
 
           <div class="col-12 md:col-6">
             <div class="field">
-              <label for="volumeWeight" class="block text-900 font-medium mb-2">Volume Súly</label>
+              <label for="volumeWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-chart-pie text-purple-500 mr-2"></i>Volume Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="Volume: A kereskedési volumen elemzése. Magas volumen megerősíti a price movement-eket. Alacsony volumen gyenge signalokat jelez."
+                   tooltipPosition="top"></i>
+              </label>
               <p-slider
                 id="volumeWeight"
                 [(ngModel)]="technicalIndicatorWeights.volume_weight"
@@ -1498,7 +1513,12 @@
 
           <div class="col-12 md:col-6">
             <div class="field">
-              <label for="candlestickWeight" class="block text-900 font-medium mb-2">Gyertya Minta Súly</label>
+              <label for="candlestickWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-stop text-orange-500 mr-2"></i>Gyertya Minta Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="Candlestick Patterns: Japán gyertyák mintái (Hammer, Doji, Engulfing, stb.). Rövid távú reversal és continuation signalokat adnak."
+                   tooltipPosition="top"></i>
+              </label>
               <p-slider
                 id="candlestickWeight"
                 [(ngModel)]="technicalIndicatorWeights.candlestick_weight"
@@ -1513,7 +1533,12 @@
 
           <div class="col-12 md:col-6">
             <div class="field">
-              <label for="supportResistanceWeight" class="block text-900 font-medium mb-2">Támasz/Ellenállás Súly</label>
+              <label for="supportResistanceWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-minus text-red-500 mr-2"></i>Támasz/Ellenállás Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="Support/Resistance: Kulcsfontosságú ár szintek ahol a price gyakran visszapattan (support) vagy megáll (resistance). Multi-timeframe elemzéssel."
+                   tooltipPosition="top"></i>
+              </label>
               <p-slider
                 id="supportResistanceWeight"
                 [(ngModel)]="technicalIndicatorWeights.support_resistance_weight"
@@ -1523,6 +1548,46 @@
                 styleClass="w-full">
               </p-slider>
               <small class="text-600">Érték: {{ technicalIndicatorWeights.support_resistance_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="multiTimeframeWeight" class="block text-900 font-medium mb-2">
+                <i class="pi pi-clock text-indigo-500 mr-2"></i>Multi-Timeframe Súly
+                <i class="pi pi-info-circle text-gray-400 ml-2 cursor-pointer"
+                   pTooltip="Multi-Timeframe Analysis: RSI, MACD, trend és pattern confluence elemzés 4 timeframe-en (1h, 4h, 1d, 1w). Magasabb timeframe-ek erősebb signalokat adnak."
+                   tooltipPosition="top"></i>
+              </label>
+              <p-slider
+                id="multiTimeframeWeight"
+                [(ngModel)]="technicalIndicatorWeights.multi_timeframe_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.multi_timeframe_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="bg-blue-50 border-left-3 border-blue-500 p-3">
+              <div class="text-blue-900">
+                <i class="pi pi-info-circle mr-2"></i>
+                <strong>Multi-Timeframe Elemzés:</strong>
+              </div>
+              <div class="text-blue-800 mt-2 text-sm">
+                Ez a beállítás szabályozza, hogy mennyire vegye figyelembe a rendszer a multi-timeframe technikai indikátor elemzést.<br>
+                <strong>Mit elemez:</strong>
+                <ul class="mt-2 ml-4">
+                  <li>• RSI confluence 4 timeframe-en (1h, 4h, 1d, 1w)</li>
+                  <li>• MACD confluence 4 timeframe-en</li>
+                  <li>• Candlestick pattern confluence</li>
+                  <li>• Trend confluence elemzés</li>
+                  <li>• Weighted scoring alapján összesített signal</li>
+                </ul>
+              </div>
             </div>
           </div>
 

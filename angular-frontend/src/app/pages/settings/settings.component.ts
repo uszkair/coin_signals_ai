@@ -15,6 +15,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { SliderModule } from 'primeng/slider';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputSwitchModule } from 'primeng/inputswitch';
+import { TooltipModule } from 'primeng/tooltip';
 import { MessageService } from 'primeng/api';
 
 import { TradingService, PositionSizeConfig, TradingEnvironment } from '../../services/trading.service';
@@ -37,7 +38,8 @@ import { SettingsService } from '../../services/settings.service';
     DropdownModule,
     SliderModule,
     CheckboxModule,
-    InputSwitchModule
+    InputSwitchModule,
+    TooltipModule
   ],
   providers: [MessageService],
   templateUrl: './settings.component.html'
@@ -99,7 +101,8 @@ export class SettingsComponent implements OnInit {
     candlestick_weight: 2.0,
     bollinger_weight: 1.0,
     ma_weight: 1.0,
-    support_resistance_weight: 2.0
+    support_resistance_weight: 2.0,
+    multi_timeframe_weight: 1.5
   };
 
   rsiSettings = {
@@ -809,7 +812,8 @@ export class SettingsComponent implements OnInit {
       candlestick_weight: 2.0,
       bollinger_weight: 1.0,
       ma_weight: 1.0,
-      support_resistance_weight: 2.0
+      support_resistance_weight: 2.0,
+      multi_timeframe_weight: 1.5
     };
 
     this.rsiSettings = {

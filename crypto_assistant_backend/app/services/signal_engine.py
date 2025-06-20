@@ -31,6 +31,7 @@ from app.services.candlestick_analyzer import detect_patterns
 from app.services.technical_indicators import calculate_professional_indicators
 from app.services.ml_signal_generator import generate_ai_signal
 from app.services.support_resistance_analyzer import analyze_support_resistance
+from app.services.multi_timeframe_analyzer import analyze_multi_timeframe_indicators
 
 async def get_current_signal(symbol: str, interval: str):
     """
@@ -107,6 +108,17 @@ async def get_current_signal(symbol: str, interval: str):
         nearby_levels = {'support': [], 'resistance': []}
         price_position = {}
     
+    # Get multi-timeframe technical indicators analysis
+    try:
+        mt_analysis = await analyze_multi_timeframe_indicators(symbol)
+        mt_signals = mt_analysis.get('multi_timeframe_signals', {})
+        mt_overall = mt_signals.get('overall_signal', {})
+    except Exception as e:
+        print(f"Warning: Multi-timeframe analysis failed for {symbol}: {e}")
+        mt_analysis = {}
+        mt_signals = {}
+        mt_overall = {}
+    
     # Keep legacy indicators for compatibility
     indicators = compute_indicators(latest)
     pattern, score = detect_patterns(latest, previous)
@@ -169,6 +181,16 @@ async def get_current_signal(symbol: str, interval: str):
             "signal": "NEUTRAL",
             "reasoning": "AI/ML analysis neutral",
             "weight": 0
+        },
+        "multi_timeframe_analysis": {
+            "signal": "NEUTRAL",
+            "reasoning": "Multi-timeframe analysis neutral",
+            "weight": 0,
+            "rsi_confluence": mt_signals.get('rsi_confluence', {}),
+            "macd_confluence": mt_signals.get('macd_confluence', {}),
+            "trend_confluence": mt_signals.get('trend_confluence', {}),
+            "pattern_confluence": mt_signals.get('pattern_confluence', {}),
+            "overall_signal": mt_overall
         }
     }
     
@@ -395,6 +417,45 @@ async def get_current_signal(symbol: str, interval: str):
             decision_factors["ai_ml_analysis"]["weight"] = ai_weight
     else:
         decision_factors["ai_ml_analysis"]["reasoning"] = f"Low confidence AI signal ({ai_confidence:.1f}%, Risk: {ai_risk_score:.1f}%) - below threshold ({ai_confidence_threshold}%)"
+    
+    # Multi-timeframe analysis weight
+    mt_weight = indicator_weights.get('multi_timeframe_weight', 1.5)
+    if mt_overall and isinstance(mt_overall, dict):
+        mt_signal = mt_overall.get('signal', 'NEUTRAL')
+        mt_confidence = mt_overall.get('confidence', 0)
+        
+        if mt_signal in ['STRONG_BUY', 'BUY'] and mt_confidence >= 60:
+            weight = mt_weight * (1.5 if mt_signal == 'STRONG_BUY' else 1.0)
+            signal_score += weight
+            decision_factors["multi_timeframe_analysis"]["signal"] = mt_signal
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe confluence: {mt_signals.get('confluence_score', 0):.2f}, Confidence: {mt_confidence:.1f}%"
+            decision_factors["multi_timeframe_analysis"]["weight"] = weight
+        elif mt_signal in ['STRONG_SELL', 'SELL'] and mt_confidence >= 60:
+            weight = -mt_weight * (1.5 if mt_signal == 'STRONG_SELL' else 1.0)
+            signal_score += weight
+            decision_factors["multi_timeframe_analysis"]["signal"] = mt_signal
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe confluence: {mt_signals.get('confluence_score', 0):.2f}, Confidence: {mt_confidence:.1f}%"
+            decision_factors["multi_timeframe_analysis"]["weight"] = weight
+        else:
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe analysis: {mt_signal} (Confidence: {mt_confidence:.1f}% - below threshold)"
+    elif isinstance(mt_overall, str):
+        # Handle string format
+        if mt_overall in ['STRONG_BUY', 'BUY']:
+            weight = mt_weight * (1.5 if mt_overall == 'STRONG_BUY' else 1.0)
+            signal_score += weight
+            decision_factors["multi_timeframe_analysis"]["signal"] = mt_overall
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe confluence: {mt_signals.get('confluence_score', 0):.2f}"
+            decision_factors["multi_timeframe_analysis"]["weight"] = weight
+        elif mt_overall in ['STRONG_SELL', 'SELL']:
+            weight = -mt_weight * (1.5 if mt_overall == 'STRONG_SELL' else 1.0)
+            signal_score += weight
+            decision_factors["multi_timeframe_analysis"]["signal"] = mt_overall
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe confluence: {mt_signals.get('confluence_score', 0):.2f}"
+            decision_factors["multi_timeframe_analysis"]["weight"] = weight
+        else:
+            decision_factors["multi_timeframe_analysis"]["reasoning"] = f"Multi-timeframe analysis: {mt_overall}"
+    else:
+        decision_factors["multi_timeframe_analysis"]["reasoning"] = "Multi-timeframe analysis neutral or unavailable"
     
     # Use professional signal strength calculation
     professional_strength = professional_indicators.get('market_assessment', {}).get('signal_strength', 0)
