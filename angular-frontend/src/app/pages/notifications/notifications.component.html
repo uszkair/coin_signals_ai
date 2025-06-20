@@ -251,6 +251,7 @@
               </p-button>
               
               <p-button
+                (onClick)="showNotificationDetails(notification)"
                 icon="pi pi-info-circle"
                 size="small"
                 severity="info"
@@ -275,4 +276,12 @@
       </ng-template>
     </p-table>
   </p-card>
+
+  <!-- Notification Details Modal -->
+  <app-notification-details-modal
+    [(visible)]="showDetailsModal"
+    [notification]="selectedNotification"
+    (markAsReadEvent)="onModalMarkAsRead($event)"
+    (deleteEvent)="onModalDelete($event)">
+  </app-notification-details-modal>
 </div>

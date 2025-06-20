@@ -11,6 +11,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
 import { CalendarModule } from 'primeng/calendar';
 import { NotificationService, TradingNotification, NotificationStats } from '../../services/notification.service';
+import { NotificationDetailsModalComponent } from '../../components/notification-details-modal/notification-details-modal.component';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -27,7 +28,8 @@ import { Subscription } from 'rxjs';
     BadgeModule,
     DropdownModule,
     InputTextModule,
-    CalendarModule
+    CalendarModule,
+    NotificationDetailsModalComponent
   ],
   templateUrl: './notifications.component.html',
   styleUrls: ['./notifications.component.scss']
@@ -37,6 +39,10 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   stats: NotificationStats | null = null;
   unreadCount = 0;
   loading = false;
+  
+  // Modal state
+  showDetailsModal = false;
+  selectedNotification: TradingNotification | null = null;
   
   // Filters
   selectedType: any = null;
@@ -48,7 +54,9 @@ export class NotificationsComponent implements OnInit, OnDestroy {
     { label: 'Új pozíció', value: 'new_position' },
     { label: 'Pozíció lezárva', value: 'position_closed' },
     { label: 'Kereskedési hiba', value: 'trade_error' },
-    { label: 'Pozíció frissítés', value: 'position_update' }
+    { label: 'Pozíció frissítés', value: 'position_update' },
+    { label: 'Volumen anomália', value: 'volume_anomaly' },
+    { label: 'Ár anomália', value: 'price_anomaly' }
   ];
   
   priorityOptions = [
@@ -187,6 +195,10 @@ export class NotificationsComponent implements OnInit, OnDestroy {
         return 'Kereskedési hiba';
       case 'position_update':
         return 'Pozíció frissítés';
+      case 'volume_anomaly':
+        return 'Volumen anomália';
+      case 'price_anomaly':
+        return 'Ár anomália';
       default:
         return type;
     }
@@ -221,5 +233,19 @@ export class NotificationsComponent implements OnInit, OnDestroy {
       return 'bg-blue-50 dark:bg-blue-900/20 font-medium';
     }
     return '';
+  }
+
+  // Modal methods
+  showNotificationDetails(notification: TradingNotification): void {
+    this.selectedNotification = notification;
+    this.showDetailsModal = true;
+  }
+
+  onModalMarkAsRead(notification: TradingNotification): void {
+    this.markAsRead(notification);
+  }
+
+  onModalDelete(notification: TradingNotification): void {
+    this.deleteNotification(notification);
   }
 }

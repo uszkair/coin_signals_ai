@@ -48,9 +48,11 @@ export class NotificationService {
   private initializeWebSocketListeners(): void {
     // Listen for new trading notifications via WebSocket
     this.websocketService.onNotification().subscribe((notification) => {
-      if (notification.type === 'new_position' || 
-          notification.type === 'position_closed' || 
-          notification.type === 'trade_error') {
+      if (notification.type === 'new_position' ||
+          notification.type === 'position_closed' ||
+          notification.type === 'trade_error' ||
+          notification.type === 'volume_anomaly' ||
+          notification.type === 'price_anomaly') {
         
         // Add new notification to the list
         const tradingNotification: TradingNotification = {
@@ -221,6 +223,10 @@ export class NotificationService {
         return 'pi-exclamation-triangle';
       case 'position_update':
         return 'pi-refresh';
+      case 'volume_anomaly':
+        return 'pi-chart-bar';
+      case 'price_anomaly':
+        return 'pi-trending-up';
       default:
         return 'pi-bell';
     }
