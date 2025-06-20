@@ -1360,6 +1360,21 @@ class BinanceTrader:
         if not self.client:
             raise Exception("Binance API client not initialized. Cannot get current price without API connection.")
         
+        # Validate symbol format and check if it's a known valid symbol
+        if not symbol or not isinstance(symbol, str):
+            logger.error(f"Invalid symbol format: {symbol}")
+            return 0.0
+        
+        # List of known valid symbols - add more as needed
+        valid_symbols = {
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT',
+            'LTCUSDT', 'LINKUSDT', 'XRPUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT'
+        }
+        
+        # Check if symbol is in our known valid list (case-insensitive)
+        if symbol.upper() not in valid_symbols:
+            logger.info(f"Symbol {symbol} is not in the list of known valid symbols. Attempting API call anyway...")
+        
         try:
             if self.use_futures:
                 # Futures price
@@ -1368,6 +1383,15 @@ class BinanceTrader:
                 # Spot price
                 ticker = self.client.get_symbol_ticker(symbol=symbol)
             return float(ticker['price'])
+        except BinanceAPIException as e:
+            error_msg = str(e)
+            if "Invalid symbol" in error_msg or "code=-1121" in error_msg:
+                logger.error(f"Invalid symbol {symbol}: {error_msg}")
+                logger.error(f"Valid symbols include: {', '.join(sorted(valid_symbols))}")
+                return 0.0
+            else:
+                logger.error(f"Binance API error getting current price for {symbol}: {error_msg}")
+                return 0.0
         except Exception as e:
             logger.error(f"Error getting current price for {symbol}: {e}")
             return 0.0

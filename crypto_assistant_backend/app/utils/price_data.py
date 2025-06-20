@@ -104,9 +104,14 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         else:
             raise ValueError(f"No valid symbols found in: {symbol}")
     
-    # Validate symbol format
+    # Validate symbol format and check for common invalid symbols
     if not symbol or not symbol.isalnum():
         raise ValueError(f"Invalid symbol format: {symbol}")
+    
+    # Check for obviously invalid symbols (add known invalid symbols here if needed)
+    invalid_symbols = set()  # Empty for now, add invalid symbols as they are discovered
+    if symbol.upper() in invalid_symbols:
+        raise ValueError(f"Symbol {symbol} is not available on Binance. Please use valid trading pairs like BTCUSDT, ETHUSDT, etc.")
     
     endpoint = f"/api/v3/klines"
     url = f"{base_url}{endpoint}"
@@ -231,9 +236,14 @@ async def get_current_price(symbol: str):
         else:
             raise ValueError(f"No valid symbols found in: {symbol}")
     
-    # Validate symbol format
+    # Validate symbol format and check for common invalid symbols
     if not symbol or not symbol.isalnum():
         raise ValueError(f"Invalid symbol format: {symbol}")
+    
+    # Check for obviously invalid symbols (add known invalid symbols here if needed)
+    invalid_symbols = set()  # Empty for now, add invalid symbols as they are discovered
+    if symbol.upper() in invalid_symbols:
+        raise ValueError(f"Symbol {symbol} is not available on Binance. Please use valid trading pairs like BTCUSDT, ETHUSDT, etc.")
     
     endpoint = f"/api/v3/ticker/price"
     url = f"{base_url}{endpoint}"
