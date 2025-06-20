@@ -208,7 +208,8 @@ class TradingSettings(Base):
         'volume_weight': 1.0,
         'candlestick_weight': 2.0,
         'bollinger_weight': 1.0,
-        'ma_weight': 1.0
+        'ma_weight': 1.0,
+        'support_resistance_weight': 2.0
     })
 
     # Technical Analysis Settings

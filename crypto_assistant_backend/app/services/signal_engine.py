@@ -30,6 +30,7 @@ from app.services.indicators import compute_indicators
 from app.services.candlestick_analyzer import detect_patterns
 from app.services.technical_indicators import calculate_professional_indicators
 from app.services.ml_signal_generator import generate_ai_signal
+from app.services.support_resistance_analyzer import analyze_support_resistance
 
 async def get_current_signal(symbol: str, interval: str):
     """
@@ -57,7 +58,7 @@ async def get_current_signal(symbol: str, interval: str):
     except Exception as e:
         print(f"Warning: Failed to load settings from database: {e}")
         # Use default values
-        indicator_weights = {'rsi_weight': 1.0, 'macd_weight': 1.0, 'volume_weight': 1.0, 'candlestick_weight': 2.0, 'bollinger_weight': 1.0, 'ma_weight': 1.0}
+        indicator_weights = {'rsi_weight': 1.0, 'macd_weight': 1.0, 'volume_weight': 1.0, 'candlestick_weight': 2.0, 'bollinger_weight': 1.0, 'ma_weight': 1.0, 'support_resistance_weight': 2.0}
         rsi_settings = {'period': 14, 'overbought': 70, 'oversold': 30}
         macd_settings = {'fast_period': 12, 'slow_period': 26, 'signal_period': 9}
         bollinger_settings = {'period': 20, 'deviation': 2.0}
@@ -92,6 +93,19 @@ async def get_current_signal(symbol: str, interval: str):
         ai_signal = 'NEUTRAL'
         ai_confidence = 50.0
         ai_risk_score = 50.0
+    
+    # Get multi-timeframe support/resistance analysis
+    try:
+        sr_analysis = await analyze_support_resistance(symbol, current_price)
+        sr_signals = sr_analysis.get('trading_signals', {})
+        nearby_levels = sr_analysis.get('nearby_levels', {'support': [], 'resistance': []})
+        price_position = sr_analysis.get('price_position', {})
+    except Exception as e:
+        print(f"Warning: Support/Resistance analysis failed for {symbol}: {e}")
+        sr_analysis = {}
+        sr_signals = {}
+        nearby_levels = {'support': [], 'resistance': []}
+        price_position = {}
     
     # Keep legacy indicators for compatibility
     indicators = compute_indicators(latest)
@@ -142,7 +156,11 @@ async def get_current_signal(symbol: str, interval: str):
         "support_resistance": {
             "signal": "NEUTRAL",
             "reasoning": "Price within normal range",
-            "weight": 0
+            "weight": 0,
+            "multi_timeframe_analysis": sr_analysis.get('timeframe_analysis', {}),
+            "nearby_support": nearby_levels.get('support', []),
+            "nearby_resistance": nearby_levels.get('resistance', []),
+            "price_position": price_position.get('position', 'neutral')
         },
         "ai_ml_analysis": {
             "ai_signal": ai_signal,
@@ -252,23 +270,82 @@ async def get_current_signal(symbol: str, interval: str):
     else:
         decision_factors["volume_analysis"]["reasoning"] = f"Volume analysis: {volume_trend.lower()} volume ({current_volume/1000000:.1f}M)"
     
-    # Support/Resistance analysis
-    close = latest["close"]
-    high = latest["high"]
-    low = latest["low"]
-    price_position = (close - low) / (high - low) if high != low else 0.5
-    if price_position > 0.8:
-        signal_score += 1
-        decision_factors["support_resistance"]["signal"] = "BUY"
-        decision_factors["support_resistance"]["reasoning"] = "Price near resistance, potential breakout"
-        decision_factors["support_resistance"]["weight"] = 1
-    elif price_position < 0.2:
-        signal_score -= 1
-        decision_factors["support_resistance"]["signal"] = "SELL"
-        decision_factors["support_resistance"]["reasoning"] = "Price near support, potential breakdown"
-        decision_factors["support_resistance"]["weight"] = -1
+    # Multi-timeframe Support/Resistance analysis
+    sr_weight = indicator_weights.get('support_resistance_weight', 2.0)  # New weight for S/R analysis
+    
+    # Analyze based on multi-timeframe support/resistance
+    if sr_signals.get('breakout_potential') == 'resistance_test':
+        # Price testing strong resistance - potential breakout
+        sr_strength = sr_signals.get('signal_strength', 0)
+        if sr_strength >= 4:  # Very strong resistance
+            weight = sr_weight * 1.5  # Strong signal for breakout
+            signal_score += weight
+            decision_factors["support_resistance"]["signal"] = "BUY"
+            decision_factors["support_resistance"]["reasoning"] = f"Price testing very strong multi-timeframe resistance (strength: {sr_strength}) - breakout potential"
+            decision_factors["support_resistance"]["weight"] = weight
+        elif sr_strength >= 2:  # Moderate resistance
+            weight = sr_weight * 0.5
+            signal_score += weight
+            decision_factors["support_resistance"]["signal"] = "BUY"
+            decision_factors["support_resistance"]["reasoning"] = f"Price testing multi-timeframe resistance (strength: {sr_strength}) - potential breakout"
+            decision_factors["support_resistance"]["weight"] = weight
+    
+    elif sr_signals.get('breakout_potential') == 'support_test':
+        # Price testing strong support - potential bounce
+        sr_strength = sr_signals.get('signal_strength', 0)
+        if sr_strength >= 4:  # Very strong support
+            weight = sr_weight * 1.5  # Strong signal for bounce
+            signal_score += weight
+            decision_factors["support_resistance"]["signal"] = "BUY"
+            decision_factors["support_resistance"]["reasoning"] = f"Price testing very strong multi-timeframe support (strength: {sr_strength}) - bounce potential"
+            decision_factors["support_resistance"]["weight"] = weight
+        elif sr_strength >= 2:  # Moderate support
+            weight = sr_weight * 0.5
+            signal_score += weight
+            decision_factors["support_resistance"]["signal"] = "BUY"
+            decision_factors["support_resistance"]["reasoning"] = f"Price testing multi-timeframe support (strength: {sr_strength}) - potential bounce"
+            decision_factors["support_resistance"]["weight"] = weight
+    
+    elif price_position.get('position') == 'near_resistance':
+        # Price near resistance but not testing yet
+        if nearby_levels.get('resistance'):
+            strongest_resistance = max(nearby_levels['resistance'], key=lambda x: x.get('strength', 0))
+            resistance_strength = strongest_resistance.get('strength', 0)
+            if resistance_strength >= 3:
+                weight = -sr_weight * 0.5  # Negative signal - resistance ahead
+                signal_score += weight
+                decision_factors["support_resistance"]["signal"] = "SELL"
+                decision_factors["support_resistance"]["reasoning"] = f"Price approaching strong resistance at {strongest_resistance.get('price', 0):.2f} (strength: {resistance_strength})"
+                decision_factors["support_resistance"]["weight"] = weight
+    
+    elif price_position.get('position') == 'near_support':
+        # Price near support - potential bounce area
+        if nearby_levels.get('support'):
+            strongest_support = max(nearby_levels['support'], key=lambda x: x.get('strength', 0))
+            support_strength = strongest_support.get('strength', 0)
+            if support_strength >= 3:
+                weight = sr_weight * 0.5  # Positive signal - support nearby
+                signal_score += weight
+                decision_factors["support_resistance"]["signal"] = "BUY"
+                decision_factors["support_resistance"]["reasoning"] = f"Price near strong support at {strongest_support.get('price', 0):.2f} (strength: {support_strength})"
+                decision_factors["support_resistance"]["weight"] = weight
+    
     else:
-        decision_factors["support_resistance"]["reasoning"] = "Price in middle range"
+        # Default case - analyze general position
+        if price_position.get('position') == 'middle_range':
+            decision_factors["support_resistance"]["reasoning"] = "Price in middle range between support and resistance levels"
+        elif price_position.get('position') == 'above_all_resistance':
+            decision_factors["support_resistance"]["reasoning"] = "Price above all known resistance levels - strong bullish territory"
+            signal_score += sr_weight * 0.5
+            decision_factors["support_resistance"]["signal"] = "BUY"
+            decision_factors["support_resistance"]["weight"] = sr_weight * 0.5
+        elif price_position.get('position') == 'below_all_support':
+            decision_factors["support_resistance"]["reasoning"] = "Price below all known support levels - weak bearish territory"
+            signal_score -= sr_weight * 0.5
+            decision_factors["support_resistance"]["signal"] = "SELL"
+            decision_factors["support_resistance"]["weight"] = -sr_weight * 0.5
+        else:
+            decision_factors["support_resistance"]["reasoning"] = "Multi-timeframe support/resistance analysis neutral"
     
     # Add Bollinger Bands analysis
     bb_data = professional_indicators.get('bollinger_bands', {})
@@ -410,5 +487,6 @@ async def get_current_signal(symbol: str, interval: str):
             "ai_signal": ai_signal,
             "ai_confidence": ai_confidence,
             "risk_score": ai_risk_score
-        }
+        },
+        "support_resistance_analysis": sr_analysis  # Full multi-timeframe S/R analysis
     }

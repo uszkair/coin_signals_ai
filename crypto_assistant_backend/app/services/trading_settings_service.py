@@ -172,7 +172,8 @@ class TradingSettingsService:
             'volume_weight': 1.0,
             'candlestick_weight': 2.0,
             'bollinger_weight': 1.0,
-            'ma_weight': 1.0
+            'ma_weight': 1.0,
+            'support_resistance_weight': 2.0
         }
     
     def get_rsi_settings(self, user_id: str = "default") -> Dict[str, Any]:

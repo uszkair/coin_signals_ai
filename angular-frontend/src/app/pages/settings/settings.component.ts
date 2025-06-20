@@ -77,6 +77,7 @@ export class SettingsComponent implements OnInit {
 
   // Trading Environment Configuration
   useTestnet: boolean = false;
+  useFutures: boolean = false;
   currentEnvironment: TradingEnvironment | null = null;
   minimumRequirements: any = null;
 
@@ -97,7 +98,8 @@ export class SettingsComponent implements OnInit {
     volume_weight: 1.0,
     candlestick_weight: 2.0,
     bollinger_weight: 1.0,
-    ma_weight: 1.0
+    ma_weight: 1.0,
+    support_resistance_weight: 2.0
   };
 
   rsiSettings = {
@@ -596,6 +598,7 @@ export class SettingsComponent implements OnInit {
         if (response.success) {
           this.currentEnvironment = response.data;
           this.useTestnet = response.data.testnet;
+          this.useFutures = response.data.futures;
         }
       },
       error: (error) => {
@@ -612,10 +615,15 @@ export class SettingsComponent implements OnInit {
     console.log('Environment changed to:', this.useTestnet ? 'testnet' : 'mainnet');
   }
 
+  onApiTypeChange(): void {
+    // This method is called when the API type radio button selection changes
+    console.log('API type changed to:', this.useFutures ? 'futures' : 'spot');
+  }
+
   saveEnvironmentChange(): void {
     this.savingEnvironment = true;
 
-    this.tradingService.switchTradingEnvironment(this.useTestnet).subscribe({
+    this.tradingService.switchTradingEnvironment(this.useTestnet, this.useFutures).subscribe({
       next: (response) => {
         this.savingEnvironment = false;
         if (response.success) {
@@ -800,7 +808,8 @@ export class SettingsComponent implements OnInit {
       volume_weight: 1.0,
       candlestick_weight: 2.0,
       bollinger_weight: 1.0,
-      ma_weight: 1.0
+      ma_weight: 1.0,
+      support_resistance_weight: 2.0
     };
 
     this.rsiSettings = {

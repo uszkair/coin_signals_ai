@@ -985,6 +985,51 @@
             <p-divider></p-divider>
           </div>
 
+          <!-- API Type Selection -->
+          <div class="col-12">
+            <div class="field">
+              <label class="text-lg font-semibold mb-3 block">API Típus</label>
+              
+              <div class="flex flex-column gap-4">
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="apiType"
+                    [value]="false"
+                    [(ngModel)]="useFutures"
+                    inputId="spot"
+                    (onClick)="onApiTypeChange()">
+                  </p-radioButton>
+                  <label for="spot" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">📊 Spot Kereskedés</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Hagyományos spot kereskedés. Alacsonyabb kockázat, nincs tőkeáttétel.
+                    </div>
+                  </label>
+                </div>
+                
+                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
+                  <p-radioButton
+                    name="apiType"
+                    [value]="true"
+                    [(ngModel)]="useFutures"
+                    inputId="futures"
+                    (onClick)="onApiTypeChange()">
+                  </p-radioButton>
+                  <label for="futures" class="ml-3 cursor-pointer flex-1">
+                    <div class="font-semibold text-gray-900">🚀 Futures Kereskedés</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                      Tőkeáttételes kereskedés. Magasabb profit potenciál, de nagyobb kockázat.
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <p-divider></p-divider>
+          </div>
+
           <!-- Environment Status -->
           <div class="col-12">
             <div class="bg-gray-50 border-round p-4">
@@ -1009,6 +1054,12 @@
                 </div>
                 <div class="col-12 md:col-6">
                   <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-600">API típus:</span>
+                      <span class="font-medium text-blue-600">
+                        {{ useFutures ? '🚀 Futures' : '📊 Spot' }}
+                      </span>
+                    </div>
                     <div class="flex justify-between text-sm">
                       <span class="text-600">Pénz típusa:</span>
                       <span class="font-medium" [class]="useTestnet ? 'text-blue-600' : 'text-red-600'">
@@ -1457,6 +1508,21 @@
                 styleClass="w-full">
               </p-slider>
               <small class="text-600">Érték: {{ technicalIndicatorWeights.candlestick_weight }}</small>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="field">
+              <label for="supportResistanceWeight" class="block text-900 font-medium mb-2">Támasz/Ellenállás Súly</label>
+              <p-slider
+                id="supportResistanceWeight"
+                [(ngModel)]="technicalIndicatorWeights.support_resistance_weight"
+                [min]="0"
+                [max]="5"
+                [step]="0.1"
+                styleClass="w-full">
+              </p-slider>
+              <small class="text-600">Érték: {{ technicalIndicatorWeights.support_resistance_weight }}</small>
             </div>
           </div>
 

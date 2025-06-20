@@ -30,6 +30,7 @@ export interface PositionSizeConfig {
 
 export interface TradingEnvironment {
   testnet: boolean;
+  futures: boolean;
   environment: string;
   description: string;
   api_connected: boolean;
@@ -204,9 +205,10 @@ export class TradingService {
     return this.http.get<{ success: boolean; data: TradingEnvironment }>(`${this.baseUrl}/environment`);
   }
 
-  switchTradingEnvironment(useTestnet: boolean): Observable<TradeResult> {
+  switchTradingEnvironment(useTestnet: boolean, useFutures: boolean = false): Observable<TradeResult> {
     return this.http.post<TradeResult>(`${this.baseUrl}/switch-environment`, {
-      use_testnet: useTestnet
+      use_testnet: useTestnet,
+      use_futures: useFutures
     });
   }
 
