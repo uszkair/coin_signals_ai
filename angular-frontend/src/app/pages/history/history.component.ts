@@ -17,6 +17,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
+import { DialogModule } from 'primeng/dialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { HistoryService, TradeHistory } from '../../services/history.service';
@@ -62,7 +63,8 @@ interface FilterOptions {
     ProgressSpinnerModule,
     TooltipModule,
     ConfirmDialogModule,
-    ToastModule
+    ToastModule,
+    DialogModule
   ],
   templateUrl: './history.component.html',
   styleUrls: []
@@ -91,6 +93,15 @@ export class HistoryComponent implements OnInit, OnDestroy {
   // Statistics
   tradingStats: any = null;
   dailySummary: any = null;
+
+  // Error Details Modal
+  showErrorModal = false;
+  selectedErrorDetails: {
+    symbol: string;
+    errorMessage: string;
+    timestamp: string;
+    orderType: string;
+  } | null = null;
 
   coinOptions: FilterOptions[] = [
     { label: 'BTC/USDT', value: 'BTCUSDT' },
@@ -811,5 +822,43 @@ export class HistoryComponent implements OnInit, OnDestroy {
           });
       }
     });
+  }
+
+  // Error Details Modal Methods
+  showErrorDetails(trade: TradeHistory): void {
+    if (!trade.failure_reason) return;
+    
+    this.selectedErrorDetails = {
+      symbol: trade.symbol,
+      errorMessage: trade.failure_reason,
+      timestamp: trade.entry_time || trade.timestamp || 'Ismeretlen',
+      orderType: trade.signal || 'Ismeretlen'
+    };
+    this.showErrorModal = true;
+  }
+
+  closeErrorModal(): void {
+    this.showErrorModal = false;
+    this.selectedErrorDetails = null;
+  }
+
+  copyErrorToClipboard(): void {
+    if (this.selectedErrorDetails?.errorMessage) {
+      navigator.clipboard.writeText(this.selectedErrorDetails.errorMessage).then(() => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Másolva',
+          detail: 'Hiba üzenet vágólapra másolva',
+          life: 2000
+        });
+      }).catch(() => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Hiba',
+          detail: 'Nem sikerült a vágólapra másolni',
+          life: 3000
+        });
+      });
+    }
   }
 }

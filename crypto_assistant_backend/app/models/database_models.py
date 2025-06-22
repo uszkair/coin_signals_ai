@@ -199,7 +199,7 @@ class TradingSettings(Base):
     
     # Trading environment
     testnet_mode = Column(Boolean, default=True)
-    use_futures = Column(Boolean, default=True)
+    use_futures = Column(Boolean, default=False)  # CHANGED: Default to SPOT API to fix -2010 error
     
     # Signal Generation Settings
     technical_indicator_weights = Column(JSON, default={
