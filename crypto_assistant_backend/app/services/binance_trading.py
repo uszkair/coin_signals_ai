@@ -830,8 +830,10 @@ class BinanceTrader:
         if final_quantity < min_qty:
             final_quantity = min_qty
         
-        # Round to appropriate precision
-        return round(final_quantity, precision)
+        # Format to avoid scientific notation and ensure proper precision
+        # This fixes the "Illegal characters found in parameter 'quantity'" error
+        formatted_quantity = f"{final_quantity:.{precision}f}"
+        return float(formatted_quantity)
     
     async def _place_market_order(self, symbol: str, side: str, quantity: float) -> Dict[str, Any]:
         """Place a market order with price validation"""

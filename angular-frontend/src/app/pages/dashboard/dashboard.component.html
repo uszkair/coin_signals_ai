@@ -139,7 +139,20 @@
                 (click)="selectSignal(signal)"
               >
                 <td class="text-xs">{{ signal.timestamp | date:'MM.dd HH:mm' }}</td>
-                <td class="font-medium text-xs">{{ signal.symbol }}</td>
+                <td class="font-medium text-xs">
+                  <div class="flex items-center justify-between">
+                    <span>{{ signal.symbol }}</span>
+                    <p-button
+                      icon="pi pi-eye"
+                      size="small"
+                      severity="secondary"
+                      [text]="true"
+                      (onClick)="viewSignalDetails(signal); $event.stopPropagation()"
+                      pTooltip="Részletek megtekintése"
+                      class="ml-1"
+                    ></p-button>
+                  </div>
+                </td>
                 <td>
                   <p-tag
                     [value]="signal.signal"
@@ -148,7 +161,16 @@
                   ></p-tag>
                 </td>
                 <td>
-                  <span class="text-xs font-medium">{{ getConfidenceText(signal.confidence) }}</span>
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium">{{ getConfidenceText(signal.confidence) }}</span>
+                    <div class="w-8 bg-gray-200 rounded-full h-1.5 ml-1">
+                      <div 
+                        class="h-1.5 rounded-full transition-all duration-300"
+                        [class]="getConfidenceBarClass(signal.confidence)"
+                        [style.width.%]="signal.confidence"
+                      ></div>
+                    </div>
+                  </div>
                 </td>
                 <td class="text-xs font-mono">${{ signal.entry_price | number:'1.2-6' }}</td>
               </tr>

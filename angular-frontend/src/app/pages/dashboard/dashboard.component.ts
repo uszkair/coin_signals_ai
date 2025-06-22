@@ -443,6 +443,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadAIMLAnalysis(signal);
   }
 
+  viewSignalDetails(signal: Signal): void {
+    // Select the signal and show detailed view
+    this.selectSignal(signal);
+    
+    // Show a detailed modal or expand the details panel
+    this.messageService.add({
+      severity: 'info',
+      summary: `${signal.symbol} Részletek`,
+      detail: `${signal.signal} signal @ $${signal.entry_price} - ${signal.confidence}% confidence`,
+      life: 5000
+    });
+  }
+
   loadAIMLAnalysis(signal: Signal): void {
     this.loadingAIML = true;
     this.selectedSignalAIML = null;
