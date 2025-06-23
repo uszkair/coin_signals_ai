@@ -789,7 +789,7 @@ class BinanceTrader:
             raise Exception(f"Cannot get symbol info for {symbol} without valid API connection: {e}")
     
     def _calculate_quantity(self, position_size_usd: float, price: float, symbol_info: Dict[str, Any]) -> float:
-        """Calculate order quantity with proper precision"""
+        """Calculate order quantity with proper precision and formatting"""
         quantity = position_size_usd / price
         
         # Get step size for precision
@@ -802,13 +802,25 @@ class BinanceTrader:
                 min_qty = float(filter_info.get('minQty', step_size))
                 break
         
-        # Ensure quantity meets minimum requirement
-        if quantity < min_qty:
-            quantity = min_qty
+        # Use Decimal for precise calculation to avoid floating point errors
+        decimal_quantity = Decimal(str(quantity))
+        decimal_step = Decimal(str(step_size))
+        decimal_min_qty = Decimal(str(min_qty))
         
-        # Round down to step size with proper precision
+        # Ensure quantity meets minimum requirement
+        if decimal_quantity < decimal_min_qty:
+            decimal_quantity = decimal_min_qty
+        
+        # Round down to nearest step size
+        steps = decimal_quantity // decimal_step
+        final_decimal_quantity = steps * decimal_step
+        
+        # Ensure we don't go below minimum after rounding
+        if final_decimal_quantity < decimal_min_qty:
+            final_decimal_quantity = decimal_min_qty
+        
+        # Calculate precision based on step size
         if step_size >= 1:
-            # For step sizes >= 1, round to integer
             precision = 0
         else:
             # Count decimal places in step size
@@ -818,22 +830,16 @@ class BinanceTrader:
             else:
                 precision = 0
         
-        # Use Decimal for precise calculation
-        decimal_quantity = Decimal(str(quantity))
-        decimal_step = Decimal(str(step_size))
-        
-        # Round down to nearest step size
-        steps = decimal_quantity // decimal_step
-        final_quantity = float(steps * decimal_step)
-        
-        # Ensure we don't go below minimum
-        if final_quantity < min_qty:
-            final_quantity = min_qty
-        
         # Format to avoid scientific notation and ensure proper precision
         # This fixes the "Illegal characters found in parameter 'quantity'" error
-        formatted_quantity = f"{final_quantity:.{precision}f}"
-        return float(formatted_quantity)
+        formatted_quantity = f"{final_decimal_quantity:.{precision}f}".rstrip('0').rstrip('.')
+        
+        # Convert back to float for return, but ensure no scientific notation
+        final_quantity = float(formatted_quantity)
+        
+        logger.info(f"Quantity calculation: {position_size_usd}/${price} = {quantity:.8f} -> {formatted_quantity} (step: {step_size}, min: {min_qty})")
+        
+        return final_quantity
     
     async def _place_market_order(self, symbol: str, side: str, quantity: float) -> Dict[str, Any]:
         """Place a market order with price validation"""
