@@ -187,9 +187,11 @@ class BacktestService:
             # Get historical data
             historical_data = await self.get_backtest_data(symbol, start_date, end_date)
             
-            if len(historical_data) < 720:
+            # Csökkentjük a minimum követelményt 168 candle-re (7 nap)
+            min_required_candles = 168  # 7 nap × 24 óra
+            if len(historical_data) < min_required_candles:
                 return {
-                    "error": f"Insufficient data for {symbol}. Need at least 720 candles (30 days), got {len(historical_data)}"
+                    "error": f"Insufficient data for {symbol}. Need at least {min_required_candles} candles (7 days), got {len(historical_data)}"
                 }
             
             # Initialize backtest result
@@ -216,8 +218,8 @@ class BacktestService:
                 
                 # Process each candle - REAL signal engine with cached data for speed
                 # Optimized step size for faster processing while maintaining signal accuracy
-                min_history = min(720, len(historical_data) // 4)  # Use 1/4 of data or 720, whichever is smaller
-                step_size = max(24, len(historical_data) // 100)  # Process every 24th candle (1 day) minimum, or 1/100 of data
+                min_history = min(168, len(historical_data) // 4)  # Use 1/4 of data or 168 (7 days), whichever is smaller
+                step_size = max(6, len(historical_data) // 100)  # Process every 6th candle (6 hours) minimum, or 1/100 of data
                 
                 print(f"📊 Processing {len(historical_data)} candles with step size {step_size} (every {step_size} candles)")
                 print(f"🚀 Using REAL signal engine with cached data - fast AND authentic!")

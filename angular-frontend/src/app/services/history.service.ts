@@ -216,7 +216,7 @@ export class HistoryService {
       'Symbol', 'Signal', 'Entry Time', 'Exit Time', 'Entry Price', 'Exit Price',
       'Quantity', 'Position Size USD', 'Profit/Loss USD', 'Profit/Loss %',
       'Trade Result', 'Main Order ID', 'Stop Loss', 'Take Profit',
-      'Pattern', 'Confidence', 'Failure Reason', 'Testnet Mode'
+      'Pattern', 'Confidence', 'Failure Reason', 'Sandbox Mode'
     ];
     
     const csvContent = [
