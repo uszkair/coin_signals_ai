@@ -79,7 +79,7 @@
 ### 📈 Bővítési ötletek:
 - AI javaslat: mely coinpárokat kereskedted jól / rosszul
 - "Mi lett volna ha" szimuláció (kihagyott szignálok hatása)
-- Reálidejű portfólió követés (API csatlakozás pl. Binance accounthoz – későbbi fázisban)
+- Reálidejű portfólió követés (API csatlakozás Coinbase accounthoz – későbbi fázisban)
 - Trade célkitűzések, célmegtartás (pl. heti 5% profit cél, vizualizálva)
 
 ---

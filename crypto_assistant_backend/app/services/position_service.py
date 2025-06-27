@@ -52,12 +52,12 @@ class PositionService:
             # Broadcast table update via WebSocket
             await broadcast_trade_update(table_update)
             
-            logger.info(f"✅ Position table updated for new position: {position_data.get('symbol')} {position_data.get('direction')}")
+            logger.info(f"SUCCESS: Position table updated for new position: {position_data.get('symbol')} {position_data.get('direction')}")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error updating position table: {e}")
+            logger.error(f"ERROR: Error updating position table: {e}")
             return False
     
     @staticmethod
@@ -92,7 +92,7 @@ class PositionService:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error updating position P&L for {symbol}: {e}")
+            logger.error(f"ERROR: Error updating position P&L for {symbol}: {e}")
             return False
     
     @staticmethod
@@ -123,12 +123,12 @@ class PositionService:
             # Broadcast removal update via WebSocket
             await broadcast_trade_update(removal_update)
             
-            logger.info(f"✅ Position removed from table: {position_data.get('symbol')}")
+            logger.info(f"SUCCESS: Position removed from table: {position_data.get('symbol')}")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error removing position from table: {e}")
+            logger.error(f"ERROR: Error removing position from table: {e}")
             return False
     
     @staticmethod
@@ -138,7 +138,7 @@ class PositionService:
         """
         try:
             # Import here to avoid circular imports
-            from app.services.binance_trading import initialize_global_trader
+            from app.services.coinbase_trading import initialize_global_trader
             
             trader = initialize_global_trader()
             active_positions = await trader.get_active_positions()
@@ -158,12 +158,12 @@ class PositionService:
             # Broadcast table refresh via WebSocket
             await broadcast_trade_update(refresh_update)
             
-            logger.info(f"✅ Position table refreshed with {len(active_positions)} positions")
+            logger.info(f"SUCCESS: Position table refreshed with {len(active_positions)} positions")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error refreshing position table: {e}")
+            logger.error(f"ERROR: Error refreshing position table: {e}")
             return False
 
 # Global position service instance

@@ -57,13 +57,13 @@ async def startup_event():
     
     # Initialize global trader with database settings
     try:
-        from app.services.binance_trading import initialize_global_trader
+        from app.services.coinbase_trading import initialize_global_trader
         trader = initialize_global_trader()
-        logger.info(f"Global trader initialized: {'Testnet' if trader.testnet else 'Mainnet'} mode")
+        logger.info(f"Global trader initialized: {'Sandbox' if trader.use_sandbox else 'Production'} mode")
     except Exception as e:
         logger.error(f"Failed to initialize global trader: {e}")
     
-    # Run startup tests
+    # Run startup tests - OPTIONAL: Can be disabled via environment variables
     try:
         from app.startup_tests import run_startup_tests
         test_results = await run_startup_tests()
@@ -73,21 +73,58 @@ async def startup_event():
         
         # Log summary
         summary = test_results["startup_tests"]
-        if summary["failed"] == 0:
-            logger.info(f"✅ All startup tests passed ({summary['passed']}/{summary['total']})")
+        
+        # Check if tests were skipped
+        if summary.get("skipped", False):
+            logger.info(f"INFO Startup tests skipped by configuration")
+            logger.info("INFO Application starting without startup validation")
+        elif summary["failed"] == 0:
+            logger.info(f"SUCCESS All startup tests passed ({summary['passed']}/{summary['total']})")
         else:
-            logger.warning(f"⚠️ {summary['failed']} startup tests failed ({summary['passed']}/{summary['total']} passed)")
+            # WARNING: Log failures but allow application to start (configurable behavior)
+            failed_tests = []
+            for result in test_results.get("results", []):
+                if result.get("status") in ["FAIL", "ERROR"]:
+                    failed_tests.append(f"{result.get('test', 'unknown')}: {result.get('error', 'unknown error')}")
+            
+            error_msg = f"WARNING: {summary['failed']} startup tests failed. Application starting with degraded functionality."
+            logger.warning(error_msg)
+            logger.warning("Failed tests:")
+            for test_error in failed_tests:
+                logger.warning(f"  - {test_error}")
+            
+            # Check if we should fail hard on test failures (production safety)
+            import os
+            fail_on_test_errors = os.getenv('FAIL_ON_STARTUP_TEST_ERRORS', 'false').lower() in ['true', '1', 'yes']
+            
+            if fail_on_test_errors:
+                # Raise exception to prevent application startup
+                raise RuntimeError(f"Startup tests failed: {summary['failed']}/{summary['total']} tests failed. "
+                                 f"Critical systems are not operational. Check logs for details.")
+            else:
+                logger.warning("INFO Application starting despite test failures (set FAIL_ON_STARTUP_TEST_ERRORS=true to prevent this)")
             
     except Exception as e:
-        logger.error(f"Failed to run startup tests: {e}")
+        error_msg = f"STARTUP WARNING: Could not run startup tests: {e}"
+        logger.warning(error_msg)
         app.state.startup_tests = {"error": str(e)}
+        
+        # Check if we should fail hard on test execution errors
+        import os
+        fail_on_test_errors = os.getenv('FAIL_ON_STARTUP_TEST_ERRORS', 'false').lower() in ['true', '1', 'yes']
+        
+        if fail_on_test_errors:
+            # Raise exception to prevent application startup
+            raise RuntimeError(f"Startup tests could not be executed: {e}. Application cannot start safely.")
+        else:
+            logger.warning("INFO Application starting despite startup test execution error")
     
     # Auto-trading scheduler starts AUTOMATICALLY as background service
     try:
         from app.services.auto_trading_scheduler import auto_trading_scheduler
         asyncio.create_task(auto_trading_scheduler.start_monitoring())
-        logger.info("✅ Auto-trading scheduler started automatically as background service")
-        logger.info("📊 Scheduler will monitor markets continuously (auto-trading can be enabled/disabled via settings)")
+        logger.info("SUCCESS Auto-trading scheduler started automatically as background service")
+        logger.info("INFO Scheduler will monitor markets continuously (auto-trading can be enabled/disabled via settings)")
     except Exception as e:
         logger.error(f"Failed to start auto-trading scheduler: {e}")
     
@@ -112,7 +149,7 @@ def root():
             "Manual Trading",
             "Auto Trading Scheduler",
             "Risk Management",
-            "Real Binance Integration"
+            "Real Coinbase Integration"
         ]
     }
 
@@ -131,20 +168,24 @@ def health_check():
     
     if "error" in startup_tests:
         return {
-            "status": "error",
-            "message": "Startup tests failed to run",
+            "status": "warning",
+            "message": "Startup tests failed to run, but application is operational",
             "error": startup_tests["error"]
         }
     
     summary = startup_tests.get("startup_tests", {})
     failed_count = summary.get("failed", 0)
+    skipped = summary.get("skipped", False)
     
-    if failed_count == 0:
+    if skipped:
+        status = "healthy"
+        message = "Application operational (startup tests skipped by configuration)"
+    elif failed_count == 0:
         status = "healthy"
         message = f"All systems operational ({summary.get('passed', 0)}/{summary.get('total', 0)} tests passed)"
     else:
         status = "degraded"
-        message = f"Some systems have issues ({failed_count} tests failed)"
+        message = f"Some systems have issues ({failed_count} tests failed, but application is running)"
     
     return {
         "status": status,

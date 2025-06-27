@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from app.services.signal_engine import get_current_signal
-from app.services.binance_trading import execute_automatic_trade, initialize_global_trader
+from app.services.coinbase_trading import execute_automatic_trade, initialize_global_trader
 from app.services.ml_signal_generator import generate_ai_signal
 from app.services.trading_settings_service import get_trading_settings_service
 from app.database import get_db
@@ -49,7 +49,7 @@ class AutoTradingScheduler:
             # Return default settings if database fails
             return {
                 'enabled': True,
-                'symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'],
+                'symbols': ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'],
                 'interval': 300,
                 'min_confidence': 70
             }
@@ -352,7 +352,7 @@ class AutoTradingScheduler:
             trader = initialize_global_trader()
             active_positions = await trader.get_active_positions()
             
-            # IMPORTANT: Check for orphaned "open" positions in database that are no longer active on Binance
+            # IMPORTANT: Check for orphaned "open" positions in database that are no longer active on Coinbase
             await self._check_orphaned_open_positions(active_positions)
             
             if not active_positions:
@@ -369,12 +369,12 @@ class AutoTradingScheduler:
             async with AsyncSessionLocal() as db:
                 for position_id, position in active_positions.items():
                     try:
-                        # Refresh order status from Binance API
+                        # Refresh order status from Coinbase API
                         main_order_id = position.get('main_order_id')
                         symbol = position.get('symbol')
                         
                         if main_order_id and symbol:
-                            # Get fresh order status from Binance
+                            # Get fresh order status from Coinbase
                             refresh_result = await trader.refresh_order_status(main_order_id, symbol)
                             if refresh_result.get('success'):
                                 logger.debug(f"Order {main_order_id} status refreshed: {refresh_result.get('status')}")
@@ -520,7 +520,7 @@ class AutoTradingScheduler:
                             symbol = performance.signal.symbol
                             order_id = performance.main_order_id
                             
-                            # Refresh order status from Binance
+                            # Refresh order status from Coinbase
                             refresh_result = await trader.refresh_order_status(order_id, symbol)
                             
                             if refresh_result.get('success'):
@@ -535,7 +535,7 @@ class AutoTradingScheduler:
             logger.error(f"Error refreshing pending orders: {e}")
 
     async def _check_orphaned_open_positions(self, active_positions: Dict):
-        """Check for 'open' positions in database that are no longer active on Binance"""
+        """Check for 'open' positions in database that are no longer active on Coinbase"""
         try:
             from app.database import AsyncSessionLocal
             async with AsyncSessionLocal() as db:
@@ -546,9 +546,9 @@ class AutoTradingScheduler:
                 if not open_positions:
                     return
                 
-                logger.debug(f"Checking {len(open_positions)} open positions in database against {len(active_positions)} active Binance positions...")
+                logger.debug(f"Checking {len(open_positions)} open positions in database against {len(active_positions)} active Coinbase positions...")
                 
-                # Extract main order IDs from active Binance positions
+                # Extract main order IDs from active Coinbase positions
                 active_order_ids = set()
                 for position in active_positions.values():
                     main_order_id = position.get('main_order_id')
@@ -567,12 +567,12 @@ class AutoTradingScheduler:
                         logger.warning(f"Found orphaned 'open' position: Order ID {main_order_id} for {performance.signal.symbol if performance.signal else 'UNKNOWN'}")
                         
                         try:
-                            # Try to get the final order status from Binance to determine exit price and P&L
+                            # Try to get the final order status from Coinbase to determine exit price and P&L
                             trader = initialize_global_trader()
                             symbol = performance.signal.symbol if performance.signal else None
                             
                             if symbol:
-                                # Get order status from Binance
+                                # Get order status from Coinbase
                                 order_status = await trader.get_order_status(symbol, main_order_id)
                                 
                                 if order_status.get('success') and order_status.get('status') == 'FILLED':

@@ -31,16 +31,16 @@ class CoinbaseAdapter(BaseExchange):
         
         self.api_key = os.getenv('COINBASE_API_KEY')
         self.private_key = os.getenv('COINBASE_PRIVATE_KEY')
-        self.environment = os.getenv('COINBASE_ENVIRONMENT', 'sandbox')
+        self.environment = 'production'
         
         if not self.api_key or not self.private_key:
             raise ValueError("Coinbase CDP API credentials not configured")
         
-        # Initialize REST client
+        # Initialize REST client with correct parameters
+        # Based on successful test: api_key + api_secret (private_key as secret)
         self.client = RESTClient(
             api_key=self.api_key,
-            api_secret=self.private_key,
-            base_url=self._get_base_url()
+            api_secret=self.private_key
         )
         
         # Cache for symbol info and account data
@@ -51,40 +51,38 @@ class CoinbaseAdapter(BaseExchange):
         logger.info(f"Coinbase CDP Adapter initialized ({self.environment})")
     
     def _get_base_url(self) -> str:
-        """Get API base URL based on environment"""
-        if self.environment == 'sandbox':
-            return 'https://api.sandbox.coinbase.com'
+        """Get API base URL"""
         return 'https://api.coinbase.com'
     
-    def _convert_symbol_to_coinbase(self, binance_symbol: str) -> str:
-        """Convert Binance symbol format to Coinbase format
+    def _convert_symbol_to_coinbase(self, legacy_symbol: str) -> str:
+        """Convert legacy symbol format to Coinbase format
         
         Examples:
         BTCUSDT -> BTC-USD
         ETHUSDT -> ETH-USD
         ADAUSDT -> ADA-USD
         """
-        if binance_symbol.endswith('USDT'):
-            base = binance_symbol[:-4]
+        if legacy_symbol.endswith('USDT'):
+            base = legacy_symbol[:-4]
             return f"{base}-USD"
-        elif binance_symbol.endswith('USDC'):
-            base = binance_symbol[:-4]
+        elif legacy_symbol.endswith('USDC'):
+            base = legacy_symbol[:-4]
             return f"{base}-USDC"
-        elif binance_symbol.endswith('BTC'):
-            base = binance_symbol[:-3]
+        elif legacy_symbol.endswith('BTC'):
+            base = legacy_symbol[:-3]
             return f"{base}-BTC"
-        elif binance_symbol.endswith('ETH'):
-            base = binance_symbol[:-3]
+        elif legacy_symbol.endswith('ETH'):
+            base = legacy_symbol[:-3]
             return f"{base}-ETH"
         
         # If no known suffix, return as-is with dash
-        if len(binance_symbol) >= 6:
-            return f"{binance_symbol[:-3]}-{binance_symbol[-3:]}"
+        if len(legacy_symbol) >= 6:
+            return f"{legacy_symbol[:-3]}-{legacy_symbol[-3:]}"
         
-        return binance_symbol
+        return legacy_symbol
     
     def _convert_symbol_from_coinbase(self, coinbase_symbol: str) -> str:
-        """Convert Coinbase symbol format to Binance format"""
+        """Convert Coinbase symbol format to legacy format"""
         if '-' in coinbase_symbol:
             base, quote = coinbase_symbol.split('-', 1)
             if quote == 'USD':
@@ -95,9 +93,26 @@ class CoinbaseAdapter(BaseExchange):
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information and balances"""
         try:
-            # Get all accounts
+            logger.info("=" * 80)
+            logger.info("COINBASE ADAPTER - ACCOUNT INFO SDK HÍVÁS")
+            logger.info("=" * 80)
+            logger.info("Using Coinbase Advanced Trade SDK")
+            logger.info(f"Environment: {self.environment}")
+            logger.info(f"API Key: {self.api_key[:8]}...")
+            
+            # Get all accounts using SDK
+            logger.info("Calling client.get_accounts()...")
             accounts_response = self.client.get_accounts()
-            accounts = accounts_response.get('accounts', [])
+            logger.info(f"SDK Response type: {type(accounts_response)}")
+            logger.info(f"SDK Response: {accounts_response}")
+            
+            # Extract accounts from response
+            if hasattr(accounts_response, 'accounts'):
+                accounts = accounts_response.accounts
+                logger.info(f"SUCCESS: Retrieved {len(accounts)} accounts via SDK")
+            else:
+                accounts = accounts_response.get('accounts', []) if isinstance(accounts_response, dict) else []
+                logger.info(f"SUCCESS: Retrieved {len(accounts)} accounts (dict format)")
             
             # Process account data
             balances = {}
@@ -121,8 +136,8 @@ class CoinbaseAdapter(BaseExchange):
                     elif currency == 'BTC':
                         # Get BTC price for estimation
                         try:
-                            ticker = self.client.get_product_ticker('BTC-USD')
-                            btc_price = Decimal(ticker.get('price', '0'))
+                            market_summary = self.client.get_market_summary(product_id='BTC-USD')
+                            btc_price = Decimal(market_summary.get('price', '0'))
                             total_usd_value += Decimal(available) * btc_price
                         except:
                             pass
@@ -146,13 +161,21 @@ class CoinbaseAdapter(BaseExchange):
             }
     
     async def execute_trade(self, signal: Dict[str, Any], position_size: float) -> Dict[str, Any]:
-        """Execute trade based on signal"""
+        """Execute trade based on signal using SDK"""
         try:
+            logger.info("=" * 80)
+            logger.info("COINBASE ADAPTER - SDK TRADE EXECUTION")
+            logger.info("=" * 80)
+            
             # Convert symbol format
             coinbase_symbol = self._convert_symbol_to_coinbase(signal['symbol'])
+            logger.info(f"Original symbol: {signal['symbol']}")
+            logger.info(f"Coinbase symbol: {coinbase_symbol}")
             
             # Determine order side
             side = 'BUY' if signal['action'].lower() == 'buy' else 'SELL'
+            logger.info(f"Trade direction: {side}")
+            logger.info(f"Position size: ${position_size}")
             
             # Prepare order configuration
             if side == 'BUY':
@@ -166,13 +189,30 @@ class CoinbaseAdapter(BaseExchange):
                         }
                     }
                 }
+                logger.info(f"BUY order config: {order_config}")
             else:
                 # For sell orders, use base_size (crypto amount)
                 # Need to convert USD position_size to crypto amount
-                ticker = self.client.get_product_ticker(coinbase_symbol)
-                current_price = Decimal(ticker.get('price', '0'))
+                logger.info(f"Getting market price for {coinbase_symbol}...")
+                logger.info(f"Calling client.get_product('{coinbase_symbol}')...")
+                
+                product = self.client.get_product(coinbase_symbol)
+                logger.info(f"Product response: {product}")
+                
+                # Extract price from response
+                if hasattr(product, 'price'):
+                    current_price = Decimal(product.price)
+                elif isinstance(product, dict) and 'price' in product:
+                    current_price = Decimal(product['price'])
+                else:
+                    raise ValueError(f"Could not get price for {coinbase_symbol}")
+                
+                logger.info(f"Current price: {current_price}")
+                
                 if current_price > 0:
                     base_size = Decimal(position_size) / current_price
+                    logger.info(f"Calculated base_size: {base_size}")
+                    
                     order_config = {
                         'product_id': coinbase_symbol,
                         'side': side,
@@ -182,12 +222,18 @@ class CoinbaseAdapter(BaseExchange):
                             }
                         }
                     }
+                    logger.info(f"SELL order config: {order_config}")
                 else:
                     raise ValueError(f"Could not get price for {coinbase_symbol}")
             
-            # Execute order
-            logger.info(f"Executing Coinbase order: {side} {coinbase_symbol} size: {position_size}")
+            # Execute order using SDK
+            logger.info(f"Executing Coinbase SDK order: {side} {coinbase_symbol} size: {position_size}")
+            logger.info(f"Full order config: {order_config}")
+            logger.info("Calling client.create_order()...")
+            
             order_response = self.client.create_order(**order_config)
+            logger.info(f"SDK Order response type: {type(order_response)}")
+            logger.info(f"SDK Order response: {order_response}")
             
             # Parse response
             order_id = order_response.get('order_id')
@@ -235,12 +281,34 @@ class CoinbaseAdapter(BaseExchange):
             }
     
     async def get_current_price(self, symbol: str) -> Optional[float]:
-        """Get current price for symbol"""
+        """Get current price for symbol using SDK"""
         try:
+            logger.info("=" * 80)
+            logger.info(f"COINBASE ADAPTER - SDK GET PRICE FOR {symbol}")
+            logger.info("=" * 80)
+            
             coinbase_symbol = self._convert_symbol_to_coinbase(symbol)
-            ticker = self.client.get_product_ticker(coinbase_symbol)
-            price = ticker.get('price')
-            return float(price) if price else None
+            logger.info(f"Original symbol: {symbol}")
+            logger.info(f"Coinbase symbol: {coinbase_symbol}")
+            
+            logger.info(f"Calling client.get_product('{coinbase_symbol}')...")
+            product = self.client.get_product(coinbase_symbol)
+            logger.info(f"SDK Product response type: {type(product)}")
+            logger.info(f"SDK Product response: {product}")
+            
+            # Extract price from response
+            if hasattr(product, 'price'):
+                price = float(product.price)
+                logger.info(f"Extracted price (attribute): {price}")
+            elif isinstance(product, dict) and 'price' in product:
+                price = float(product['price'])
+                logger.info(f"Extracted price (dict): {price}")
+            else:
+                logger.error(f"ERROR: No price found in response: {product}")
+                return None
+            
+            logger.info(f"SUCCESS: Final price result: {price}")
+            return price
             
         except Exception as e:
             logger.error(f"Coinbase get_current_price error for {symbol}: {e}")
@@ -285,7 +353,7 @@ class CoinbaseAdapter(BaseExchange):
             for currency, balance_info in balances.items():
                 total_balance = Decimal(balance_info.get('total', '0'))
                 if total_balance > 0:
-                    # Convert to Binance-style symbol for consistency
+                    # Convert to legacy-style symbol for consistency
                     if currency not in ['USD', 'USDT', 'USDC']:
                         symbol = f"{currency}USDT"
                         
@@ -374,9 +442,9 @@ class CoinbaseAdapter(BaseExchange):
             for product in products.get('products', []):
                 coinbase_symbol = product.get('product_id', '')
                 if coinbase_symbol and product.get('status') == 'online':
-                    # Convert to Binance format
-                    binance_symbol = self._convert_symbol_from_coinbase(coinbase_symbol)
-                    symbols.append(binance_symbol)
+                    # Convert to legacy format
+                    legacy_symbol = self._convert_symbol_from_coinbase(coinbase_symbol)
+                    symbols.append(legacy_symbol)
             
             return symbols
             

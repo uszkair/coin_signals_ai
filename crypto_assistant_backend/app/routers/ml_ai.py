@@ -172,7 +172,7 @@ async def train_models(request: TrainingRequest, background_tasks: BackgroundTas
                 "success": True,
                 "data": {
                     "message": "Model training started in background",
-                    "symbols": request.symbols or ["BTCUSDT", "ETHUSDT", "ADAUSDT", "BNBUSDT", "SOLUSDT"],
+                    "symbols": request.symbols or ["BTCUSDT", "ETHUSDT", "ADAUSDT", "SOLUSDT"],
                     "training_days": request.days,
                     "estimated_time_minutes": len(request.symbols or 5) * 2,
                     "status": "training_started"

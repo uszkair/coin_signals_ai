@@ -44,11 +44,11 @@ class DatabaseService:
             await db.commit()
             await db.refresh(signal)
             
-            print(f"✅ Signal saved successfully: {signal.symbol} - {signal.signal_type} @ {signal.price}")
+            print(f"SUCCESS: Signal saved successfully: {signal.symbol} - {signal.signal_type} @ {signal.price}")
             return signal
             
         except Exception as e:
-            print(f"❌ Error saving signal: {str(e)}")
+            print(f"ERROR: Error saving signal: {str(e)}")
             await db.rollback()
             raise e
 
@@ -279,7 +279,7 @@ class DatabaseService:
                 default_settings = {
                     'user_id': user_id,
                     'auto_trading_enabled': False,
-                    'monitored_symbols': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'],
+                    'monitored_symbols': ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'SOLUSDT'],
                     'check_interval': 300,
                     'min_signal_confidence': 70,
                     'position_size_mode': 'percentage',
@@ -428,11 +428,11 @@ class DatabaseService:
             await db.commit()
             await db.refresh(performance)
             
-            print(f"✅ Trading performance saved: Signal {signal_id} - {performance.result}")
+            print(f"SUCCESS: Trading performance saved: Signal {signal_id} - {performance.result}")
             return performance
             
         except Exception as e:
-            print(f"❌ Error saving trading performance: {str(e)}")
+            print(f"ERROR: Error saving trading performance: {str(e)}")
             await db.rollback()
             raise e
 
@@ -458,11 +458,11 @@ class DatabaseService:
             await db.commit()
             await db.refresh(performance)
             
-            print(f"✅ Trading performance updated: Signal {performance.signal_id} - {performance.result}")
+            print(f"SUCCESS: Trading performance updated: Signal {performance.signal_id} - {performance.result}")
             return performance
             
         except Exception as e:
-            print(f"❌ Error updating trading performance: {str(e)}")
+            print(f"ERROR: Error updating trading performance: {str(e)}")
             await db.rollback()
             raise e
 
@@ -534,7 +534,7 @@ class DatabaseService:
             return history_data
             
         except Exception as e:
-            print(f"❌ Error getting trading history: {str(e)}")
+            print(f"ERROR: Error getting trading history: {str(e)}")
             return []
 
     @staticmethod
@@ -615,7 +615,7 @@ class DatabaseService:
             }
             
         except Exception as e:
-            print(f"❌ Error getting trading statistics: {str(e)}")
+            print(f"ERROR: Error getting trading statistics: {str(e)}")
             return {
                 "total_trades": 0,
                 "successful_trades": 0,
@@ -645,7 +645,7 @@ class DatabaseService:
             result = await db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            print(f"❌ Error finding performance by order ID: {str(e)}")
+            print(f"ERROR: Error finding performance by order ID: {str(e)}")
             # Rollback the transaction to recover from error
             try:
                 await db.rollback()
@@ -670,7 +670,7 @@ class DatabaseService:
             result = await db.execute(query)
             return result.scalars().all()
         except Exception as e:
-            print(f"❌ Error getting pending/open trading performances: {str(e)}")
+            print(f"ERROR: Error getting pending/open trading performances: {str(e)}")
             return []
 
     @staticmethod
@@ -689,11 +689,11 @@ class DatabaseService:
             await db.delete(performance)
             await db.commit()
             
-            print(f"✅ Trading performance {performance_id} deleted successfully")
+            print(f"SUCCESS: Trading performance {performance_id} deleted successfully")
             return True
             
         except Exception as e:
-            print(f"❌ Error deleting trading performance {performance_id}: {str(e)}")
+            print(f"ERROR: Error deleting trading performance {performance_id}: {str(e)}")
             await db.rollback()
             return False
 
@@ -724,11 +724,11 @@ class DatabaseService:
             await db.commit()
             
             environment = "testnet" if testnet_only else "all"
-            print(f"✅ Cleared {count} trading performances from {environment} history")
+            print(f"SUCCESS: Cleared {count} trading performances from {environment} history")
             return count
             
         except Exception as e:
-            print(f"❌ Error clearing trading history: {str(e)}")
+            print(f"ERROR: Error clearing trading history: {str(e)}")
             await db.rollback()
             return 0
 
@@ -781,7 +781,7 @@ class DatabaseService:
             return positions
             
         except Exception as e:
-            print(f"❌ Error getting open positions from database: {str(e)}")
+            print(f"ERROR: Error getting open positions from database: {str(e)}")
             return []
 
     @staticmethod
@@ -791,7 +791,7 @@ class DatabaseService:
             # First, we need to create or find the associated signal
             signal_id = position_data.get("signal_id")
             if not signal_id:
-                print("❌ No signal_id provided for open position")
+                print("ERROR: No signal_id provided for open position")
                 return None
             
             # Create the performance record with 'open' status
@@ -814,11 +814,11 @@ class DatabaseService:
             await db.commit()
             await db.refresh(performance)
             
-            print(f"✅ Open position saved to database: Signal {signal_id}")
+            print(f"SUCCESS: Open position saved to database: Signal {signal_id}")
             return performance
             
         except Exception as e:
-            print(f"❌ Error saving open position to database: {str(e)}")
+            print(f"ERROR: Error saving open position to database: {str(e)}")
             await db.rollback()
             return None
 
@@ -856,7 +856,7 @@ class DatabaseService:
             return True
             
         except Exception as e:
-            print(f"❌ Error updating open position in database: {str(e)}")
+            print(f"ERROR: Error updating open position in database: {str(e)}")
             await db.rollback()
             return False
 
@@ -887,10 +887,10 @@ class DatabaseService:
             
             await db.commit()
             
-            print(f"✅ Position {position_id} closed in database with result: {performance.result}")
+            print(f"SUCCESS: Position {position_id} closed in database with result: {performance.result}")
             return True
             
         except Exception as e:
-            print(f"❌ Error closing position in database: {str(e)}")
+            print(f"ERROR: Error closing position in database: {str(e)}")
             await db.rollback()
             return False

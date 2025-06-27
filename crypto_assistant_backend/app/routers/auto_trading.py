@@ -177,7 +177,7 @@ async def emergency_stop():
         await disable_auto_trading()
         
         # Close all positions (import from trading router)
-        from app.services.binance_trading import initialize_global_trader, close_trading_position
+        from app.services.coinbase_trading import initialize_global_trader, close_trading_position
         
         trader = initialize_global_trader()
         positions = await trader.get_active_positions()
@@ -205,7 +205,7 @@ async def emergency_stop():
 async def get_performance_metrics():
     """Get auto-trading performance metrics"""
     try:
-        from app.services.binance_trading import initialize_global_trader
+        from app.services.coinbase_trading import initialize_global_trader
         
         # Get trading statistics
         trader = initialize_global_trader()

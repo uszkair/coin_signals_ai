@@ -18,16 +18,16 @@ logger = logging.getLogger(__name__)
 class MultiTimeframeAnalyzer:
     """
     Multi-timeframe technical analysis for RSI, MACD, candlestick patterns
-    Analyzes 4 timeframes: 1h, 4h, 1d, 1w
+    Analyzes 4 timeframes: 1h, 6h, 1d, 1d (long-term)
     """
     
     def __init__(self):
         # Timeframes to analyze (similar to support/resistance)
         self.timeframes = {
             '1h': {'interval': '1h', 'days': 7, 'weight': 1.0},
-            '4h': {'interval': '4h', 'days': 30, 'weight': 1.5},
+            '6h': {'interval': '6h', 'days': 30, 'weight': 1.5},  # Changed from 4h to 6h for Coinbase compatibility
             '1d': {'interval': '1d', 'days': 90, 'weight': 2.0},
-            '1w': {'interval': '1w', 'days': 365, 'weight': 2.5}
+            '1d_long': {'interval': '1d', 'days': 300, 'weight': 2.5}  # Changed from 365 to 300 days (Coinbase limit)
         }
     
     async def analyze_multi_timeframe_indicators(self, symbol: str) -> Dict[str, Any]:

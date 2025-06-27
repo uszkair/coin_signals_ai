@@ -26,7 +26,7 @@ class DataFetchRequest(BaseModel):
 @router.post("/fetch-data")
 async def fetch_historical_data(request: DataFetchRequest, background_tasks: BackgroundTasks):
     """
-    Fetch historical data from Binance for backtesting
+    Fetch historical data from Coinbase for backtesting
     This runs in the background to avoid timeout
     """
     try:
@@ -156,7 +156,7 @@ async def get_available_symbols():
     except Exception as e:
         # Fallback to default symbols if settings service fails
         return {
-            "symbols": ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"],
+            "symbols": ["BTCUSDT", "ETHUSDT", "ADAUSDT", "SOLUSDT"],
             "source": "fallback",
             "description": "Default symbols (settings service unavailable)"
         }

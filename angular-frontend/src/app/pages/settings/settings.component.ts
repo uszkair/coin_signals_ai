@@ -77,9 +77,7 @@ export class SettingsComponent implements OnInit {
   currentTradingConfig: any = null;
   walletBalance: number = 0;
 
-  // Trading Environment Configuration
-  useTestnet: boolean = false;
-  useFutures: boolean = false;
+  // Trading Environment Configuration (Production only)
   currentEnvironment: TradingEnvironment | null = null;
   minimumRequirements: any = null;
 
@@ -594,59 +592,16 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  // Trading Environment Methods
+  // Trading Environment Methods (Production only)
   loadTradingEnvironment(): void {
     this.tradingService.getTradingEnvironment().subscribe({
       next: (response) => {
         if (response.success) {
           this.currentEnvironment = response.data;
-          this.useTestnet = response.data.testnet;
-          this.useFutures = response.data.futures;
         }
       },
-      error: (error) => {
+      error: (error: any) => {
         console.warn('Could not load trading environment:', error);
-        // Default to mainnet if loading fails
-        this.useTestnet = false;
-      }
-    });
-  }
-
-  onEnvironmentChange(): void {
-    // This method is called when the radio button selection changes
-    // The actual saving happens when the user clicks the save button
-    console.log('Environment changed to:', this.useTestnet ? 'testnet' : 'mainnet');
-  }
-
-  onApiTypeChange(): void {
-    // This method is called when the API type radio button selection changes
-    console.log('API type changed to:', this.useFutures ? 'futures' : 'spot');
-  }
-
-  saveEnvironmentChange(): void {
-    this.savingEnvironment = true;
-
-    this.tradingService.switchTradingEnvironment(this.useTestnet, this.useFutures).subscribe({
-      next: (response) => {
-        this.savingEnvironment = false;
-        if (response.success) {
-          this.currentEnvironment = response.data;
-          this.showSuccess(
-            'Kereskedési környezet váltva',
-            `${this.useTestnet ? 'Testnet (fake pénz)' : 'Mainnet (valós pénz)'} környezet beállítva`
-          );
-          // Reload wallet balance after environment change
-          this.loadWalletBalance();
-          
-          // Trigger a global wallet refresh event for dashboard
-          window.dispatchEvent(new CustomEvent('walletEnvironmentChanged'));
-        } else {
-          this.showError('Váltási hiba', response.error || 'Ismeretlen hiba történt');
-        }
-      },
-      error: (error) => {
-        this.savingEnvironment = false;
-        this.showError('Hálózati hiba', 'Nem sikerült váltani a környezetet: ' + error.message);
       }
     });
   }
@@ -661,7 +616,7 @@ export class SettingsComponent implements OnInit {
           this.minimumRequirements = response.data;
           this.showSuccess(
             'Minimum követelmények betöltve',
-            'A Binance minimum kereskedési követelmények frissítve'
+            'A Coinbase minimum kereskedési követelmények frissítve'
           );
         } else {
           this.showError('Betöltési hiba', response.error || 'Ismeretlen hiba történt');
@@ -918,11 +873,6 @@ export class SettingsComponent implements OnInit {
   resetAutoTradingSettings(): void {
     this.autoTradingEnabled = true;
     this.showSuccess('Alaphelyzetbe állítva', 'Az automatikus kereskedés bekapcsolva');
-  }
-
-  resetTradingEnvironmentSettings(): void {
-    this.useTestnet = true;
-    this.showSuccess('Alaphelyzetbe állítva', 'A kereskedési környezet visszaállítva testnet módra');
   }
 
   // Stop Loss/Take Profit Settings Methods

@@ -127,7 +127,7 @@ export class AIService {
   }
 
   // Market Overview
-  getMarketOverview(symbols: string[] = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']): Observable<{ success: boolean; data: MarketOverview }> {
+  getMarketOverview(symbols: string[] = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']): Observable<{ success: boolean; data: MarketOverview }> {
     const symbolsParam = symbols.join(',');
     return this.http.get<{ success: boolean; data: MarketOverview }>(`${this.baseUrl}/ai/market-overview?symbols=${symbolsParam}`);
   }

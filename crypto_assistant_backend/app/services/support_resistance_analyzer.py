@@ -43,9 +43,9 @@ class MultiTimeframeSupportResistance:
     def __init__(self):
         self.timeframes = {
             '1h': {'days': 7, 'weight': 1.0},    # 1 hour - last 7 days
-            '4h': {'days': 30, 'weight': 1.5},   # 4 hours - last 30 days  
+            '6h': {'days': 30, 'weight': 1.5},   # 6 hours - last 30 days (changed from 4h to 6h for Coinbase compatibility)
             '1d': {'days': 90, 'weight': 2.0},   # 1 day - last 90 days
-            '1w': {'days': 365, 'weight': 2.5}   # 1 week - last 365 days
+            '1d_long': {'interval': '1d', 'days': 300, 'weight': 2.5}   # 1 day long-term - last 300 days (using 1d interval)
         }
         
     async def analyze_levels(self, symbol: str, current_price: float) -> Dict[str, Any]:
@@ -69,9 +69,11 @@ class MultiTimeframeSupportResistance:
                     logger.info(f"Analyzing {timeframe} timeframe for {symbol}")
                     
                     # Get historical data for this timeframe
+                    # Use the actual interval for API calls (1d_long uses 1d interval)
+                    actual_interval = config.get('interval', timeframe)
                     candles = await get_historical_data(
-                        symbol=symbol, 
-                        interval=timeframe, 
+                        symbol=symbol,
+                        interval=actual_interval,
                         days=config['days']
                     )
                     

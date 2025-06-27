@@ -75,8 +75,8 @@
           Környezet
         </label>
         <p-dropdown
-          [options]="testnetOptions"
-          [(ngModel)]="testnetMode"
+          [options]="sandboxOptions"
+          [(ngModel)]="sandboxMode"
           placeholder="Összes"
           [showClear]="true"
           class="w-full"
@@ -208,12 +208,12 @@
               
               <p-button
                 icon="pi pi-sync"
-                label="🔄 Binance Szinkronizáció"
+                label="🔄 Coinbase Szinkronizáció"
                 size="small"
                 severity="info"
-                (onClick)="forceSyncWithBinance()"
+                (onClick)="forceSyncWithCoinbase()"
                 [loading]="loadingLivePositions"
-                pTooltip="Azonnali szinkronizáció a Binance-szel a pontos P&L értékekért"
+                pTooltip="Azonnali szinkronizáció a Coinbase-szel a pontos P&L értékekért"
                 tooltipPosition="top"
                 class="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 text-white"
               ></p-button>
@@ -398,13 +398,13 @@
               </span>
               
               <p-button
-                label="Testnet törlése"
+                label="Sandbox törlése"
                 icon="pi pi-trash"
                 severity="danger"
                 size="small"
                 (onClick)="clearAllHistory(true)"
                 [disabled]="!tradeHistory.length"
-                pTooltip="Csak testnet kereskedések törlése"
+                pTooltip="Csak sandbox kereskedések törlése"
                 tooltipPosition="top"
               ></p-button>
 
@@ -415,7 +415,7 @@
                 size="small"
                 (onClick)="clearAllHistory(false)"
                 [disabled]="!tradeHistory.length"
-                pTooltip="Összes kereskedés törlése (testnet + mainnet)"
+                pTooltip="Összes kereskedés törlése (sandbox + production)"
                 tooltipPosition="top"
               ></p-button>
             </div>
@@ -534,7 +534,7 @@
             </td>
             <td>
               <p-tag
-                [value]="trade.testnet_mode ? 'Testnet' : 'Mainnet'"
+                [value]="trade.testnet_mode ? 'Sandbox' : 'Production'"
                 [severity]="trade.testnet_mode ? 'warning' : 'success'"
               ></p-tag>
             </td>
@@ -629,7 +629,7 @@
       
       <div class="text-sm text-blue-700 dark:text-blue-300">
         <div *ngIf="selectedErrorDetails.errorMessage.includes('not permitted')" class="mb-2">
-          <strong>🚫 Engedély hiba:</strong> A szimbólum nem engedélyezett a fiókodhoz. Ellenőrizd a Binance API kulcs engedélyeit.
+          <strong>🚫 Engedély hiba:</strong> A szimbólum nem engedélyezett a fiókodhoz. Ellenőrizd a Coinbase API kulcs engedélyeit.
         </div>
         
         <div *ngIf="selectedErrorDetails.errorMessage.includes('quantity')" class="mb-2">
@@ -645,7 +645,7 @@
         </div>
         
         <div *ngIf="selectedErrorDetails.errorMessage.includes('API-key')" class="mb-2">
-          <strong>🔑 API kulcs hiba:</strong> API kulcs vagy IP engedély probléma. Ellenőrizd a Binance beállításokat.
+          <strong>🔑 API kulcs hiba:</strong> API kulcs vagy IP engedély probléma. Ellenőrizd a Coinbase beállításokat.
         </div>
         
         <div *ngIf="!selectedErrorDetails.errorMessage.includes('not permitted') &&

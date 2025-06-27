@@ -19,7 +19,7 @@ class UnifiedTradingService:
     def __init__(self):
         """Initialize unified trading service"""
         self.exchanges: Dict[str, BaseExchange] = {}
-        self.primary_exchange = os.getenv('DEFAULT_EXCHANGE', 'coinbase')
+        self.primary_exchange = 'coinbase'  # Only Coinbase supported now
         self.fallback_exchanges = []
         
         # Initialize available exchanges
@@ -41,10 +41,10 @@ class UnifiedTradingService:
                 if exchange_name != self.primary_exchange:
                     self.fallback_exchanges.append(exchange_name)
                     
-                logger.info(f"✅ {exchange_name.capitalize()} exchange initialized")
+                logger.info(f"SUCCESS: {exchange_name.capitalize()} exchange initialized")
                 
             except Exception as e:
-                logger.warning(f"❌ Failed to initialize {exchange_name}: {e}")
+                logger.warning(f"ERROR: Failed to initialize {exchange_name}: {e}")
     
     def get_primary_exchange(self) -> Optional[BaseExchange]:
         """Get primary exchange adapter"""
@@ -66,11 +66,11 @@ class UnifiedTradingService:
             try:
                 is_connected = await exchange.test_connection()
                 results[exchange_name] = is_connected
-                status = "✅ Connected" if is_connected else "❌ Failed"
+                status = "SUCCESS: Connected" if is_connected else "ERROR: Failed"
                 logger.info(f"{exchange_name.capitalize()}: {status}")
             except Exception as e:
                 results[exchange_name] = False
-                logger.error(f"{exchange_name.capitalize()}: ❌ Error - {e}")
+                logger.error(f"{exchange_name.capitalize()}: ERROR: Error - {e}")
         
         return results
     
@@ -140,16 +140,16 @@ class UnifiedTradingService:
                 result = await exchange.execute_trade(signal, position_size)
                 
                 if result.get('success'):
-                    logger.info(f"✅ Trade successful on {exchange_name}")
+                    logger.info(f"SUCCESS: Trade successful on {exchange_name}")
                     result['executed_on'] = exchange_name
                     return result
                 else:
                     last_error = result.get('error', 'Unknown error')
-                    logger.warning(f"❌ Trade failed on {exchange_name}: {last_error}")
+                    logger.warning(f"ERROR: Trade failed on {exchange_name}: {last_error}")
                     
             except Exception as e:
                 last_error = str(e)
-                logger.error(f"❌ Trade error on {exchange_name}: {e}")
+                logger.error(f"ERROR: Trade error on {exchange_name}: {e}")
         
         # All exchanges failed
         return {

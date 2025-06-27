@@ -6,25 +6,15 @@ Provides unified interface for multiple cryptocurrency exchanges
 from .base_exchange import BaseExchange
 from .coinbase_adapter import CoinbaseAdapter
 
-# Import Binance adapter if available
-try:
-    from .binance_adapter import BinanceAdapter
-except ImportError:
-    BinanceAdapter = None
-
 __all__ = [
     'BaseExchange',
-    'CoinbaseAdapter',
-    'BinanceAdapter'
+    'CoinbaseAdapter'
 ]
 
 # Exchange registry for factory pattern
 EXCHANGE_REGISTRY = {
     'coinbase': CoinbaseAdapter,
 }
-
-if BinanceAdapter:
-    EXCHANGE_REGISTRY['binance'] = BinanceAdapter
 
 def get_available_exchanges():
     """Get list of available exchange names"""
@@ -35,7 +25,7 @@ def create_exchange(exchange_name: str) -> BaseExchange:
     Factory function to create exchange adapter
     
     Args:
-        exchange_name: str ('coinbase', 'binance', etc.)
+        exchange_name: str ('coinbase')
     
     Returns:
         BaseExchange: Exchange adapter instance

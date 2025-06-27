@@ -177,7 +177,7 @@ class TradingSettings(Base):
     
     # Auto-trading settings
     auto_trading_enabled = Column(Boolean, default=True)
-    monitored_symbols = Column(ARRAY(Text), default=['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'])
+    monitored_symbols = Column(ARRAY(Text), default=['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'SOLUSDT', 'DOTUSDT'])
     check_interval = Column(Integer, default=300)  # seconds
     min_signal_confidence = Column(Integer, default=70)
     

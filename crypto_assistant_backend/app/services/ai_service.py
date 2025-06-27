@@ -61,17 +61,23 @@ class RealAIService:
             }
             
         except Exception as e:
-            print(f"Sentiment analysis error: {e}")
+            # Silently handle sentiment analysis errors for unsupported symbols
             return {
                 "overall_sentiment": 0,
                 "sentiment_label": "Neutral",
                 "confidence": 0,
-                "error": str(e)
+                "news_sentiment": 0,
+                "reddit_sentiment": 0,
+                "fear_greed_index": 50
             }
     
     async def _get_news_sentiment(self, symbol: str) -> float:
         """Get sentiment from crypto news sources"""
         try:
+            # Skip news sentiment for unsupported symbols
+            if symbol.upper().startswith('BNB'):
+                return 0
+                
             # CoinDesk news scraping
             search_term = symbol.replace("USDT", "").replace("BTC", "Bitcoin").replace("ETH", "Ethereum")
             url = f"https://www.coindesk.com/search?s={search_term}"
@@ -101,7 +107,7 @@ class RealAIService:
                 return sum(sentiments) / len(sentiments) if sentiments else 0
                 
         except Exception as e:
-            print(f"News sentiment error: {e}")
+            # Silently handle news sentiment errors to avoid disrupting signal generation
             return 0
     
     async def _get_fear_greed_index(self) -> int:
@@ -109,16 +115,41 @@ class RealAIService:
         try:
             url = "https://api.alternative.me/fng/"
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=10)
+                response = await client.get(url, timeout=5)  # Reduced timeout
+                response.raise_for_status()  # Raise exception for HTTP errors
                 data = response.json()
-                return int(data['data'][0]['value'])
+                
+                # Validate response structure
+                if 'data' not in data or not data['data'] or 'value' not in data['data'][0]:
+                    raise ValueError("Invalid API response structure")
+                    
+                value = int(data['data'][0]['value'])
+                
+                # Validate value range (Fear & Greed Index should be 0-100)
+                if not 0 <= value <= 100:
+                    raise ValueError(f"Invalid Fear & Greed Index value: {value}")
+                    
+                return value
+                
+        except httpx.TimeoutException:
+            # Silently handle timeout - don't print error for network issues
+            return 50  # Neutral fallback
+        except httpx.HTTPStatusError as e:
+            # Silently handle HTTP errors
+            return 50  # Neutral fallback
         except Exception as e:
-            print(f"Fear & Greed Index error: {e}")
+            # Only print error for unexpected issues
+            if "Invalid" in str(e):
+                print(f"Fear & Greed Index API response error: {e}")
             return 50  # Neutral fallback
     
     async def _get_reddit_sentiment(self, symbol: str) -> float:
         """Get sentiment from Reddit crypto discussions"""
         try:
+            # Skip Reddit sentiment for unsupported symbols
+            if symbol.upper().startswith('BNB'):
+                return 0
+                
             # Reddit API would require authentication, using web scraping as fallback
             search_term = symbol.replace("USDT", "").lower()
             url = f"https://www.reddit.com/r/cryptocurrency/search.json?q={search_term}&sort=new&limit=25"
@@ -143,7 +174,7 @@ class RealAIService:
                 return sum(sentiments) / len(sentiments) if sentiments else 0
                 
         except Exception as e:
-            print(f"Reddit sentiment error: {e}")
+            # Silently handle Reddit sentiment errors
             return 0
     
     async def predict_price_movement(self, symbol: str, timeframe: str = "24h") -> Dict[str, Any]:

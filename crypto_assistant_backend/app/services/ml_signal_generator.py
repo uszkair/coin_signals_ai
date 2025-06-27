@@ -615,7 +615,7 @@ async def train_ai_models(symbols: List[str] = None, days: int = 90) -> Dict[str
         Training results
     """
     if symbols is None:
-        symbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'BNBUSDT', 'SOLUSDT']
+        symbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT', 'SOLUSDT']
     
     try:
         success = await ml_signal_generator.train_models(symbols, days)

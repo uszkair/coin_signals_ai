@@ -101,7 +101,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   symbolOptions: FilterOption[] = [
     { label: 'BTC/USDT', value: 'BTCUSDT' },
     { label: 'ETH/USDT', value: 'ETHUSDT' },
-    { label: 'BNB/USDT', value: 'BNBUSDT' },
     { label: 'ADA/USDT', value: 'ADAUSDT' },
     { label: 'SOL/USDT', value: 'SOLUSDT' },
     { label: 'DOT/USDT', value: 'DOTUSDT' }
@@ -584,7 +583,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
             this.messageService.add({
               severity: 'info',
               summary: 'Megoldás',
-              detail: 'Binance Testnet → API Management → Create API → Enable Trading jogosultság bekapcsolása',
+              detail: 'Coinbase Sandbox → API Management → Create API → Enable Trading jogosultság bekapcsolása',
               life: 20000
             });
           } else {
@@ -609,7 +608,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.messageService.add({
             severity: 'info',
             summary: 'API Kulcs Frissítés Szükséges',
-            detail: 'Binance Testnet → API Management → Enable Trading/Futures Trading bekapcsolása',
+            detail: 'Coinbase Sandbox → API Management → Enable Trading bekapcsolása',
             life: 20000
           });
         }

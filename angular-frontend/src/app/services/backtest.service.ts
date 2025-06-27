@@ -77,7 +77,7 @@ export class BacktestService {
 
   constructor(private http: HttpClient) {}
 
-  // Fetch historical data from Binance
+  // Fetch historical data from Coinbase
   fetchHistoricalData(request: DataFetchRequest): Observable<any> {
     return this.http.post(`${this.apiUrl}/fetch-data`, request);
   }

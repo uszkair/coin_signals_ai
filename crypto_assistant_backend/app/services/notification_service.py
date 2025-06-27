@@ -50,7 +50,7 @@ class NotificationService:
             await broadcast_trade_update(notification)
             
             # Log the notification
-            logger.info(f"✅ New position notification sent: {position_data.get('symbol')} {position_data.get('direction')}")
+            logger.info(f"SUCCESS: New position notification sent: {position_data.get('symbol')} {position_data.get('direction')}")
             
             # Save notification to database if session provided
             if db_session:
@@ -62,7 +62,7 @@ class NotificationService:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error sending new position notification: {e}")
+            logger.error(f"ERROR: Error sending new position notification: {e}")
             return False
     
     @staticmethod
@@ -96,7 +96,7 @@ class NotificationService:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error sending position update notification: {e}")
+            logger.error(f"ERROR: Error sending position update notification: {e}")
             return False
     
     @staticmethod
@@ -143,7 +143,7 @@ class NotificationService:
             await broadcast_trade_update(notification)
             
             # Log the notification
-            logger.info(f"✅ Position closed notification sent: {position_data.get('symbol')} - {result_text}")
+            logger.info(f"SUCCESS: Position closed notification sent: {position_data.get('symbol')} - {result_text}")
             
             # Save notification to database if session provided
             if db_session:
@@ -155,7 +155,7 @@ class NotificationService:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error sending position closed notification: {e}")
+            logger.error(f"ERROR: Error sending position closed notification: {e}")
             return False
     
     @staticmethod
@@ -185,12 +185,12 @@ class NotificationService:
             await broadcast_trade_update(notification)
             
             # Log the error notification
-            logger.error(f"❌ Trade error notification sent: {error_data.get('symbol')} - {error_data.get('error')}")
+            logger.error(f"ERROR: Trade error notification sent: {error_data.get('symbol')} - {error_data.get('error')}")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error sending trade error notification: {e}")
+            logger.error(f"ERROR: Error sending trade error notification: {e}")
             return False
     
     @staticmethod
@@ -225,7 +225,7 @@ class NotificationService:
             return notification.id
             
         except Exception as e:
-            logger.error(f"❌ Error saving notification to database: {e}")
+            logger.error(f"ERROR: Error saving notification to database: {e}")
             try:
                 await db_session.rollback()
             except:
@@ -265,7 +265,7 @@ class NotificationService:
                 return notification.id
                 
         except Exception as e:
-            logger.error(f"❌ Error saving notification to database: {e}")
+            logger.error(f"ERROR: Error saving notification to database: {e}")
             return None
     
     @staticmethod
@@ -300,7 +300,7 @@ class NotificationService:
                 return [notification.to_dict() for notification in notifications]
                 
         except Exception as e:
-            logger.error(f"❌ Error getting notifications from database: {e}")
+            logger.error(f"ERROR: Error getting notifications from database: {e}")
             return []
     
     @staticmethod
@@ -337,11 +337,11 @@ class NotificationService:
                     logger.info(f"📖 Notification marked as read: ID {notification_id}")
                     return True
                 else:
-                    logger.warning(f"❌ Notification not found: ID {notification_id}")
+                    logger.warning(f"ERROR: Notification not found: ID {notification_id}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ Error marking notification as read: {e}")
+            logger.error(f"ERROR: Error marking notification as read: {e}")
             return False
     
     @staticmethod
@@ -376,11 +376,11 @@ class NotificationService:
                     logger.info(f"🗑️ Notification deleted: ID {notification_id}")
                     return True
                 else:
-                    logger.warning(f"❌ Notification not found for deletion: ID {notification_id}")
+                    logger.warning(f"ERROR: Notification not found for deletion: ID {notification_id}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ Error deleting notification: {e}")
+            logger.error(f"ERROR: Error deleting notification: {e}")
             return False
     
     @staticmethod
@@ -414,7 +414,7 @@ class NotificationService:
                 return deleted_count
                 
         except Exception as e:
-            logger.error(f"❌ Error deleting all read notifications: {e}")
+            logger.error(f"ERROR: Error deleting all read notifications: {e}")
             return 0
     
     @staticmethod
@@ -452,7 +452,7 @@ class NotificationService:
                 return deleted_count
                 
         except Exception as e:
-            logger.error(f"❌ Error cleaning up old notifications: {e}")
+            logger.error(f"ERROR: Error cleaning up old notifications: {e}")
             return 0
 
 # Global notification service instance

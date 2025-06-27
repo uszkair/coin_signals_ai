@@ -1,19 +1,24 @@
 # app/utils/price_data.py
 
-import httpx
 import os
 from datetime import datetime, timedelta
+from typing import Dict, List, Any
 
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    import os
+    # Load .env from project root (4 levels up from this file)
+    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '.env')
+    load_dotenv(env_path)
 except ImportError:
     # dotenv not available, use environment variables directly
     pass
 
-async def get_binance_config():
-    """Get Binance configuration from database settings"""
+# No SDK imports needed - using direct REST API
+
+async def get_coinbase_config():
+    """Get Coinbase Advanced Trade API configuration"""
     try:
         from app.services.trading_settings_service import get_trading_settings_service
         from app.database import get_sync_db
@@ -22,58 +27,91 @@ async def get_binance_config():
         db = next(get_sync_db())
         settings_service = get_trading_settings_service(db)
         risk_settings = settings_service.get_risk_management_settings()
-        use_testnet = risk_settings.get('testnet_mode', True)
+        use_sandbox = risk_settings.get('testnet_mode', False)  # Default to production
         
-        # For price data, use Spot API for testnet (more reliable for price queries)
-        # But use Futures for mainnet if available
-        if use_testnet:
-            use_futures = False  # Use Spot for testnet price data
-        else:
-            use_futures = False  # Use Spot for mainnet price data too (more symbols available)
-        
-        # Select URL based on settings
-        if use_testnet:
-            if use_futures:
-                base_url = os.environ.get("BINANCE_FUTURES_TESTNET_URL", "https://testnet.binancefuture.com")
-            else:
-                base_url = os.environ.get("BINANCE_SPOT_TESTNET_URL", "https://testnet.binance.vision")
-        else:
-            if use_futures:
-                base_url = os.environ.get("BINANCE_FUTURES_URL", "https://fapi.binance.com")
-            else:
-                base_url = os.environ.get("BINANCE_SPOT_URL", "https://api.binance.com")
+        # Coinbase Advanced Trade API only has production
+        base_url = os.environ.get("COINBASE_REST_API_URL", "https://api.coinbase.com")
         
         return {
             'base_url': base_url,
-            'use_testnet': use_testnet,
-            'use_futures': use_futures
+            'use_sandbox': False  # Always production for Advanced Trade API
         }
     except Exception as e:
         print(f"Error getting database config, using defaults: {e}")
-        # Fallback to safe defaults (mainnet spot)
+        # Fallback to production defaults
         return {
-            'base_url': os.environ.get("BINANCE_SPOT_URL", "https://api.binance.com"),
-            'use_testnet': False,
-            'use_futures': False
+            'base_url': os.environ.get("COINBASE_REST_API_URL", "https://api.coinbase.com"),
+            'use_sandbox': False
         }
 
-def get_api_credentials(use_testnet=False):
-    """Get appropriate API credentials based on testnet mode"""
-    if use_testnet:
+def get_api_credentials(use_sandbox=True):
+    """Get appropriate API credentials based on sandbox mode"""
+    if use_sandbox:
         return {
-            'api_key': os.environ.get("BINANCE_TESTNET_API_KEY"),
-            'api_secret': os.environ.get("BINANCE_TESTNET_API_SECRET")
+            'api_key': os.environ.get("COINBASE_SANDBOX_API_KEY"),
+            'api_secret': os.environ.get("COINBASE_SANDBOX_API_SECRET"),
+            'passphrase': os.environ.get("COINBASE_SANDBOX_PASSPHRASE")
         }
     else:
         return {
-            'api_key': os.environ.get("BINANCE_API_KEY"),
-            'api_secret': os.environ.get("BINANCE_API_SECRET")
+            'api_key': os.environ.get("COINBASE_API_KEY"),
+            'api_secret': os.environ.get("COINBASE_API_SECRET"),
+            'passphrase': os.environ.get("COINBASE_PASSPHRASE")
         }
+
+def _convert_symbol_to_coinbase(legacy_symbol: str) -> str:
+    """Convert legacy symbol format to Coinbase format
+    
+    Args:
+        legacy_symbol: Symbol in legacy format (e.g., 'BTCUSDT')
+        
+    Returns:
+        Symbol in Coinbase format (e.g., 'BTC-USD')
+    """
+    # Handle known unsupported symbols
+    unsupported_symbols = {
+        'BNBUSDT': 'BNB-USD is not available on Coinbase. Try BTC-USD, ETH-USD, ADA-USD, or other supported pairs.',
+        'BNBUSD': 'BNB-USD is not available on Coinbase. Try BTC-USD, ETH-USD, ADA-USD, or other supported pairs.',
+        'BNB-USD': 'BNB-USD is not available on Coinbase. Try BTC-USD, ETH-USD, ADA-USD, or other supported pairs.'
+    }
+    
+    if legacy_symbol.upper() in unsupported_symbols:
+        raise ValueError(unsupported_symbols[legacy_symbol.upper()])
+    
+    if legacy_symbol.endswith('USDT'):
+        base = legacy_symbol[:-4]
+        return f"{base}-USD"
+    elif legacy_symbol.endswith('USDC'):
+        base = legacy_symbol[:-4]
+        return f"{base}-USDC"
+    elif legacy_symbol.endswith('BTC'):
+        base = legacy_symbol[:-3]
+        return f"{base}-BTC"
+    elif legacy_symbol.endswith('ETH'):
+        base = legacy_symbol[:-3]
+        return f"{base}-ETH"
+    else:
+        # If no known suffix, return as-is with dash
+        if len(legacy_symbol) >= 6:
+            return f"{legacy_symbol[:-3]}-{legacy_symbol[-3:]}"
+        
+        return legacy_symbol
+
+def _convert_symbol_from_coinbase(coinbase_symbol: str) -> str:
+    """Convert Coinbase symbol format to legacy format"""
+    if '-' in coinbase_symbol:
+        parts = coinbase_symbol.split('-')
+        if len(parts) == 2:
+            base, quote = parts
+            if quote == 'USD':
+                return f"{base}USDT"
+            else:
+                return f"{base}{quote}"
+    return coinbase_symbol
 
 async def get_historical_data(symbol: str, interval: str, days: int):
     """
-    Get historical candlestick data for a single symbol from Binance API.
-    Uses pagination to fetch large amounts of data beyond the 1000 candle API limit.
+    Get historical candlestick data for a single symbol using Coinbase Advanced Trade SDK.
     
     Args:
         symbol: Single trading symbol (e.g., 'BTCUSDT'). If multiple symbols are passed
@@ -86,12 +124,21 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         
     Raises:
         ValueError: If symbol contains multiple symbols
-        httpx.HTTPStatusError: If API request fails
+        Exception: If API request fails
     """
-    # For historical data, always use mainnet API as it has more complete data
-    # and doesn't require authentication for public endpoints
-    base_url = "https://api.binance.com"
-    print(f"📡 Using mainnet API for historical data: {base_url}")
+    try:
+        from coinbase.rest import RESTClient
+    except ImportError:
+        raise ValueError("coinbase-advanced-py SDK not installed. Run: pip install coinbase-advanced-py")
+    
+    # Get API credentials
+    api_key = os.environ.get("COINBASE_API_KEY")
+    private_key = os.environ.get("COINBASE_PRIVATE_KEY")
+    
+    if not api_key or not private_key:
+        raise ValueError("Coinbase API credentials not found in environment variables")
+    
+    print("SDK: Using Coinbase Advanced Trade SDK for historical data")
     
     # Handle case where multiple symbols might be passed accidentally
     if ',' in symbol:
@@ -104,111 +151,106 @@ async def get_historical_data(symbol: str, interval: str, days: int):
         else:
             raise ValueError(f"No valid symbols found in: {symbol}")
     
-    # Validate symbol format and check for common invalid symbols
-    if not symbol or not symbol.isalnum():
+    # Convert symbol to Coinbase format
+    coinbase_symbol = _convert_symbol_to_coinbase(symbol)
+    
+    # Validate symbol format
+    if not symbol or not symbol.replace('-', '').isalnum():
         raise ValueError(f"Invalid symbol format: {symbol}")
     
-    # Check for obviously invalid symbols (add known invalid symbols here if needed)
-    invalid_symbols = set()  # Empty for now, add invalid symbols as they are discovered
-    if symbol.upper() in invalid_symbols:
-        raise ValueError(f"Symbol {symbol} is not available on Binance. Please use valid trading pairs like BTCUSDT, ETHUSDT, etc.")
-    
-    endpoint = f"/api/v3/klines"
-    url = f"{base_url}{endpoint}"
-
-    # Calculate total candles needed based on interval
-    interval_hours = {
-        '1m': 1/60, '3m': 3/60, '5m': 5/60, '15m': 15/60, '30m': 30/60,
-        '1h': 1, '2h': 2, '4h': 4, '6h': 6, '8h': 8, '12h': 12,
-        '1d': 24, '3d': 72, '1w': 168, '1M': 720  # Approximate for 1M
+    # Map intervals to Coinbase SDK granularity strings
+    interval_mapping = {
+        '1m': 'ONE_MINUTE',
+        '5m': 'FIVE_MINUTE',
+        '15m': 'FIFTEEN_MINUTE',
+        '1h': 'ONE_HOUR',
+        '6h': 'SIX_HOUR',
+        '1d': 'ONE_DAY'
     }
     
-    hours_per_candle = interval_hours.get(interval, 1)
-    total_candles_needed = int((days * 24) / hours_per_candle)
+    granularity = interval_mapping.get(interval)
+    if not granularity:
+        raise ValueError(f"Unsupported interval: {interval}. Supported intervals: {list(interval_mapping.keys())}")
     
-    print(f"📊 Fetching {total_candles_needed} candles for {symbol} ({days} days, {interval} interval)")
-
-    end_time = int(datetime.utcnow().timestamp() * 1000)
-    start_time = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
-
-    # Historical data is public, no API key needed
-    headers = {}
-
-    all_candles = []
-    current_end_time = end_time
-    max_requests = 10  # Limit to prevent infinite loops
-    request_count = 0
+    # Calculate time range with Coinbase API limits
+    # Coinbase has a 300 candle limit, so we need to adjust the time range
+    max_days_for_interval = {
+        'ONE_MINUTE': 12,      # 1m: max 12 days
+        'FIVE_MINUTE': 62,     # 5m: max 62 days
+        'FIFTEEN_MINUTE': 187, # 15m: max 187 days
+        'ONE_HOUR': 12,        # 1h: max 12 days
+        'SIX_HOUR': 75,        # 6h: max 75 days
+        'ONE_DAY': 300         # 1d: max 300 days
+    }
     
-    async with httpx.AsyncClient() as client:
-        while len(all_candles) < total_candles_needed and request_count < max_requests:
-            request_count += 1
-            limit = min(1000, total_candles_needed - len(all_candles))
-            
-            params = {
-                "symbol": symbol,
-                "interval": interval,
-                "limit": limit,
-                "endTime": current_end_time
-            }
-            
-            print(f"📡 API request #{request_count}: fetching {limit} candles ending at {datetime.fromtimestamp(current_end_time/1000)}")
-
-            try:
-                response = await client.get(url, params=params, headers=headers)
-                response.raise_for_status()
-                raw_data = response.json()
-                
-                if not raw_data:
-                    print(f"⚠️ No more data available from API")
-                    break
-                
-                # Convert to our format
-                batch_candles = []
-                for item in raw_data:
-                    batch_candles.append({
-                        "timestamp": datetime.utcfromtimestamp(item[0] / 1000),
-                        "open": float(item[1]),
-                        "high": float(item[2]),
-                        "low": float(item[3]),
-                        "close": float(item[4]),
-                        "volume": float(item[5])
-                    })
-                
-                # Add to beginning of list (since we're going backwards in time)
-                all_candles = batch_candles + all_candles
-                
-                # Update end time for next request (use the timestamp of the first candle - 1ms)
-                if raw_data:
-                    current_end_time = raw_data[0][0] - 1
-                    
-                print(f"✅ Fetched {len(batch_candles)} candles, total: {len(all_candles)}")
-                
-                # Check if we've reached the start time
-                if raw_data and raw_data[0][0] <= start_time:
-                    print(f"📅 Reached start time, stopping")
-                    break
-                    
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 400:
-                    raise ValueError(f"Bad request to Binance API for symbol '{symbol}': {e.response.text}")
-                else:
-                    raise
+    # Limit days based on granularity to avoid exceeding 300 candles
+    max_allowed_days = max_days_for_interval.get(granularity, days)
+    if days > max_allowed_days:
+        print(f"WARNING: Requested {days} days exceeds Coinbase limit for {interval} interval. Limiting to {max_allowed_days} days.")
+        days = max_allowed_days
     
-    # Filter to exact date range and sort by timestamp
-    filtered_candles = [
-        candle for candle in all_candles
-        if start_time <= int(candle["timestamp"].timestamp() * 1000) <= end_time
-    ]
+    # Calculate unix timestamps (SDK requires unix timestamps, not ISO format)
+    import time
+    end_time = int(time.time())
+    start_time = end_time - (days * 24 * 3600)
     
-    filtered_candles.sort(key=lambda x: x["timestamp"])
+    print(f"SDK: Fetching candles for {coinbase_symbol} ({days} days, {interval} interval)")
+    print(f"SDK: Time range: {datetime.fromtimestamp(start_time)} to {datetime.fromtimestamp(end_time)}")
     
-    print(f"📈 Final result: {len(filtered_candles)} candles for {symbol} from {filtered_candles[0]['timestamp'] if filtered_candles else 'N/A'} to {filtered_candles[-1]['timestamp'] if filtered_candles else 'N/A'}")
-    
-    return filtered_candles
+    try:
+        # Use Coinbase Advanced Trade SDK
+        client = RESTClient(
+            api_key=api_key,
+            api_secret=private_key
+        )
+        
+        print(f"SDK: Calling get_candles for {coinbase_symbol}...")
+        response = client.get_candles(
+            product_id=coinbase_symbol,
+            start=start_time,
+            end=end_time,
+            granularity=granularity
+        )
+        
+        # Extract candles from response
+        if hasattr(response, 'candles'):
+            raw_data = response.candles
+        elif isinstance(response, dict) and 'candles' in response:
+            raw_data = response['candles']
+        else:
+            print(f"WARNING: Unexpected response format: {type(response)}")
+            raw_data = []
+        
+        if not raw_data:
+            print(f"WARNING: No data available from SDK for {coinbase_symbol}")
+            return []
+        
+        # Convert to our format
+        # Coinbase SDK returns: {'start': '1750960800', 'low': '107179.42', 'high': '107654.74', 'open': '107249.96', 'close': '107356.5', 'volume': '97.08564877'}
+        candles = []
+        for item in raw_data:
+            candles.append({
+                "timestamp": datetime.utcfromtimestamp(int(item['start'])),
+                "open": float(item['open']),
+                "high": float(item['high']),
+                "low": float(item['low']),
+                "close": float(item['close']),
+                "volume": float(item['volume'])
+            })
+        
+        # Sort by timestamp (oldest first)
+        candles.sort(key=lambda x: x["timestamp"])
+        
+        print(f"SDK: Final result: {len(candles)} candles for {coinbase_symbol}")
+        return candles
+        
+    except Exception as e:
+        print(f"SDK Error fetching historical data for {coinbase_symbol}: {e}")
+        raise ValueError(f"Failed to get historical data for symbol '{coinbase_symbol}': {str(e)}")
 
 async def get_current_price(symbol: str):
     """
-    Get current price for a single symbol from Binance API.
+    Get current price for a single symbol using Coinbase Advanced Trade SDK.
     
     Args:
         symbol: Single trading symbol (e.g., 'BTCUSDT'). If multiple symbols are passed
@@ -219,11 +261,19 @@ async def get_current_price(symbol: str):
         
     Raises:
         ValueError: If symbol contains multiple symbols or is invalid
-        httpx.HTTPStatusError: If API request fails
+        Exception: If API request fails
     """
-    # Get configuration from database
-    config = await get_binance_config()
-    base_url = config['base_url']
+    try:
+        from coinbase.rest import RESTClient
+    except ImportError:
+        raise ValueError("coinbase-advanced-py SDK not installed. Run: pip install coinbase-advanced-py")
+    
+    # Get API credentials
+    api_key = os.environ.get("COINBASE_API_KEY")
+    private_key = os.environ.get("COINBASE_PRIVATE_KEY")
+    
+    if not api_key or not private_key:
+        raise ValueError("Coinbase API credentials not found in environment variables")
     
     # Handle case where multiple symbols might be passed accidentally
     if ',' in symbol:
@@ -236,41 +286,37 @@ async def get_current_price(symbol: str):
         else:
             raise ValueError(f"No valid symbols found in: {symbol}")
     
-    # Validate symbol format and check for common invalid symbols
-    if not symbol or not symbol.isalnum():
+    # Convert symbol to Coinbase format
+    coinbase_symbol = _convert_symbol_to_coinbase(symbol)
+    
+    # Validate symbol format
+    if not symbol or not symbol.replace('-', '').isalnum():
         raise ValueError(f"Invalid symbol format: {symbol}")
     
-    # Check for obviously invalid symbols (add known invalid symbols here if needed)
-    invalid_symbols = set()  # Empty for now, add invalid symbols as they are discovered
-    if symbol.upper() in invalid_symbols:
-        raise ValueError(f"Symbol {symbol} is not available on Binance. Please use valid trading pairs like BTCUSDT, ETHUSDT, etc.")
-    
-    endpoint = f"/api/v3/ticker/price"
-    url = f"{base_url}{endpoint}"
-    
-    params = {
-        "symbol": symbol
-    }
-    
-    # Get appropriate API credentials
-    credentials = get_api_credentials(config['use_testnet'])
-    headers = {}
-    if credentials['api_key']:
-        headers["X-MBX-APIKEY"] = credentials['api_key']
-    
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 400:
-            raise ValueError(f"Bad request to Binance API for symbol '{symbol}': {e.response.text}")
+        # Use Coinbase Advanced Trade SDK
+        client = RESTClient(
+            api_key=api_key,
+            api_secret=private_key
+        )
+        
+        print(f"SDK: Getting price for {coinbase_symbol}...")
+        product = client.get_product(coinbase_symbol)
+        
+        # Extract price from response
+        if hasattr(product, 'price'):
+            price = float(product.price)
+        elif isinstance(product, dict) and 'price' in product:
+            price = float(product['price'])
         else:
-            raise
-    
-    return float(data["price"])
-
+            raise ValueError(f"No price data available for {coinbase_symbol}")
+        
+        print(f"SDK: Price for {coinbase_symbol} = ${price}")
+        return price
+            
+    except Exception as e:
+        print(f"Error fetching current price for {coinbase_symbol}: {e}")
+        raise ValueError(f"Failed to get current price for symbol '{coinbase_symbol}': {str(e)}")
 
 async def get_multiple_historical_data(symbols: str, interval: str, days: int):
     """
@@ -301,7 +347,6 @@ async def get_multiple_historical_data(symbols: str, interval: str, days: int):
             results[symbol] = []
     
     return results
-
 
 async def get_multiple_current_prices(symbols: str):
     """

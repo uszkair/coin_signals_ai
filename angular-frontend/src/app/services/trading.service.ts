@@ -137,7 +137,7 @@ export class TradingService {
     return this.http.get<TradeResult>(`${this.baseUrl}/positions`);
   }
 
-  // Get live Binance positions (including external positions)
+  // Get live Coinbase positions (including external positions)
   getLivePositions(): Observable<TradeResult> {
     return this.http.get<TradeResult>(`${this.baseUrl}/live-positions`);
   }
@@ -200,16 +200,9 @@ export class TradingService {
     return this.http.post<TradeResult>(`${this.baseUrl}/position-size-config`, config);
   }
 
-  // Trading Environment (Testnet/Mainnet)
+  // Trading Environment (Production only)
   getTradingEnvironment(): Observable<{ success: boolean; data: TradingEnvironment }> {
     return this.http.get<{ success: boolean; data: TradingEnvironment }>(`${this.baseUrl}/environment`);
-  }
-
-  switchTradingEnvironment(useTestnet: boolean, useFutures: boolean = false): Observable<TradeResult> {
-    return this.http.post<TradeResult>(`${this.baseUrl}/switch-environment`, {
-      use_testnet: useTestnet,
-      use_futures: useFutures
-    });
   }
 
   getMinimumRequirements(): Observable<TradeResult> {

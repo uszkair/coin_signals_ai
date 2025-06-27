@@ -351,11 +351,11 @@
                 <strong>Figyelmeztetés:</strong>
               </div>
               <div class="text-red-800 mt-2 text-sm">
-                Az automatikus kereskedés valós pénzzel történik az éles Binance számládon!<br>
+                Az automatikus kereskedés valós pénzzel történik az éles Coinbase számládon!<br>
                 Győződj meg róla, hogy:
                 <ul class="mt-2 ml-4">
                   <li>• A pozíció méret és kockázatkezelési beállítások megfelelőek</li>
-                  <li>• A Binance API kulcsok helyesen vannak beállítva</li>
+                  <li>• A Coinbase API kulcsok helyesen vannak beállítva</li>
                   <li>• Rendszeresen ellenőrzöd a kereskedési eredményeket</li>
                 </ul>
               </div>
@@ -937,140 +937,37 @@
       </p-card>
     </p-tabPanel>
 
-    <!-- Trading Environment Tab -->
-    <p-tabPanel header="Kereskedési Környezet" leftIcon="pi pi-globe">
-      <p-card header="Testnet vs Éles Kereskedés" styleClass="mb-4">
+    <!-- Coinbase Production Info Tab -->
+    <p-tabPanel header="Coinbase Információ" leftIcon="pi pi-globe">
+      <p-card header="Coinbase Advanced Trade - Production Mód" styleClass="mb-4">
         <div class="grid">
+          <!-- Production Only Info -->
           <div class="col-12">
-            <div class="field">
-              <label class="text-lg font-semibold mb-3 block">Kereskedési Környezet</label>
-              
-              <div class="flex flex-column gap-4">
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="environment"
-                    [value]="true"
-                    [(ngModel)]="useTestnet"
-                    inputId="testnet"
-                    (onClick)="onEnvironmentChange()">
-                  </p-radioButton>
-                  <label for="testnet" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">🧪 Testnet (Teszt Környezet)</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      Fake pénzzel történő kereskedés teszteléshez. Biztonságos, nincs valós pénzügyi kockázat.
-                    </div>
-                  </label>
-                </div>
-                
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="environment"
-                    [value]="false"
-                    [(ngModel)]="useTestnet"
-                    inputId="mainnet"
-                    (onClick)="onEnvironmentChange()">
-                  </p-radioButton>
-                  <label for="mainnet" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">💰 Mainnet (Éles Környezet)</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      Valós pénzzel történő kereskedés az éles Binance számládon. Valós pénzügyi kockázat!
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-12">
-            <p-divider></p-divider>
-          </div>
-
-          <!-- API Type Selection -->
-          <div class="col-12">
-            <div class="field">
-              <label class="text-lg font-semibold mb-3 block">API Típus</label>
-              
-              <div class="flex flex-column gap-4">
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="apiType"
-                    [value]="false"
-                    [(ngModel)]="useFutures"
-                    inputId="spot"
-                    (onClick)="onApiTypeChange()">
-                  </p-radioButton>
-                  <label for="spot" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">📊 Spot Kereskedés</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      Hagyományos spot kereskedés. Alacsonyabb kockázat, nincs tőkeáttétel.
-                    </div>
-                  </label>
-                </div>
-                
-                <div class="flex align-items-center p-3 border border-gray-200 rounded-lg">
-                  <p-radioButton
-                    name="apiType"
-                    [value]="true"
-                    [(ngModel)]="useFutures"
-                    inputId="futures"
-                    (onClick)="onApiTypeChange()">
-                  </p-radioButton>
-                  <label for="futures" class="ml-3 cursor-pointer flex-1">
-                    <div class="font-semibold text-gray-900">🚀 Futures Kereskedés</div>
-                    <div class="text-sm text-gray-600 mt-1">
-                      Tőkeáttételes kereskedés. Magasabb profit potenciál, de nagyobb kockázat.
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-12">
-            <p-divider></p-divider>
-          </div>
-
-          <!-- Environment Status -->
-          <div class="col-12">
-            <div class="bg-gray-50 border-round p-4">
+            <div class="bg-blue-50 border-round p-4">
               <h4 class="text-900 font-semibold mb-3">
-                <i class="pi pi-info-circle mr-2"></i>Jelenlegi Környezet
+                <i class="pi pi-info-circle mr-2"></i>Coinbase Production Környezet
               </h4>
               <div class="grid">
                 <div class="col-12 md:col-6">
-                  <div class="text-center p-3 border-round"
-                       [class]="useTestnet ? 'bg-blue-100 border-blue-200' : 'bg-red-100 border-red-200'">
-                    <div class="text-2xl mb-2">
-                      {{ useTestnet ? '🧪' : '💰' }}
-                    </div>
-                    <div class="font-bold text-lg"
-                         [class]="useTestnet ? 'text-blue-700' : 'text-red-700'">
-                      {{ useTestnet ? 'TESTNET' : 'MAINNET' }}
-                    </div>
-                    <div class="text-sm text-600 mt-1">
-                      {{ useTestnet ? 'Fake pénz - Biztonságos teszt' : 'Valós pénz - Éles kereskedés' }}
-                    </div>
+                  <div class="text-center p-3 border-round bg-red-100 border-red-200">
+                    <div class="text-2xl mb-2">💰</div>
+                    <div class="font-bold text-lg text-red-700">PRODUCTION</div>
+                    <div class="text-sm text-600 mt-1">Valós pénz - Éles kereskedés</div>
                   </div>
                 </div>
                 <div class="col-12 md:col-6">
                   <div class="space-y-2">
                     <div class="flex justify-between text-sm">
-                      <span class="text-600">API típus:</span>
-                      <span class="font-medium text-blue-600">
-                        {{ useFutures ? '🚀 Futures' : '📊 Spot' }}
-                      </span>
+                      <span class="text-600">Exchange:</span>
+                      <span class="font-medium text-blue-600">🏦 Coinbase Advanced Trade</span>
                     </div>
                     <div class="flex justify-between text-sm">
                       <span class="text-600">Pénz típusa:</span>
-                      <span class="font-medium" [class]="useTestnet ? 'text-blue-600' : 'text-red-600'">
-                        {{ useTestnet ? 'Fake (teszt)' : 'Valós' }}
-                      </span>
+                      <span class="font-medium text-red-600">Valós</span>
                     </div>
                     <div class="flex justify-between text-sm">
                       <span class="text-600">Kockázat:</span>
-                      <span class="font-medium" [class]="useTestnet ? 'text-green-600' : 'text-red-600'">
-                        {{ useTestnet ? 'Nincs' : 'Magas' }}
-                      </span>
+                      <span class="font-medium text-red-600">Magas</span>
                     </div>
                     <div class="flex justify-between text-sm">
                       <span class="text-600">API kapcsolat:</span>
@@ -1084,41 +981,21 @@
             </div>
           </div>
 
-          <!-- Environment Warning -->
-          <div class="col-12" *ngIf="!useTestnet">
+          <!-- Production Warning -->
+          <div class="col-12">
             <div class="bg-red-50 border-left-3 border-red-500 p-3">
               <div class="text-red-900">
                 <i class="pi pi-exclamation-triangle mr-2"></i>
                 <strong>FIGYELMEZTETÉS - ÉLES KERESKEDÉS:</strong>
               </div>
               <div class="text-red-800 mt-2 text-sm">
-                Az éles környezetben valós pénzzel kereskedsz!<br>
+                Az alkalmazás valós pénzzel kereskedik az éles Coinbase számládon!<br>
                 Győződj meg róla, hogy:
                 <ul class="mt-2 ml-4">
-                  <li>• A Binance API kulcsok helyesen vannak beállítva</li>
+                  <li>• A Coinbase API kulcsok helyesen vannak beállítva</li>
                   <li>• A pozíció méret és kockázatkezelési beállítások megfelelőek</li>
                   <li>• Elegendő egyenleg van a számlán a minimum kereskedési értékekhez</li>
                   <li>• Rendszeresen ellenőrzöd a kereskedési eredményeket</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Testnet Info -->
-          <div class="col-12" *ngIf="useTestnet">
-            <div class="bg-blue-50 border-left-3 border-blue-500 p-3">
-              <div class="text-blue-900">
-                <i class="pi pi-info-circle mr-2"></i>
-                <strong>TESTNET MÓD:</strong>
-              </div>
-              <div class="text-blue-800 mt-2 text-sm">
-                Teszt környezetben vagy, fake pénzzel kereskedsz.<br>
-                Előnyök:
-                <ul class="mt-2 ml-4">
-                  <li>• Nincs valós pénzügyi kockázat</li>
-                  <li>• Tesztelheted a stratégiákat és beállításokat</li>
-                  <li>• Gyakorolhatod a rendszer használatát</li>
-                  <li>• Unlimited fake egyenleg a teszteléshez</li>
                 </ul>
               </div>
             </div>
@@ -1129,16 +1006,17 @@
             <div class="bg-yellow-50 border-left-3 border-yellow-500 p-3">
               <div class="text-yellow-900">
                 <i class="pi pi-info-circle mr-2"></i>
-                <strong>BINANCE MINIMUM KÖVETELMÉNYEK:</strong>
+                <strong>COINBASE MINIMUM KÖVETELMÉNYEK:</strong>
               </div>
               <div class="text-yellow-800 mt-2 text-sm">
                 <div class="grid">
                   <div class="col-12 md:col-6">
                     <strong>Minimum kereskedési értékek:</strong>
                     <ul class="mt-1 ml-4">
-                      <li>• BTCUSDT, ETHUSDT, BNBUSDT: $10</li>
-                      <li>• ADAUSDT: $5</li>
-                      <li>• SOLUSDT, DOTUSDT: $10</li>
+                      <li>• BTC-USD, ETH-USD: $1</li>
+                      <li>• ADA-USD: $1</li>
+                      <li>• SOL-USD, DOT-USD: $1</li>
+                      <li>• Általános minimum: $1</li>
                     </ul>
                   </div>
                   <div class="col-12 md:col-6">
@@ -1158,25 +1036,13 @@
           </div>
 
           <div class="col-12">
-            <div class="flex justify-content-end gap-2">
+            <div class="flex justify-content-end">
               <p-button
-                label="Minimum Követelmények"
+                label="Minimum Követelmények Betöltése"
                 icon="pi pi-info-circle"
                 severity="secondary"
                 [loading]="loadingMinimumReqs"
                 (onClick)="loadMinimumRequirements()">
-              </p-button>
-              <p-button
-                label="Alaphelyzetbe"
-                icon="pi pi-undo"
-                severity="secondary"
-                (onClick)="resetTradingEnvironmentSettings()">
-              </p-button>
-              <p-button
-                label="Környezet Váltása"
-                icon="pi pi-refresh"
-                [loading]="savingEnvironment"
-                (onClick)="saveEnvironmentChange()">
               </p-button>
             </div>
           </div>

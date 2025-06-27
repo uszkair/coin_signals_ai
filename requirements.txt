@@ -8,7 +8,6 @@ asyncpg==0.29.0
 alembic==1.12.1
 
 # Trading APIs
-python-binance==1.0.19
 coinbase-advanced-py==1.4.0
 cryptography==45.0.4
 

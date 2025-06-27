@@ -80,6 +80,10 @@ else:
                         signal_data = await get_current_signal(symbol, interval)
                         fallback_service.add_signal(signal_data)
                         signals.append(signal_data)
+                    except ValueError as e:
+                        # Skip unsupported symbols but log the validation error
+                        print(f"Validation error for {symbol}: {e}")
+                        continue
                     except Exception as e:
                         print(f"Error generating signal for {symbol}: {e}")
                         continue
@@ -115,7 +119,13 @@ if DATABASE_AVAILABLE:
             
             return signal_data
             
+        except ValueError as e:
+            # Handle validation errors (like unsupported symbols) with 400 Bad Request
+            error_msg = str(e)
+            print(f"Validation error for {symbol}: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
         except Exception as e:
+            # Handle other errors with 500 Internal Server Error
             print(f"Error generating current signal for {symbol}: {e}")
             raise HTTPException(status_code=500, detail=f"Error generating signal: {str(e)}")
 
@@ -198,6 +208,11 @@ else:
             fallback_service.add_signal(signal_data)
             
             return signal_data
+        except ValueError as e:
+            # Handle validation errors (like unsupported symbols) with 400 Bad Request
+            error_msg = str(e)
+            print(f"Validation error for {symbol}: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

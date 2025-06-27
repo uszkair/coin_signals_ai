@@ -127,7 +127,7 @@ class BaseExchange(ABC):
         Get exchange name
         
         Returns:
-            str: Exchange name (e.g., 'binance', 'coinbase')
+            str: Exchange name (e.g., 'coinbase')
         """
         pass
     

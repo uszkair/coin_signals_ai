@@ -13,15 +13,13 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 
-from app.services.binance_trading import (
+from app.services.coinbase_trading import (
     execute_automatic_trade,
     get_trading_account_status,
     close_trading_position,
     initialize_global_trader,
-    get_binance_trade_history,
-    get_binance_order_history,
-    switch_trading_environment,
-    get_trading_environment_info
+    get_coinbase_trade_history,
+    get_coinbase_order_history
 )
 from app.services.signal_engine import get_current_signal
 from app.services.trading_settings_service import get_trading_settings_service
@@ -210,16 +208,16 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
         if not trader.use_futures:
             return {
                 "success": False,
-                "error": "Position closing is only supported for Futures trading"
+                "error": "Position closing is only supported for Advanced Trade API"
             }
         
-        # Get all active positions from Binance
+        # Get all active positions from Coinbase
         try:
             positions = trader.client.futures_position_information()
             active_positions = [pos for pos in positions if float(pos.get('positionAmt', 0)) != 0]
@@ -346,7 +344,7 @@ async def close_all_positions(reason: str = "manual_close_all", db: AsyncSession
                             "profit_loss": final_pnl,
                             "profit_percentage": final_pnl_percentage,
                             "result": "profit" if final_pnl > 0 else "loss" if final_pnl < 0 else "breakeven",
-                            "testnet_mode": trader.testnet,
+                            "testnet_mode": trader.use_sandbox,
                             "close_reason": reason
                         }
                         
@@ -630,7 +628,7 @@ async def validate_position_size_config(config: PositionSizeConfig):
             }
             
         # Check if we're in mainnet mode and validate requirements
-        if not trader.testnet:  # Only validate in mainnet mode
+        if not trader.use_sandbox:  # Only validate in production mode
             # Get minimum requirements for common symbols
             symbols_to_check = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT']
             validation_errors = []
@@ -681,7 +679,7 @@ async def validate_position_size_config(config: PositionSizeConfig):
             "data": {
                 "wallet_balance": total_balance,
                 "calculated_position_size": calculated_size if config.mode == 'percentage' else config.fixed_amount_usd,
-                "testnet": trader.testnet
+                "use_sandbox": trader.use_sandbox
             }
         }
         
@@ -690,8 +688,8 @@ async def validate_position_size_config(config: PositionSizeConfig):
 
 
 @router.post("/test-connection")
-async def test_binance_connection():
-    """Test Binance API connection"""
+async def test_coinbase_connection():
+    """Test Coinbase API connection"""
     try:
         trader = initialize_global_trader()
         account_info = await trader.get_account_info()
@@ -702,7 +700,7 @@ async def test_binance_connection():
                 "data": {
                     "connected": False,
                     "error": account_info['error'],
-                    "testnet": trader.testnet
+                    "use_sandbox": trader.use_sandbox
                 }
             }
         else:
@@ -712,7 +710,7 @@ async def test_binance_connection():
                     "connected": True,
                     "account_type": account_info.get('account_type'),
                     "can_trade": account_info.get('can_trade'),
-                    "testnet": trader.testnet,
+                    "use_sandbox": trader.use_sandbox,
                     "total_balance": account_info.get('total_wallet_balance')
                 }
             }
@@ -804,9 +802,9 @@ async def emergency_stop(db: AsyncSession = Depends(get_db)):
 
 @router.get("/trade-history")
 async def get_real_trade_history(symbol: Optional[str] = None, limit: int = 100):
-    """Get real trading history from Binance API"""
+    """Get real trading history from Coinbase API"""
     try:
-        result = await get_binance_trade_history(symbol, limit)
+        result = await get_coinbase_trade_history(symbol, limit)
         
         if result['success']:
             return {
@@ -825,9 +823,9 @@ async def get_real_trade_history(symbol: Optional[str] = None, limit: int = 100)
 
 @router.get("/order-history")
 async def get_real_order_history(symbol: Optional[str] = None, limit: int = 100):
-    """Get real order history from Binance API"""
+    """Get real order history from Coinbase API"""
     try:
-        result = await get_binance_order_history(symbol, limit)
+        result = await get_coinbase_order_history(symbol, limit)
         
         if result['success']:
             return {
@@ -846,34 +844,34 @@ async def get_real_order_history(symbol: Optional[str] = None, limit: int = 100)
 
 @router.get("/wallet-balance")
 async def get_wallet_balance():
-    """Get wallet balance from Binance API"""
+    """Get wallet balance from Coinbase API"""
     try:
         # Debug logging
         trader = initialize_global_trader()
-        print(f"DEBUG: binance_trader.testnet = {trader.testnet}")
-        print(f"DEBUG: binance_trader.client = {trader.client}")
+        print(f"DEBUG: coinbase_trader.use_sandbox = {trader.use_sandbox}")
+        print(f"DEBUG: coinbase_trader.client = {trader.client}")
         
         account_info = await trader.get_account_info()
-        print(f"DEBUG: account_info testnet flag = {account_info.get('testnet', 'NOT_SET')}")
+        print(f"DEBUG: account_info sandbox flag = {account_info.get('use_sandbox', 'NOT_SET')}")
         
         if 'error' in account_info:
             # Check if it's an API key error
             error_msg = account_info['error']
-            if 'Invalid API-key' in error_msg or 'code=-2015' in error_msg:
+            if 'Invalid API-key' in error_msg or 'Unauthorized' in error_msg:
                 return {
                     "success": False,
-                    "error": "Binance API kulcsok érvénytelenek vagy nincs megfelelő jogosultság. Ellenőrizd a .env fájlban a BINANCE_API_KEY és BINANCE_API_SECRET értékeket.",
+                    "error": "Coinbase API kulcsok érvénytelenek vagy nincs megfelelő jogosultság. Ellenőrizd a .env fájlban a COINBASE_API_KEY és COINBASE_API_SECRET értékeket.",
                     "details": {
-                        "error_code": "-2015",
-                        "solution": "1. Ellenőrizd hogy a Binance API kulcsok helyesek-e\n2. Győződj meg róla hogy az IP cím engedélyezett a Binance fiókban\n3. Ellenőrizd hogy az API kulcsoknak van-e 'Spot & Margin Trading' jogosultsága",
-                        "testnet": trader.testnet
+                        "error_code": "Unauthorized",
+                        "solution": "1. Ellenőrizd hogy a Coinbase API kulcsok helyesek-e\n2. Győződj meg róla hogy az API kulcsoknak van-e 'Trade' jogosultsága\n3. Ellenőrizd hogy a passphrase helyes-e",
+                        "use_sandbox": trader.use_sandbox
                     }
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Binance API hiba: {error_msg}",
-                    "testnet": trader.testnet
+                    "error": f"Coinbase API hiba: {error_msg}",
+                    "use_sandbox": trader.use_sandbox
                 }
         
         # Calculate real balance with live prices
@@ -927,7 +925,7 @@ async def get_wallet_balance():
                 "balances": significant_balances,
                 "account_type": account_info.get('account_type'),
                 "can_trade": account_info.get('can_trade'),
-                "testnet": account_info.get('testnet', False)
+                "use_sandbox": account_info.get('use_sandbox', True)
             }
         }
         
@@ -935,88 +933,44 @@ async def get_wallet_balance():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class TradingEnvironmentRequest(BaseModel):
-    use_testnet: bool
-    use_futures: bool = False
-
-
-@router.post("/switch-environment")
-async def switch_trading_environment_endpoint(request: TradingEnvironmentRequest):
-    """
-    Switch between different trading environments
-    
-    Args:
-        use_testnet: True for testnet, False for mainnet
-        use_futures: True for Futures API, False for Spot API
-    """
-    try:
-        result = await switch_trading_environment(request.use_testnet, request.use_futures)
-        
-        return {
-            "success": True,
-            "data": result
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/environment")
-async def get_trading_environment():
-    """Get current trading environment information (testnet vs mainnet)"""
-    try:
-        environment_info = get_trading_environment_info()
-        
-        return {
-            "success": True,
-            "data": environment_info
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# Environment switching removed - Coinbase-only production mode
 
 
 @router.get("/minimum-requirements")
 async def get_minimum_trading_requirements():
-    """Get Binance minimum trading requirements for each symbol"""
+    """Get Coinbase minimum trading requirements for each symbol"""
     try:
-        # Binance minimum trading requirements (approximate values)
+        # Coinbase minimum trading requirements (approximate values)
         requirements = {
             "BTCUSDT": {
-                "min_notional": 10.0,
+                "min_notional": 1.0,
                 "min_qty": 0.00001,
                 "step_size": 0.00001,
-                "description": "Minimum $10 trade value"
+                "description": "Minimum $1 trade value"
             },
             "ETHUSDT": {
-                "min_notional": 10.0,
+                "min_notional": 1.0,
                 "min_qty": 0.0001,
                 "step_size": 0.0001,
-                "description": "Minimum $10 trade value"
-            },
-            "BNBUSDT": {
-                "min_notional": 10.0,
-                "min_qty": 0.001,
-                "step_size": 0.001,
-                "description": "Minimum $10 trade value"
+                "description": "Minimum $1 trade value"
             },
             "ADAUSDT": {
-                "min_notional": 5.0,
+                "min_notional": 1.0,
                 "min_qty": 0.1,
                 "step_size": 0.1,
-                "description": "Minimum $5 trade value"
+                "description": "Minimum $1 trade value"
             },
             "SOLUSDT": {
-                "min_notional": 10.0,
+                "min_notional": 1.0,
                 "min_qty": 0.001,
                 "step_size": 0.001,
-                "description": "Minimum $10 trade value"
+                "description": "Minimum $1 trade value"
             },
             "DOTUSDT": {
-                "min_notional": 10.0,
+                "min_notional": 1.0,
                 "min_qty": 0.01,
                 "step_size": 0.01,
-                "description": "Minimum $10 trade value"
+                "description": "Minimum $1 trade value"
             }
         }
         
@@ -1026,7 +980,7 @@ async def get_minimum_trading_requirements():
                 "requirements": requirements,
                 "current_position_size": initialize_global_trader().default_position_size_usd if initialize_global_trader().position_size_mode == 'fixed_usd' else None,
                 "current_wallet_balance": (await initialize_global_trader().get_account_info()).get('total_wallet_balance', 0),
-                "recommendation": "Use fixed position size of at least $15 USD to meet all minimum requirements"
+                "recommendation": "Use fixed position size of at least $2 USD to meet all minimum requirements"
             }
         }
         
@@ -1200,7 +1154,7 @@ class RefreshOrderRequest(BaseModel):
 
 @router.post("/refresh-order-status")
 async def refresh_order_status(request: RefreshOrderRequest):
-    """Refresh order status from Binance API and update database"""
+    """Refresh order status from Coinbase API and update database"""
     try:
         trader = initialize_global_trader()
         result = await trader.refresh_order_status(request.order_id, request.symbol)
@@ -1230,7 +1184,7 @@ async def refresh_all_pending_orders(db: AsyncSession = Depends(get_db)):
                     symbol = performance.signal.symbol
                     order_id = performance.main_order_id
                     
-                    # Refresh order status from Binance
+                    # Refresh order status from Coinbase
                     refresh_result = await trader.refresh_order_status(order_id, symbol)
                     
                     refresh_results.append({
@@ -1267,7 +1221,7 @@ async def refresh_all_pending_orders(db: AsyncSession = Depends(get_db)):
 
 @router.get("/order-status/{order_id}")
 async def get_order_status(order_id: str, symbol: str = Query(..., description="Trading symbol")):
-    """Get current order status from Binance API"""
+    """Get current order status from Coinbase API"""
     try:
         trader = initialize_global_trader()
         result = await trader.get_order_status(symbol, order_id)
@@ -1283,20 +1237,20 @@ async def get_order_status(order_id: str, symbol: str = Query(..., description="
 
 @router.get("/live-positions")
 async def get_live_positions():
-    """Get live positions from Binance API with stop loss and take profit prices"""
+    """Get live positions from Coinbase API with stop loss and take profit prices"""
     try:
         trader = initialize_global_trader()
         
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
         live_positions = []
         
-        if trader.use_futures:
-            # Get Futures positions from Binance
+        if hasattr(trader, 'use_advanced_trade') and trader.use_advanced_trade:
+            # Get Advanced Trade positions from Coinbase
             try:
                 positions = trader.client.futures_position_information()
                 
@@ -1319,10 +1273,10 @@ async def get_live_positions():
                                 price_cache[symbol] = float(pos.get('markPrice', 0))
                         
                         current_price = price_cache[symbol]
-                        # USE BINANCE CALCULATED P&L - this is always accurate
+                        # USE COINBASE CALCULATED P&L - this is always accurate
                         unrealized_pnl = float(pos.get('unRealizedProfit', 0))
                         
-                        # Calculate percentage based on Binance P&L for accuracy
+                        # Calculate percentage based on Coinbase P&L for accuracy
                         if abs(position_amt) > 0 and entry_price > 0:
                             position_value = abs(position_amt) * entry_price
                             pnl_percentage = (unrealized_pnl / position_value) * 100
@@ -1417,7 +1371,7 @@ async def get_live_positions():
                 "positions": live_positions,
                 "count": len(live_positions),
                 "account_type": "FUTURES" if trader.use_futures else "SPOT",
-                "testnet": trader.testnet
+                "use_sandbox": trader.use_sandbox
             }
         }
         
@@ -1427,14 +1381,14 @@ async def get_live_positions():
 
 @router.get("/live-positions/pnl-only")
 async def get_live_positions_pnl_only():
-    """Get only P&L data and exit prices for live positions with fresh Binance data"""
+    """Get only P&L data and exit prices for live positions with fresh Coinbase data"""
     try:
         trader = initialize_global_trader()
         
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
         pnl_updates = []
@@ -1491,10 +1445,10 @@ async def get_live_positions_pnl_only():
                     
                     # Use cached price or fallback to position mark price
                     current_price = price_map.get(symbol, float(pos.get('markPrice', 0)))
-                    # USE BINANCE CALCULATED P&L - this is always accurate
+                    # USE COINBASE CALCULATED P&L - this is always accurate
                     unrealized_pnl = float(pos.get('unRealizedProfit', 0))
                     
-                    # Calculate percentage based on Binance P&L for accuracy
+                    # Calculate percentage based on Coinbase P&L for accuracy
                     if abs(position_amt) > 0 and entry_price > 0:
                         position_value = abs(position_amt) * entry_price
                         pnl_percentage = (unrealized_pnl / position_value) * 100
@@ -1567,14 +1521,14 @@ async def get_live_positions_pnl_only():
 
 @router.get("/open-orders")
 async def get_open_orders(symbol: Optional[str] = Query(None, description="Filter by symbol")):
-    """Get all open orders from Binance API"""
+    """Get all open orders from Coinbase API"""
     try:
         trader = initialize_global_trader()
         
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
         all_orders = []
@@ -1656,7 +1610,7 @@ async def get_open_orders(symbol: Optional[str] = Query(None, description="Filte
                 "orders": all_orders,
                 "count": len(all_orders),
                 "account_type": "FUTURES" if trader.use_futures else "SPOT",
-                "testnet": trader.testnet
+                "use_sandbox": trader.use_sandbox
             }
         }
         
@@ -1673,13 +1627,13 @@ async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
-        if not trader.use_futures:
+        if not hasattr(trader, 'use_advanced_trade') or not trader.use_advanced_trade:
             return {
                 "success": False,
-                "error": "Position closing by symbol is only supported for Futures trading"
+                "error": "Position closing by symbol is only supported for Advanced Trade API"
             }
         
         # Get current position for the symbol
@@ -1798,7 +1752,7 @@ async def close_position_by_symbol(symbol: str, reason: str = "manual_close", db
                     "profit_loss": final_pnl,
                     "profit_percentage": final_pnl_percentage,
                     "result": "profit" if final_pnl > 0 else "loss" if final_pnl < 0 else "breakeven",
-                    "testnet_mode": trader.testnet,
+                    "testnet_mode": trader.use_sandbox,
                     "close_reason": reason
                 }
                 
@@ -1846,7 +1800,7 @@ async def debug_position_orders(symbol: str):
         if not trader.client:
             return {
                 "success": False,
-                "error": "Binance API client not initialized"
+                "error": "Coinbase API client not initialized"
             }
         
         debug_info = {

@@ -88,7 +88,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
   endDate: Date | null = null;
   selectedType: string | null = null;
   selectedResult: string | null = null;
-  testnetMode: string | null = null;
+  sandboxMode: string | null = null;
   
   // Statistics
   tradingStats: any = null;
@@ -106,7 +106,6 @@ export class HistoryComponent implements OnInit, OnDestroy {
   coinOptions: FilterOptions[] = [
     { label: 'BTC/USDT', value: 'BTCUSDT' },
     { label: 'ETH/USDT', value: 'ETHUSDT' },
-    { label: 'BNB/USDT', value: 'BNBUSDT' },
     { label: 'ADA/USDT', value: 'ADAUSDT' },
     { label: 'SOL/USDT', value: 'SOLUSDT' },
     { label: 'DOT/USDT', value: 'DOTUSDT' }
@@ -126,9 +125,9 @@ export class HistoryComponent implements OnInit, OnDestroy {
     { label: 'Breakeven', value: 'breakeven' }
   ];
 
-  testnetOptions: FilterOptions[] = [
-    { label: 'Testnet', value: 'true' },
-    { label: 'Mainnet', value: 'false' }
+  sandboxOptions: FilterOptions[] = [
+    { label: 'Sandbox', value: 'true' },
+    { label: 'Production', value: 'false' }
   ];
 
   constructor(
@@ -162,7 +161,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.endDate = null;
     this.selectedType = null;
     this.selectedResult = null;
-    this.testnetMode = null;
+    this.sandboxMode = null;
     this.loadTradeHistory();
   }
 
@@ -175,14 +174,14 @@ export class HistoryComponent implements OnInit, OnDestroy {
     
     const startDateStr = this.startDate ? this.startDate.toISOString().split('T')[0] : undefined;
     const endDateStr = this.endDate ? this.endDate.toISOString().split('T')[0] : undefined;
-    const testnetBool = this.testnetMode === 'true' ? true : this.testnetMode === 'false' ? false : undefined;
+    const sandboxBool = this.sandboxMode === 'true' ? true : this.sandboxMode === 'false' ? false : undefined;
 
     this.historyService.getTradingHistory(
       this.selectedCoin || undefined,
       startDateStr,
       endDateStr,
       this.selectedResult || undefined,
-      testnetBool,
+      sandboxBool,
       100
     )
     .pipe(take(1))
@@ -407,7 +406,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
       positionData.pnl_updates.forEach((update) => {
         const existingPosition = this.livePositions.find(pos => pos.symbol === update.symbol);
         if (existingPosition) {
-          // Update with real-time data from Binance via WebSocket
+          // Update with real-time data from Coinbase via WebSocket
           existingPosition.mark_price = update.mark_price;
           existingPosition.unrealized_pnl = update.unrealized_pnl;
           existingPosition.pnl_percentage = update.pnl_percentage;
@@ -502,8 +501,8 @@ export class HistoryComponent implements OnInit, OnDestroy {
     this.loadLivePositions();
   }
 
-  forceSyncWithBinance(): void {
-    // Force immediate sync with Binance by clearing any cache and refreshing
+  forceSyncWithCoinbase(): void {
+    // Force immediate sync with Coinbase by clearing any cache and refreshing
     this.loadingLivePositions = true;
     this.livePositionsError = null;
     
@@ -529,7 +528,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
             this.messageService.add({
               severity: 'success',
               summary: 'Szinkronizáció sikeres',
-              detail: `${pnlResponse.data.pnl_updates.length} pozíció frissítve a Binance adatokkal`,
+              detail: `${pnlResponse.data.pnl_updates.length} pozíció frissítve a Coinbase adatokkal`,
               life: 3000
             });
           }
@@ -542,7 +541,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
           this.messageService.add({
             severity: 'error',
             summary: 'Szinkronizációs hiba',
-            detail: 'Nem sikerült szinkronizálni a Binance-szel',
+            detail: 'Nem sikerült szinkronizálni a Coinbase-szel',
             life: 5000
           });
           console.error('Force sync error:', error);
@@ -767,12 +766,12 @@ export class HistoryComponent implements OnInit, OnDestroy {
     });
   }
 
-  clearAllHistory(testnetOnly: boolean = true): void {
-    const message = testnetOnly
-      ? 'Biztosan törölni szeretnéd az ÖSSZES testnet kereskedési előzményt? Ez a művelet visszafordíthatatlan!'
+  clearAllHistory(sandboxOnly: boolean = true): void {
+    const message = sandboxOnly
+      ? 'Biztosan törölni szeretnéd az ÖSSZES sandbox kereskedési előzményt? Ez a művelet visszafordíthatatlan!'
       : 'Biztosan törölni szeretnéd az ÖSSZES kereskedési előzményt? Ez a művelet visszafordíthatatlan!';
     
-    const header = testnetOnly ? 'Testnet előzmények törlése' : 'Összes előzmény törlése';
+    const header = sandboxOnly ? 'Sandbox előzmények törlése' : 'Összes előzmény törlése';
 
     this.confirmationService.confirm({
       message: message,
@@ -784,7 +783,7 @@ export class HistoryComponent implements OnInit, OnDestroy {
       accept: () => {
         this.loading = true;
         
-        this.historyService.clearAllHistory(testnetOnly)
+        this.historyService.clearAllHistory(sandboxOnly)
           .pipe(take(1))
           .subscribe({
             next: (response) => {

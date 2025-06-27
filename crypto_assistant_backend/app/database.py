@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 # Try to load dotenv if available
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    import os
+    # Load .env from project root (3 levels up from this file)
+    env_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+    load_dotenv(env_path)
 except ImportError:
     pass
 

@@ -50,8 +50,8 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
 
   private initializeWidget(): void {
     if (this.tradingViewContainer && (window as any).TradingView) {
-      // Convert symbol format (BTCUSDT -> BINANCE:BTCUSDT)
-      const formattedSymbol = `BINANCE:${this.symbol}`;
+      // Convert symbol format (BTCUSDT -> COINBASE:BTC-USD)
+      const formattedSymbol = `COINBASE:${this.symbol.replace('USDT', '-USD')}`;
       
       this.widget = new (window as any).TradingView.widget({
         autosize: true,

@@ -128,9 +128,15 @@ app/
 
 ## Környezeti változók (.env)
 ```
-# API kulcsok
-BINANCE_API_KEY=your_binance_api_key
-BINANCE_SECRET_KEY=your_binance_secret_key
+# Coinbase Advanced Trade API kulcsok
+COINBASE_API_KEY=your_coinbase_api_key
+COINBASE_API_SECRET=your_coinbase_api_secret
+
+# Coinbase API URL-ek
+COINBASE_REST_API_URL=https://api.coinbase.com
+COINBASE_WEBSOCKET_URL=wss://advanced-trade-ws.coinbase.com
+COINBASE_SANDBOX_REST_API_URL=https://api.sandbox.coinbase.com
+COINBASE_SANDBOX_WEBSOCKET_URL=wss://advanced-trade-ws.sandbox.coinbase.com
 
 # Adatbázis (opcionális)
 DATABASE_URL=postgresql://user:password@localhost/dbname
@@ -145,7 +151,9 @@ LOG_LEVEL=INFO
 ### Gyakori problémák
 1. **Import hibák**: Ellenőrizd, hogy a virtuális környezet aktív-e
 2. **Adatbázis kapcsolódási hiba**: Ellenőrizd a DATABASE_URL-t
-3. **API kulcs hibák**: Ellenőrizd a Binance API kulcsokat
+3. **API kulcs hibák**: Ellenőrizd a Coinbase Advanced Trade API kulcsokat
+   - Production API kulcs: https://www.coinbase.com/settings/api
+   - Sandbox: Csak programból használható (nincs közvetlen UI)
 
 ### Logok
 A szerver logjai a konzolon jelennek meg fejlesztői módban.

@@ -97,7 +97,7 @@ export class HistoryService {
     link.click();
     window.URL.revokeObjectURL(url);
   }
-  // New methods for real Binance data
+  // New methods for real Coinbase data
   getRealTradeHistory(symbol?: string, limit: number = 100): Observable<{success: boolean, data: {trades: any[], count: number}}> {
     let params = new URLSearchParams();
     params.append('limit', limit.toString());
@@ -124,7 +124,7 @@ export class HistoryService {
     return this.http.get<{success: boolean, data: {total_balance_usdt: number, balances: any[], account_type: string, can_trade: boolean, testnet: boolean}}>(`${this.apiUrl}/trading/wallet-balance`);
   }
 
-  exportBinanceTradesToCsv(data: any[]): void {
+  exportCoinbaseTradesToCsv(data: any[]): void {
     const headers = [
       'Timestamp', 'Symbol', 'Side', 'Price', 'Quantity', 'Commission',
       'Commission Asset', 'Trade ID', 'Order ID', 'Quote Qty'
@@ -150,7 +150,7 @@ export class HistoryService {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'binance-trade-history.csv';
+    link.download = 'coinbase-trade-history.csv';
     link.click();
     window.URL.revokeObjectURL(url);
   }

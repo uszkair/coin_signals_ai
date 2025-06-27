@@ -1,0 +1,6 @@
+organizations/76d0b517-4c5f-469d-a601-bbaf7175fa39/apiKeys/787f41e8-1d2f-4c25-bad4-053deb3bbeaf
+
+-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEINEytXd9N888mpIPiBiaPE3hHLleK4ZG2JnnCvTmut2ooAoGCCqGSM49\nAwEHoUQDQgAEXcqxqqYecqQIFoSjWmvTi/l4bPF+ZnL0PeU7In60HJBROlTJ2NU/\n6Xa9LrVR/bfRlqSvWbWPL395zvjVXdVL2w==\n-----END EC PRIVATE KEY-----\n
+
+
+Set-Location crypto_assistant_backend; python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

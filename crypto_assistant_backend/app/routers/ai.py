@@ -60,7 +60,7 @@ async def get_ai_insights(symbol: str):
 
 @router.get("/market-overview")
 async def get_market_overview(
-    symbols: List[str] = Query(["BTCUSDT", "ETHUSDT", "BNBUSDT"], description="List of symbols to analyze")
+    symbols: List[str] = Query(["BTCUSDT", "ETHUSDT", "ADAUSDT"], description="List of symbols to analyze")
 ):
     """Get AI market overview for multiple symbols"""
     try:

@@ -497,7 +497,8 @@ async def get_current_signal(symbol: str, interval: str):
     
     # Get user settings for stop loss and take profit calculation
     try:
-        db = next(get_db())
+        from app.database import get_sync_db
+        db = next(get_sync_db())
         settings_service = get_trading_settings_service(db)
         sl_tp_settings = settings_service.get_stop_loss_take_profit_settings()
         
