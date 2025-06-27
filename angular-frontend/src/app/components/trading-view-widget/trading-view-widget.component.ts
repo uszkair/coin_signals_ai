@@ -50,8 +50,8 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
 
   private initializeWidget(): void {
     if (this.tradingViewContainer && (window as any).TradingView) {
-      // Convert symbol format (BTCUSDT -> COINBASE:BTC-USD)
-      const formattedSymbol = `COINBASE:${this.symbol.replace('USDT', '-USD')}`;
+      // Convert symbol format with proper mapping for TradingView
+      const formattedSymbol = this.convertToTradingViewSymbol(this.symbol);
       
       this.widget = new (window as any).TradingView.widget({
         autosize: true,
@@ -80,6 +80,12 @@ export class TradingViewWidgetComponent implements OnInit, OnDestroy, OnChanges 
         ]
       });
     }
+  }
+
+  private convertToTradingViewSymbol(symbol: string): string {
+    // Use Binance for all symbols for consistency and reliability
+    // Binance has the most comprehensive USDT pairs on TradingView
+    return `BINANCE:${symbol}`;
   }
 
   // Update widget when inputs change

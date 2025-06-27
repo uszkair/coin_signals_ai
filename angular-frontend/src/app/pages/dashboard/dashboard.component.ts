@@ -103,7 +103,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { label: 'ETH/USDT', value: 'ETHUSDT' },
     { label: 'ADA/USDT', value: 'ADAUSDT' },
     { label: 'SOL/USDT', value: 'SOLUSDT' },
-    { label: 'DOT/USDT', value: 'DOTUSDT' }
+    { label: 'LINK/USDT', value: 'LINKUSDT' },
+    { label: 'AVAX/USDT', value: 'AVAXUSDT' }
   ];
 
   signalTypeOptions: FilterOption[] = [
