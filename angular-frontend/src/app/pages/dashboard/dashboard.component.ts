@@ -600,26 +600,48 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (error) => {
         this.loading = false;
         
-        // Enhanced error handling for API issues
-        let errorDetail = 'Nem sikerült végrehajtani a kereskedést: ' + error.message;
+        // Try to extract user-friendly error message from backend response
+        let errorDetail = 'Nem sikerült végrehajtani a kereskedést';
         
-        if (error.status === 500 && error.error?.detail?.includes('Invalid account')) {
-          errorDetail = 'API kulcs jogosultság hiba: Az API kulcs csak olvasási jogosultságokkal rendelkezik. Kereskedési jogosultság szükséges.';
+        // Check if backend returned a user-friendly error message
+        if (error.error && typeof error.error === 'string') {
+          // Backend returned a direct string error message (user-friendly Hungarian)
+          errorDetail = error.error;
+        } else if (error.error?.detail) {
+          // Backend returned error in detail field
+          errorDetail = error.error.detail;
+        } else if (error.error?.error) {
+          // Backend returned error in error field
+          errorDetail = error.error.error;
+        } else if (error.message) {
+          // Fallback to HTTP error message
+          errorDetail = 'Hálózati hiba: ' + error.message;
+        }
+        
+        // Special handling for specific error types
+        if (errorDetail.includes('Invalid account') || errorDetail.includes('-1109')) {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'API Jogosultság Hiba',
+            detail: 'Az API kulcs nem rendelkezik kereskedési jogosultságokkal. Új API kulcs szükséges "Enable Trading" engedéllyel.',
+            life: 15000
+          });
           
           this.messageService.add({
             severity: 'info',
-            summary: 'API Kulcs Frissítés Szükséges',
-            detail: 'Coinbase Sandbox → API Management → Enable Trading bekapcsolása',
+            summary: 'Megoldás',
+            detail: 'Coinbase Sandbox → API Management → Create API → Enable Trading jogosultság bekapcsolása',
             life: 20000
           });
+        } else {
+          // Show the user-friendly error message from backend
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Kereskedési Hiba',
+            detail: errorDetail,
+            life: 15000
+          });
         }
-        
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Kereskedési Hiba',
-          detail: errorDetail,
-          life: 15000
-        });
       }
     });
   }
@@ -656,10 +678,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
             }
           },
           error: (error) => {
+            // Try to extract user-friendly error message from backend response
+            let errorDetail = 'Nem sikerült végrehajtani a gyors kereskedést';
+            
+            if (error.error && typeof error.error === 'string') {
+              errorDetail = error.error;
+            } else if (error.error?.detail) {
+              errorDetail = error.error.detail;
+            } else if (error.error?.error) {
+              errorDetail = error.error.error;
+            } else if (error.message) {
+              errorDetail = 'Hálózati hiba: ' + error.message;
+            }
+            
             this.messageService.add({
               severity: 'error',
-              summary: 'Kereskedési Hiba',
-              detail: error.message,
+              summary: 'Gyors Kereskedési Hiba',
+              detail: errorDetail,
               life: 8000
             });
           }
