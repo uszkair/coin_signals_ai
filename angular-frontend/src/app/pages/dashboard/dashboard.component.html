@@ -127,8 +127,8 @@
                 <th style="width: 140px">Idő</th>
                 <th style="width: 100px">Symbol</th>
                 <th style="width: 80px">Jel</th>
-                <th style="width: 100px">Erősség</th>
                 <th style="width: 120px">Entry Price</th>
+                <th style="width: 120px">Confidence</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-signal let-rowIndex="rowIndex">
@@ -160,11 +160,13 @@
                     class="text-xs"
                   ></p-tag>
                 </td>
+                <td class="text-xs font-mono">${{ signal.entry_price | number:'1.2-6' }}</td>
                 <td>
-                  <div class="flex items-center justify-between">
+                  <div class="flex flex-col">
                     <span class="text-xs font-medium">{{ getConfidenceText(signal.confidence) }}</span>
-                    <div class="w-8 bg-gray-200 rounded-full h-1.5 ml-1">
-                      <div 
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ signal.confidence | number:'1.0-0' }}%</span>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                      <div
                         class="h-1.5 rounded-full transition-all duration-300"
                         [class]="getConfidenceBarClass(signal.confidence)"
                         [style.width.%]="signal.confidence"
@@ -172,7 +174,6 @@
                     </div>
                   </div>
                 </td>
-                <td class="text-xs font-mono">${{ signal.entry_price | number:'1.2-6' }}</td>
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
